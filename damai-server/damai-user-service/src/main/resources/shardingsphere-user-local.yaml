@@ -1,0 +1,184 @@
+dataSources:
+  ds_0:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: com.mysql.cj.jdbc.Driver
+    jdbcUrl: jdbc:mysql://192.168.206.130:3306/damai_user_0?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+  ds_1:
+    dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driverClassName: com.mysql.cj.jdbc.Driver
+    jdbcUrl: jdbc:mysql://192.168.206.130:3306/damai_user_1?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+
+rules:
+  - !SHARDING
+    # 分片规则配置
+    tables:
+      # 用户手机号表分片配置
+      d_user_mobile:
+        # 实际数据节点，使用表达式定义分布在两个数据源和两个表中
+        actualDataNodes: ds_${0..1}.d_user_mobile_${0..1}
+        # 数据库分片策略
+        databaseStrategy:
+          standard:
+            # 分片列：手机号
+            shardingColumn: mobile
+            # 分片算法名称：基于手机号的哈希取模算法
+            shardingAlgorithmName: databaseUserMobileHashModModel    
+        # 表分片策略
+        tableStrategy:
+          standard:
+            # 分片列：手机号
+            shardingColumn: mobile
+            # 分片算法名称：基于手机号的哈希取模算法
+            shardingAlgorithmName: tableUserMobileHashMod
+      # 用户邮箱表分片配置
+      d_user_email:
+        # 实际数据节点，使用表达式定义分布在两个数据源和两个表中
+        actualDataNodes: ds_${0..1}.d_user_email_${0..1}
+        # 数据库分片策略
+        databaseStrategy:
+          standard:
+            # 分片列：邮箱
+            shardingColumn: email
+            # 分片算法名称：基于邮箱的哈希取模算法
+            shardingAlgorithmName: databaseUserEmailHashModModel     
+        # 表分片策略
+        tableStrategy:
+          standard:
+            # 分片列：邮箱
+            shardingColumn: email
+            # 分片算法名称：基于邮箱的哈希取模算法
+            shardingAlgorithmName: tableUserEmailHashMod
+      # 用户表分片配置
+      d_user:
+        # 实际数据节点，使用表达式定义分布在两个数据源和两个表中
+        actualDataNodes: ds_${0..1}.d_user_${0..1}
+        # 数据库分片策略
+        databaseStrategy:
+          standard:
+            # 分片列：用户ID
+            shardingColumn: id
+            # 分片算法名称：基于用户ID的取模算法
+            shardingAlgorithmName: databaseUserModModel    
+        # 表分片策略
+        tableStrategy:
+          standard:
+            # 分片列：用户ID
+            shardingColumn: id
+            # 分片算法名称：基于用户ID的取模算法
+            shardingAlgorithmName: tableUserModModel
+      # 票务用户表分片配置
+      d_ticket_user:
+        # 实际数据节点，使用表达式定义分布在两个数据源和两个表中
+        actualDataNodes: ds_${0..1}.d_ticket_user_${0..1}
+        # 数据库分片策略
+        databaseStrategy:
+          standard:
+            # 分片列：用户ID
+            shardingColumn: user_id
+            # 分片算法名称：基于用户ID的取模算法
+            shardingAlgorithmName: databaseTicketUserModModel     
+        # 表分片策略
+        tableStrategy:
+          standard:
+            # 分片列：用户ID
+            shardingColumn: user_id
+            # 分片算法名称：基于用户ID的取模算法
+            shardingAlgorithmName: tableTicketUserModModel    
+    # 分片算法定义
+    shardingAlgorithms:
+      # 用户手机号数据库分片算法：哈希取模
+      databaseUserMobileHashModModel:
+        type: HASH_MOD
+        props:
+          sharding-count: 2
+      # 用户手机号表分片算法：哈希取模
+      tableUserMobileHashMod:
+        type: HASH_MOD
+        props:
+          sharding-count: 2
+      # 用户邮箱数据库分片算法：哈希取模
+      databaseUserEmailHashModModel:
+        type: HASH_MOD
+        props:
+          sharding-count: 2
+      # 用户邮箱表分片算法：哈希取模
+      tableUserEmailHashMod:
+        type: HASH_MOD
+        props:
+          sharding-count: 2
+      # 用户数据库分片算法：取模
+      databaseUserModModel:
+        type: MOD
+        props:
+          sharding-count: 2
+      # 用户表分片算法：取模
+      tableUserModModel:
+        type: MOD
+        props:
+          sharding-count: 2
+      # 票务用户数据库分片算法：取模
+      databaseTicketUserModModel:
+        type: MOD
+        props:
+          sharding-count: 2
+      # 票务用户表分片算法：取模
+      tableTicketUserModModel:
+        type: MOD
+        props:
+          sharding-count: 2    
+  - !ENCRYPT
+    # 加密规则配置
+    tables:
+      # 用户表加密配置
+      d_user:
+        columns:
+          # 手机号字段加密配置
+          mobile:
+            # 密文列名
+            cipherColumn: mobile
+            # 加密器名称
+            encryptorName: user_encryption_algorithm
+          # 密码字段加密配置
+          password:
+            # 密文列名
+            cipherColumn: password
+            # 加密器名称
+            encryptorName: user_encryption_algorithm
+          # 身份证号字段加密配置
+          id_number:
+            # 密文列名
+            cipherColumn: id_number
+            # 加密器名称
+            encryptorName: user_encryption_algorithm
+      # 用户手机号表加密配置
+      d_user_mobile:
+        columns:
+          # 手机号字段加密配置
+          mobile:
+            # 密文列名
+            cipherColumn: mobile
+            # 加密器名称
+            encryptorName: user_encryption_algorithm
+    # 加密器定义
+    encryptors:
+      # 用户数据加密算法配置
+      user_encryption_algorithm:
+        # 使用SM4国密算法
+        type: SM4
+        props:
+          # SM4密钥
+          sm4-key: d3ecdaa11d6ab89e1987870186073eaa
+          # 加密模式：CBC模式
+          sm4-mode: CBC
+          # 初始化向量
+          sm4-iv: 1afc7fdce9ebc393f693cd3d23e35ed2
+          # 填充方式：PKCS7填充
+          sm4-padding: PKCS7Padding
+# 属性配置
+props:
+  # 是否显示SQL
+  sql-show: true
