@@ -1,0 +1,4 @@
+# 支付宝回调地址
+orderPayNotifyUrl: http://tikectsystem-javaup.chat:6085/tikectsystem/order/order/alipay/notify
+# 支付成功页面
+orderPayReturnUrl: http://tikectsystem-javaup.chat/order/paySuccess

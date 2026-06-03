@@ -201,7 +201,7 @@ function getIsVaild() {
             border-right: 1px solid #eef1f3;
             height: 30px;
             line-height: 30px;
-            background: url(//assets.damai.cn/damai_v2/passport/images/right2.png) no-repeat;
+            background: url(//assets.tikectsystem.cn/tikectsystem_v2/passport/images/right2.png) no-repeat;
             padding-left: 55px;
             font-weight: 700;
             font-size: 18px;
@@ -213,7 +213,7 @@ function getIsVaild() {
             border-right: 1px solid #eef1f3;
             height: 30px;
             line-height: 30px;
-            background: url(//assets.damai.cn/damai_v2/passport/images/sec2.png) no-repeat;
+            background: url(//assets.tikectsystem.cn/tikectsystem_v2/passport/images/sec2.png) no-repeat;
             padding-left: 55px;
             font-weight: 700;
             font-size: 18px;

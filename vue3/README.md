@@ -1,7 +1,7 @@
 # barley
 
 #### 介绍
-damai
+tikectsystem
 
 #### 软件架构
 软件架构说明

@@ -7,14 +7,14 @@ import request from '@/utils/request'
  */
 export function getcategoryType(data) {
     return request({
-        url: '/damai/program/program/category/selectByType',
+        url: '/tikectsystem/program/program/category/selectByType',
         method: 'post',
         data: data
     })
 }
 export function getMainCategory(data) {
     return request({
-        url: '/damai/program/program/home/list',
+        url: '/tikectsystem/program/program/home/list',
         method: 'post',
         data: data
     })

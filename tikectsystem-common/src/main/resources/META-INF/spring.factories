@@ -1,0 +1,4 @@
+org.springframework.boot.env.EnvironmentPostProcessor=\
+  com.tikectsystem.environment.SpringEnvironment
+org.springframework.context.ApplicationContextInitializer=\
+  com.tikectsystem.core.SpringUtil

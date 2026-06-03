@@ -1,0 +1,79 @@
+spring:
+  cloud:
+    gateway:
+      enabled: true
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: ${prefix.distinction.name:tikectsystem}-base-data-service
+          uri: lb://${prefix.distinction.name:tikectsystem}-base-data-service
+          predicates:
+            - Path=/tikectsystem/basedata/**
+          filters:
+            - StripPrefix=2
+          metadata:
+            title: 基础数据服务
+
+        - id: ${prefix.distinction.name:tikectsystem}-customize-service
+          uri: lb://${prefix.distinction.name:tikectsystem}-customize-service
+          predicates:
+            - Path=/tikectsystem/customize/**
+          filters:
+            - StripPrefix=2
+          metadata:
+            title: 定制化服务
+
+        - id: ${prefix.distinction.name:tikectsystem}-job-service
+          uri: lb://${prefix.distinction.name:tikectsystem}-job-service
+          predicates:
+            - Path=/tikectsystem/job/**
+          filters:
+            - StripPrefix=2
+          metadata:
+            title: 任务执行服务
+
+        - id: ${prefix.distinction.name:tikectsystem}-order-service
+          uri: lb://${prefix.distinction.name:tikectsystem}-order-service
+          predicates:
+            - Path=/tikectsystem/order/**
+          filters:
+            - StripPrefix=2
+          metadata:
+            title: 订单服务
+
+        - id: ${prefix.distinction.name:tikectsystem}-pay-service
+          uri: lb://${prefix.distinction.name:tikectsystem}-pay-service
+          predicates:
+            - Path=/tikectsystem/pay/**
+          filters:
+            - StripPrefix=2
+          metadata:
+            title: 支付服务
+
+        - id: ${prefix.distinction.name:tikectsystem}-program-service
+          uri: lb://${prefix.distinction.name:tikectsystem}-program-service
+          predicates:
+            - Path=/tikectsystem/program/**
+          filters:
+            - StripPrefix=2
+          metadata:
+            title: 节目服务
+
+        - id: ${prefix.distinction.name:tikectsystem}-user-service
+          uri: lb://${prefix.distinction.name:tikectsystem}-user-service
+          predicates:
+            - Path=/tikectsystem/user/**
+          filters:
+            - StripPrefix=2
+          metadata:
+            title: 用户服务
+            
+        - id: ${prefix.distinction.name:tikectsystem}-admin-service
+          uri: lb://${prefix.distinction.name:tikectsystem}-admin-service
+          predicates:
+            - Path=/tikectsystem/admin/**
+          filters:
+            - StripPrefix=2
+          metadata:
+            title: 监听服务    

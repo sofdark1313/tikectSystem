@@ -3,7 +3,7 @@ import request from '@/utils/request'
 //获取当前城市
 export function getCurrentCity() {
     return request({
-        url: '/damai/basedata/area/current',
+        url: '/tikectsystem/basedata/area/current',
         method: 'post',
 
     })
@@ -12,7 +12,7 @@ export function getCurrentCity() {
 //获取热门城市
 export function getHotCity() {
     return request({
-        url: '/damai/basedata/area/hot',
+        url: '/tikectsystem/basedata/area/hot',
         method: 'post',
 
     })
@@ -21,7 +21,7 @@ export function getHotCity() {
 //获取其他城市
 export function getOtherCity() {
     return request({
-        url: '/damai/basedata/area/selectCityData',
+        url: '/tikectsystem/basedata/area/selectCityData',
         method: 'post',
 
     })
@@ -29,7 +29,7 @@ export function getOtherCity() {
 
 export function getCityInfo(data) {
     return request({
-        url: '/damai/basedata/area/getById',
+        url: '/tikectsystem/basedata/area/getById',
         method: 'post',
         data: data
     })

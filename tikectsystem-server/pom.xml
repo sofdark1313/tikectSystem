@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.example</groupId>
+        <artifactId>tikectsystem_pro</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+
+    <artifactId>tikectsystem-server</artifactId>
+    <packaging>pom</packaging>
+
+    <name>server</name>
+    <description>服务模块</description>
+
+    <modules>
+        <module>tikectsystem-order-service</module>
+        <module>tikectsystem-gateway-service</module>
+        <module>tikectsystem-base-data-service</module>
+        <module>tikectsystem-user-service</module>
+        <module>tikectsystem-admin-service</module>
+        <module>tikectsystem-customize-service</module>
+        <module>tikectsystem-program-service</module>
+        <module>tikectsystem-pay-service</module>
+        <module>tikectsystem-mybatis-plus-service</module>
+    </modules>
+</project>

@@ -6,7 +6,7 @@ import request from '@/utils/request'
  * */
 export function selectTicketUserListApi(params){
     return request({
-        url: '/damai/user/ticket/user/list',
+        url: '/tikectsystem/user/ticket/user/list',
         method: 'post',
         data: params
     })
@@ -18,7 +18,7 @@ export function selectTicketUserListApi(params){
  * */
 export function delTicketUserApi(params){
     return request({
-        url: '/damai/user/ticket/user/delete',
+        url: '/tikectsystem/user/ticket/user/delete',
         method: 'post',
         data: params
     })

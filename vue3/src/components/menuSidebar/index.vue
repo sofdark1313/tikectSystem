@@ -100,7 +100,7 @@ const props = defineProps({
 :deep(.el-sub-menu .el-menu-item:hover),
 :deep(.el-sub-menu .el-menu-item.is-active) {
   border-left: 2px solid rgba(255, 55, 29, 0.85);
-  background: #fafafa url(//assets.damai.cn/damai_v2/passport/images/i.png) no-repeat scroll 183px 13px;
+  background: #fafafa url(//assets.tikectsystem.cn/tikectsystem_v2/passport/images/i.png) no-repeat scroll 183px 13px;
   height: 32px;
   margin-left: -1px;
   position: relative;
@@ -110,7 +110,7 @@ const props = defineProps({
 }
 
 :deep(.el-menu .el-sub-menu .el-sub-menu__title) {
-  background: url(//assets.damai.cn/damai_v2/passport/images/side-h3.png) repeat-x;
+  background: url(//assets.tikectsystem.cn/tikectsystem_v2/passport/images/side-h3.png) repeat-x;
   //border-top: 1px solid #efefef;
   border-bottom: 1px solid #efefef;
   height: 30px;

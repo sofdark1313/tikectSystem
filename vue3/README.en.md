@@ -1,7 +1,7 @@
 # barley
 
 #### Description
-damai
+tikectsystem
 
 #### Software Architecture
 Software architecture description

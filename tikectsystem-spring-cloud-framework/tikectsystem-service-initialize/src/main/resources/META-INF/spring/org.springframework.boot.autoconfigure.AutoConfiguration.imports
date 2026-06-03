@@ -1,0 +1,2 @@
+com.tikectsystem.initialize.config.InitializeAutoConfig
+com.tikectsystem.initialize.impl.composite.CompositeAutoConfiguration

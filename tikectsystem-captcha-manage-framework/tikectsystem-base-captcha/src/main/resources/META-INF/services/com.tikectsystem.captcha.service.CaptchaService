@@ -1,0 +1,3 @@
+com.tikectsystem.captcha.service.impl.BlockPuzzleCaptchaServiceImpl
+com.tikectsystem.captcha.service.impl.ClickWordCaptchaServiceImpl
+com.tikectsystem.captcha.service.impl.DefaultCaptchaServiceImpl

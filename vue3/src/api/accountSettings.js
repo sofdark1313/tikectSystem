@@ -4,7 +4,7 @@ import request from '@/utils/request'
 //修改密码
 export function getEditPsd(data){
     return request({
-        url: '/damai/user/user/update/password',
+        url: '/tikectsystem/user/user/update/password',
         method: 'post',
         data:data
     })
@@ -12,7 +12,7 @@ export function getEditPsd(data){
 // 修改邮箱
 export function getEditEmail(data){
     return request({
-        url: '/damai/user/user/update/email',
+        url: '/tikectsystem/user/user/update/email',
         method: 'post',
         data:data
     })
@@ -20,7 +20,7 @@ export function getEditEmail(data){
 //修改手机号
 export function getEditMobile(data){
     return request({
-        url: '/damai/user/user/update/mobile',
+        url: '/tikectsystem/user/user/update/mobile',
         method: 'post',
         data:data
     })
@@ -28,7 +28,7 @@ export function getEditMobile(data){
 //实名认证
 export function getAuthentication(data){
     return request({
-        url: '/damai/user/user/authentication',
+        url: '/tikectsystem/user/user/authentication',
         method: 'post',
         data:data
     })

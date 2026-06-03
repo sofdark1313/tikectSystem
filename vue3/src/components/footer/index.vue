@@ -4,7 +4,7 @@
       <ul class="footer-links">
 <!--        <li v-for="item in footerList">{{ item }}<span class="line">|</span></li>-->
         <li ><a href="https://gitee.com/java-up-up" target="_blank">Gitee地址</a><span class="line">|</span></li>
-        <li ><a href="https://github.com/shining-stars-lk/damai" target="_blank">GitHub地址</a><span class="line">|</span></li>
+        <li ><a href="https://github.com/shining-stars-lk/tikectsystem" target="_blank">GitHub地址</a><span class="line">|</span></li>
         <li ><a href="https://javaup.chat" target="_blank">文档地址</a><span class="line">|</span></li>
       </ul>
 <!--      <div class="footer-ft">-->
@@ -32,7 +32,7 @@
         </div>
 <!--        <ul class="footer-details">-->
 <!--          <li><a href="https://beian.miit.gov.cn/" target="_blank">京ICP备2024068560号-1</a></li>-->
-<!--          <li>举报投诉邮箱：damai_tousu@member.alibaba.com</li>-->
+<!--          <li>举报投诉邮箱：tikectsystem_tousu@member.alibaba.com</li>-->
 <!--        </ul>-->
       </div>
     </div>

@@ -21,7 +21,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.example</groupId>
-	<artifactId>damai_pro</artifactId>
+	<artifactId>tikectsystem_pro</artifactId>
 	<version>${revision}</version>
 	<packaging>pom</packaging>
 
@@ -33,16 +33,16 @@
 	</description>
 
 	<modules>
-		<module>damai-common</module>
-		<module>damai-redis-tool-framework</module>
-		<module>damai-elasticsearch-framework</module>
-		<module>damai-id-generator-framework</module>
-		<module>damai-spring-cloud-framework</module>
-		<module>damai-thread-pool-framework</module>
-		<module>damai-redisson-framework</module>
-		<module>damai-server</module>
-		<module>damai-server-client</module>
-		<module>damai-captcha-manage-framework</module>
+		<module>tikectsystem-common</module>
+		<module>tikectsystem-redis-tool-framework</module>
+		<module>tikectsystem-elasticsearch-framework</module>
+		<module>tikectsystem-id-generator-framework</module>
+		<module>tikectsystem-spring-cloud-framework</module>
+		<module>tikectsystem-thread-pool-framework</module>
+		<module>tikectsystem-redisson-framework</module>
+		<module>tikectsystem-server</module>
+		<module>tikectsystem-server-client</module>
+		<module>tikectsystem-captcha-manage-framework</module>
 	</modules>
 
 	<properties>
@@ -126,7 +126,7 @@
 		</dependencies>
 	</dependencyManagement>
 
-	+<build>
+	<build>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

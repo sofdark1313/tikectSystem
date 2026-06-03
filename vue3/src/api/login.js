@@ -16,7 +16,7 @@ export function login(email, mobile, password, code) {
         code
     }
     return request({
-        url: '/damai/user/user/login',
+        url: '/tikectsystem/user/user/login',
         method: 'post',
         data: data
     })
@@ -34,7 +34,7 @@ export function login(email, mobile, password, code) {
          code
      }
      return request({
-         url: '/damai/user/user/logout',
+         url: '/tikectsystem/user/user/logout',
          method: 'post',
          data:data
      })
@@ -46,7 +46,7 @@ export function login(email, mobile, password, code) {
   */
  export function isCaptcha(){
      return request({
-         url: '/damai/user/user/captcha/check/need',
+         url: '/tikectsystem/user/user/captcha/check/need',
          method: 'post'
      })
  }
@@ -55,7 +55,7 @@ export function login(email, mobile, password, code) {
 
  export function register(data){
      return request({
-         url: '/damai/user/user/register',
+         url: '/tikectsystem/user/user/register',
          method: 'post',
          data:data
      })

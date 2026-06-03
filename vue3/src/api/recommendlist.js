@@ -6,7 +6,7 @@ import request from '@/utils/request'
  * */
 export function getProgramRecommendList(params){
     return request({
-        url: '/damai/program/program/recommend/list',
+        url: '/tikectsystem/program/program/recommend/list',
         method: 'post',
         data: params
     })

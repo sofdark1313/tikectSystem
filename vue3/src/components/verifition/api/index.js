@@ -9,7 +9,7 @@ import request from '@/utils/request'
 export function reqGet(data) {
     return  request({
         // url: '/captcha/get',
-        url:'/damai/user/user/captcha/get',
+        url:'/tikectsystem/user/user/captcha/get',
         method: 'post',
         data
     })
@@ -19,7 +19,7 @@ export function reqGet(data) {
 export function reqCheck(data) {
     return  request({
         // url: '/captcha/check',
-        url:'/damai/user/user/captcha/verify',
+        url:'/tikectsystem/user/user/captcha/verify',
         method: 'post',
         data
     })

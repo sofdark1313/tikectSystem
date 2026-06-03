@@ -39,7 +39,7 @@ request.interceptors.response.use(
     response => {
         // 在这里可以做一些统一的响应处理逻辑
         let url = response.config.url;
-        if ('/damai/user/user/logout' == url) {
+        if ('/tikectsystem/user/user/logout' == url) {
             return response.data;
         }
         const code = response.data.code
