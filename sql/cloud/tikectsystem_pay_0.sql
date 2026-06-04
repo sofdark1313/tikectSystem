@@ -1,6 +1,6 @@
 
 
-USE damai_pay_0;
+USE tikectsystem_pay_0;
 
 DROP TABLE IF EXISTS `d_pay_bill_0`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

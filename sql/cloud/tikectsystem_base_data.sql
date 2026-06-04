@@ -1,5 +1,5 @@
 
-USE damai_base_data;
+USE tikectsystem_base_data;
 
 DROP TABLE IF EXISTS `d_area`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

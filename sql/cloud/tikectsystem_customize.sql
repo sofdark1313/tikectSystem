@@ -1,6 +1,6 @@
 
 
-USE damai_customize;
+USE tikectsystem_customize;
 
 DROP TABLE IF EXISTS `d_api_data`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

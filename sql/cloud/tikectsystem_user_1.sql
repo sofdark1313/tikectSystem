@@ -1,5 +1,6 @@
 
-USE damai_user_0;
+
+USE tikectsystem_user_1;
 
 DROP TABLE IF EXISTS `d_ticket_user_0`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -236,5 +237,4 @@ LOCK TABLES `d_user_mobile_1` WRITE;
 /*!40000 ALTER TABLE `d_user_mobile_1` DISABLE KEYS */;
 /*!40000 ALTER TABLE `d_user_mobile_1` ENABLE KEYS */;
 UNLOCK TABLES;
-
 

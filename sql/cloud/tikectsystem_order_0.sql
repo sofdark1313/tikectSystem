@@ -1,5 +1,4 @@
-USE damai_order_1;
-
+USE tikectsystem_order_0;
 --
 -- Table structure for table `d_order_0`
 --
@@ -535,7 +534,6 @@ LOCK TABLES `d_order_ticket_user_record_3` WRITE;
 /*!40000 ALTER TABLE `d_order_ticket_user_record_3` DISABLE KEYS */;
 /*!40000 ALTER TABLE `d_order_ticket_user_record_3` ENABLE KEYS */;
 UNLOCK TABLES;
-
 
 DROP TABLE IF EXISTS `d_order_program_0`;
 CREATE TABLE `d_order_program_0` (
