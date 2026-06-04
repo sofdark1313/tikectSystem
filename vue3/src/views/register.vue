@@ -87,7 +87,7 @@ const router = useRouter();
 
 const code = ref('86')
 const select = ref('1')
-const agreeOpt = ref('我已阅读接受《大麦会员服务协议》《隐私权政策》《订票服务条款》并同意自动注册成为会员')
+const agreeOpt = ref('我已阅读接受《会员服务协议》《隐私权政策》《订票服务条款》并同意自动注册成为会员')
 const checkBox = ref(false)
 const chkStyle = ref({})
 const registerForm = ref({

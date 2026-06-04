@@ -3,7 +3,7 @@
 
     <el-row class="sidebar">
       <el-col :span="24">
-        <h5 class="mb-2">我的大麦</h5>
+        <h5 class="mb-2">我的票务</h5>
         <div class="menu_border">
           <el-menu
               :default-openeds="defaultOpened1"
