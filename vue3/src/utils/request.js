@@ -2,6 +2,7 @@ import axios from 'axios'
 import {jsrsasign,KJUR, hextob64} from "jsrsasign";
 import { getToken } from '@/utils/auth'
 import useUserStore from '@/store/modules/user'
+import {removeLegacyBrandFromData} from '@/utils/index'
 
 axios.defaults.headers['Content-Type'] = 'application/json;charset=utf-8'
 // 是否显示重新登录
@@ -59,7 +60,7 @@ request.interceptors.response.use(
             }
             return Promise.reject('无效的会话，或者会话已过期，请重新登录。')
         }else{
-            return response.data;
+            return removeLegacyBrandFromData(response.data);
         }
 
     },

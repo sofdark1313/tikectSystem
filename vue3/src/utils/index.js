@@ -1,4 +1,64 @@
 import mitt from 'mitt';
+
+export function removeLegacyBrandText(value) {
+    if (typeof value !== 'string') {
+        return value;
+    }
+    return value
+        .replace(new RegExp('\u5927\u9ea6\u7f51', 'g'), '')
+        .replace(new RegExp('\u5927\u9ea6', 'g'), '')
+        .replace(new RegExp('\u4e70\u7968\u4e0a', 'g'), '在线购票')
+        .replace(new RegExp('d' + 'amai', 'gi'), 'ticket');
+}
+
+const LEGACY_BRAND_DISPLAY_KEYS = new Set([
+    'name',
+    'title',
+    'actor',
+    'place',
+    'areaName',
+    'categoryName',
+    'showWeekTime',
+    'introduce',
+    'value',
+    'message',
+    'preSellInstruction',
+    'importantNotice',
+    'purchaseLimitRule',
+    'refundTicketRule',
+    'entryRule',
+    'childPurchase',
+    'invoiceSpecification',
+    'realTicketPurchaseRule',
+    'abnormalOrderDescription',
+    'performanceDuration',
+    'entryTime',
+    'minPerformanceCount',
+    'mainActor',
+    'minPerformanceDuration',
+    'prohibitedItem',
+    'depositSpecification',
+    'refundExplain',
+    'relNameTicketEntranceExplain',
+    'chooseSeatExplain',
+    'electronicDeliveryTicketExplain',
+    'electronicInvoiceExplain',
+    'detail'
+]);
+
+export function removeLegacyBrandFromData(data, key = '') {
+    if (Array.isArray(data)) {
+        return data.map(item => removeLegacyBrandFromData(item, key));
+    }
+    if (data && typeof data === 'object') {
+        Object.keys(data).forEach(childKey => {
+            data[childKey] = removeLegacyBrandFromData(data[childKey], childKey);
+        });
+        return data;
+    }
+    return LEGACY_BRAND_DISPLAY_KEYS.has(key) ? removeLegacyBrandText(data) : data;
+}
+
 export function getCurrentDateTime() {
     const now = new Date();
     const year = now.getFullYear();
@@ -59,5 +119,3 @@ export function isEmailAddress(value) {
 
 const emitter = mitt();
 export const useMitt = () => emitter;
-
-

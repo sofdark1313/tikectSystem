@@ -107,7 +107,8 @@
             </div>
             <div id="projectDetial">
               <div class="proDetial">活动介绍</div>
-              <img :src="detailList.detail" alt="">
+              <div v-if="isHtmlDetail" class="detail-html" v-html="detailList.detail"></div>
+              <img v-else-if="detailList.detail" :src="detailList.detail" alt="">
             </div>
             <div id="ticketNeed">
               <div class="proDetial">购票须知</div>
@@ -219,7 +220,7 @@ import Footer from '@/components/footer/index'
 import {formatDateWithWeekday } from '@/utils/index'
 import {useRoute, useRouter} from 'vue-router'
 import {getProgramDetials} from '@/api/contentDetail'
-import {ref} from 'vue'
+import {computed, ref} from 'vue'
 import {   useMitt } from "@/utils/index";
 import {getProgramRecommendList} from "@/api/recommendlist.js"
 const emitter = useMitt();
@@ -238,6 +239,7 @@ const watchNeedInfo = ref([])
 const num = ref(1)
 const countPrice = ref('')
 const allPrice = ref('')
+const isHtmlDetail = computed(() => typeof detailList.value.detail === 'string' && /<\/?[a-z][\s\S]*>/i.test(detailList.value.detail))
 //票档id
 const ticketCategoryId = ref('')
 //推荐节目列表入参
@@ -787,6 +789,21 @@ function getRecommendList(){
             height:100%;
             display: block;
             padding-bottom: 50px;
+          }
+
+          .detail-html {
+            width: 100%;
+            color: #333;
+            line-height: 1.8;
+            overflow: hidden;
+
+            :deep(img) {
+              max-width: 100%;
+              height: auto !important;
+              display: block;
+              margin: 0 auto 18px;
+            }
+
           }
         }
 

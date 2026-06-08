@@ -4,7 +4,7 @@
     <div class="main">
       <div class="login">
         <div class="main-left">
-          <img :src="bg" alt="">
+          <img :src="bg" alt="票务系统登录">
         </div>
         <div class="main-right">
           <el-tabs
@@ -66,15 +66,11 @@
 
     >
       <div class="wrapper">
-        <h2 class="tip-text">
-          {{
-            `扫码二维码关注后回复: 票务     获取体验账号`
-          }}
-        </h2>
+        <h2 class="tip-text">扫码关注后回复：票务，获取体验账号</h2>
         <img
             class="qrcode-image"
-            :src="wechatOfficialAccount"
-            alt="微信公众号"
+            :src="contactQrcode"
+            alt="体验账号二维码"
         />
         <div class="dialog-footer">
           <el-button class="experienceAccountConfirm" @click="stateOpen = false">确定</el-button>
@@ -85,7 +81,7 @@
 </template>
 
 <script setup>
-import wechatOfficialAccount from '@/assets/section/wechatOfficialAccount.jpg'
+import contactQrcode from '@/assets/section/contact-qrcode.png'
 import bg from '@/assets/section/javaup.jpg'
 import Header from '@/components/header/index'
 import Footer from '@/components/footer/index'
@@ -168,41 +164,49 @@ function getExperienceAccount(){
 <style scoped lang="scss">
 .app-container {
   width: 100%;
-  height: 100%;
-  position: absolute;
-  background: #ffffff;
+  min-height: 100%;
+  background: #f6f8fb;
 
 
   .main {
     width: 100%;
-    height: 600px;
-    background: linear-gradient(to right, #17073d, #17073d, #17073d);
+    min-height: 620px;
+    background: linear-gradient(135deg, #0f223f, #117667);
+    display: flex;
+    align-items: center;
 
     .login {
-      height: 600px;
+      height: 500px;
       margin: 0 auto;
       width: 1150px;
-      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 56px;
 
       .main-left {
-        float: left;
-        margin-top: 90px;
+        width: 680px;
 
         img {
-          width: 720px;
-          height: 400px;
+          width: 100%;
+          height: 420px;
+          display: block;
+          object-fit: cover;
+          border-radius: 8px;
+          box-shadow: 0 24px 60px rgba(0, 0, 0, .26);
         }
       }
 
       .main-right {
-        margin: 90px auto 10px;
-        padding: 0;
+        margin: 0;
+        padding: 10px 0 18px;
         overflow: hidden;
-        float: right;
         width: 350px;
-        min-height: 310px;
+        min-height: 338px;
         background: #fff;
         text-align: center;
+        border-radius: 8px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, .22);
       }
     }
 
@@ -329,8 +333,10 @@ function getExperienceAccount(){
 }
 
 .qrcode-image {
-  max-width: 100%;
-  margin: 20px 0; /* Add some space above and below the image */
+  width: 240px;
+  height: 240px;
+  object-fit: contain;
+  margin: 20px 0;
 }
 
 .dialog-footer {

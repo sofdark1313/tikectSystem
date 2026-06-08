@@ -2,9 +2,9 @@
   <Header @updateValue="handleUpdate"></Header>
   <div class="app-container">
     <!--    轮播图-->
-    <el-carousel :interval="5000" arrow="always" class="carousel-lamp">
+    <el-carousel :interval="5000" arrow="always" class="carousel-lamp" height="320px">
       <el-carousel-item v-for="item in picArr" :key="item">
-        <img :src="item" alt="">
+        <img :src="item" alt="票务活动推荐">
       </el-carousel-item>
     </el-carousel>
     <!--    中间各类型-->
@@ -25,9 +25,8 @@
           <span>{{ item.categoryName }}</span>
           <router-link :to="{ path: '/allType/index', query: {type:1,name:item.categoryName,id:item.categoryId} }" class="more">查看全部</router-link>
         </div>
-        <div class="box">
-          <div class="box-left"  >
-            {{item.programListVoList[0].itemPicture}}
+        <div class="box" v-if="item.programListVoList && item.programListVoList.length">
+          <div class="box-left">
             <router-link :to="{ name: 'detial', params: { id: item.programListVoList[0].id }}"><img :src="item.programListVoList[0].itemPicture" alt=""></router-link>
           </div>
 
@@ -56,8 +55,6 @@
 <script setup>
 import Header from '@/components/header/index'
 import swiperPic1 from '@/assets/section/javaup.png'
-import concert from '@/assets/section/concert.jpg'
-import small from '@/assets/section/small.jpg'
 import {onMounted, ref} from 'vue'
 import Footer from '@/components/footer/index'
 import {getcategoryType, getMainCategory} from '@/api/index'
@@ -117,12 +114,18 @@ function getMainCategoryList() {
 .app-container {
   width: 1200px;
   margin: 0 auto;
+  padding: 18px 0 32px;
 
   .carousel-lamp {
     width: 100%;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 14px 32px rgba(15, 34, 63, .12);
     img{
-      width: 1200px;
-      height: 300px;
+      width: 100%;
+      height: 320px;
+      display: block;
+      object-fit: cover;
     }
   }
 
@@ -131,6 +134,8 @@ function getMainCategoryList() {
     margin-top: 15px !important;
     padding: 22px 0 25px 0;
     border: 1px solid #EBEBEB;
+    border-radius: 8px;
+    background: #fff;
     zoom: 1;
 
     ul {
@@ -227,8 +232,10 @@ function getMainCategoryList() {
     position: relative;
     padding: 20px;
     border: 1px solid #EBEBEB;
+    border-radius: 8px;
     margin-top: 15px;
     display: flex;
+    background: #fff;
 
     .name {
       font-size: 24px;
@@ -371,5 +378,3 @@ function getMainCategoryList() {
 
 
 </style>
-
-

@@ -2,7 +2,7 @@
   <div class="app-header">
     <div class="header">
       <router-link to="/index" class="link">
-        <img :src="logo" alt="">
+        <img :src="logo" alt="票务系统">
       </router-link>
       <div class="localHeader" v-if="isShowHeader">
         <el-icon :size="16">
@@ -87,7 +87,7 @@
         </div>
         <div class="box-right">
           <img :src="document" alt="">
-          <span><a href="https://javaup.chat" target="_blank">文档</a></span>
+          <span><a href="https://javaup.chat" target="_blank">帮助</a></span>
         </div>
       </div>
     </div>
@@ -247,11 +247,16 @@ function getProgramSearchList() {
     height: 72px;
 
     .link {
+      display: block;
+      float: left;
+      width: 132px;
+      height: 72px;
       img {
-        float: left;
-        margin-top: 10px;
-        width: 108px;
-        height: 48px;
+        margin-top: 13px;
+        width: 132px;
+        height: 46px;
+        display: block;
+        object-fit: contain;
       }
     }
 
@@ -260,7 +265,7 @@ function getProgramSearchList() {
       height: 100%;
       float: left;
       position: relative;
-      margin-left: 54px;
+      margin-left: 40px;
       line-height: 72px;
       white-space: nowrap;
       cursor: pointer;
@@ -291,7 +296,7 @@ function getProgramSearchList() {
       height: 100%;
       float: left;
       margin-right: -20px;
-      margin-left: 40px;
+      margin-left: 34px;
       line-height: 72px;
       overflow: hidden;
 
@@ -325,7 +330,7 @@ function getProgramSearchList() {
       width: 32%;
       height: 46px;
       margin-top: 12px;
-      margin-left: 286px;
+      margin-left: 230px;
       line-height: 46px;
       float: left;
       position: relative;

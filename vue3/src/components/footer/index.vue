@@ -3,9 +3,9 @@
     <div class="footer-sec">
       <ul class="footer-links">
 <!--        <li v-for="item in footerList">{{ item }}<span class="line">|</span></li>-->
-        <li ><a href="https://gitee.com/java-up-up" target="_blank">Gitee地址</a><span class="line">|</span></li>
-        <li ><a href="https://github.com/shining-stars-lk/tikectsystem" target="_blank">GitHub地址</a><span class="line">|</span></li>
-        <li ><a href="https://javaup.chat" target="_blank">文档地址</a><span class="line">|</span></li>
+        <li>帮助中心<span class="line">|</span></li>
+        <li>购票须知<span class="line">|</span></li>
+        <li>客服支持<span class="line">|</span></li>
       </ul>
 <!--      <div class="footer-ft">-->
 <!--        <router-link to="/index" class="link">-->
@@ -40,8 +40,6 @@
 </template>
 
 <script setup>
-import logo2 from '@/assets/login/logo2.png'
-import code from '@/assets/login/code.png'
 import {ref} from "vue";
 const footerList = ref(
     [
@@ -55,7 +53,7 @@ const footerList = ref(
   background-color: #f8f8f8;
   width: 100%;
   //height: 298px;
- height: 150px;
+  height: 150px;
   //position: fixed;
 
   .footer-sec {
