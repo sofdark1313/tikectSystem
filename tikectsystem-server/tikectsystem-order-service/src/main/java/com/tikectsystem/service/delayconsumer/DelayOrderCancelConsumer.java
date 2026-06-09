@@ -49,7 +49,13 @@ public class DelayOrderCancelConsumer implements ConsumerTask {
             log.error("延迟队列消息不存在");
             return;
         }
-        DelayOrderCancelMessageModule delayOrderCancelMessageModule = JSON.parseObject(content, DelayOrderCancelMessageModule.class);
+        DelayOrderCancelMessageModule delayOrderCancelMessageModule;
+        try {
+            delayOrderCancelMessageModule = JSON.parseObject(content, DelayOrderCancelMessageModule.class);
+        } catch (Exception e) {
+            log.error("寤惰繜闃熷垪娑堟伅瑙ｆ瀽澶辫触 content : {}", content, e);
+            return;
+        }
         if (delayOrderCancelMessageModule == null) {
             log.error("延迟队列消息格式错误 content : {}", content);
             return;

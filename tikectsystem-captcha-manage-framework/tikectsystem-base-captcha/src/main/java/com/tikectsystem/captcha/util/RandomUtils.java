@@ -6,7 +6,7 @@
  */
 package com.tikectsystem.captcha.util;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -62,11 +62,7 @@ public class RandomUtils {
         b[0] = (Integer.valueOf(highCode)).byteValue();
         b[1] = (Integer.valueOf(lowCode)).byteValue();
 
-        try {
-            str = new String(b, "GBK");
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
+        str = new String(b, Charset.forName("GBK"));
         return str;
     }
 

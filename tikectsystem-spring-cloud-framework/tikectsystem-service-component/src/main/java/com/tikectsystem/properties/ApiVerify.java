@@ -4,9 +4,10 @@ import com.tikectsystem.enums.BaseCode;
 import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.util.StringUtil;
 import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.util.Optional;
+import java.util.Objects;
 
 /**
  * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
@@ -15,7 +16,7 @@ import java.util.Optional;
  **/
 public class ApiVerify {
     
-    private final String apiPassword = "api_password";
+    private static final String API_PASSWORD = "api_password";
     
     private final BackManageProperties backManageProperties;
     
@@ -24,17 +25,22 @@ public class ApiVerify {
     }
     
     public void verifyApi() {
-        if (backManageProperties.getApiPasswordCall()) {
-            String password = Optional.ofNullable(RequestContextHolder.getRequestAttributes())
-                    .map(requestAttributes -> ((ServletRequestAttributes) requestAttributes).getRequest())
-                    .map(request -> request.getHeader(apiPassword))
-                    .orElseGet(() -> null);
+        if (Boolean.TRUE.equals(backManageProperties.getApiPasswordCall())) {
+            String password = getApiPasswordHeader();
             if (StringUtil.isEmpty(password)) {
                 throw new TikectsystemFrameException(BaseCode.API_CALL_NEED_PASSWORD);
             }
-            if (!password.equals(backManageProperties.getApiPassword())) {
+            if (!Objects.equals(password, backManageProperties.getApiPassword())) {
                 throw new TikectsystemFrameException(BaseCode.API_CALL_PASSWORD_ERROR);
             }
         }
+    }
+
+    private String getApiPasswordHeader() {
+        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+        if (requestAttributes instanceof ServletRequestAttributes servletRequestAttributes) {
+            return servletRequestAttributes.getRequest().getHeader(API_PASSWORD);
+        }
+        return null;
     }
 }

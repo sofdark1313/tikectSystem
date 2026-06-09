@@ -111,6 +111,10 @@ public class ProgramRecordHandler {
         }
         for (final Entry<String, ?> entry : map.entrySet()) {
             String[] split = SplitUtil.toSplit(entry.getKey());
+            if (split.length < 3) {
+                log.warn("program record key format error, key : {}", entry.getKey());
+                continue;
+            }
             keyList.add(split[1] + GLIDE_LINE + split[2]);
         }
     }

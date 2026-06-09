@@ -27,7 +27,6 @@ import com.tikectsystem.vo.ProgramVo;
 import com.tikectsystem.vo.TicketUserVo;
 import com.tikectsystem.vo.UserLoginVo;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -146,6 +145,11 @@ public class PresentationOrderDataTask {
             //获取第一个票档id
             ProgramOrderCreateDto programOrderCreateDto = getProgramOrderCreateDto(programVo, userLoginVo,
                     ticketUserVoList);
+            if (programOrderCreateDto == null) {
+                log.error("simulation build order param fail, programVo:{}, userLoginVo:{}, ticketUserVoList:{}",
+                        JSON.toJSONString(programVo), JSON.toJSONString(userLoginVo), JSON.toJSONString(ticketUserVoList));
+                return;
+            }
             String orderNumber = createProgramOrder(programOrderCreateDto);
             if (StringUtil.isEmpty(orderNumber)) {
                 log.error("模拟创建订单失败 programOrderCreateDto:{}",JSON.toJSONString(programOrderCreateDto));
@@ -157,9 +161,12 @@ public class PresentationOrderDataTask {
         }
     }
     
-    @NotNull
     private static ProgramOrderCreateDto getProgramOrderCreateDto(ProgramVo programVo, UserLoginVo userLoginVo, 
-                                                                  List<TicketUserVo> ticketUserVoList) {
+                                                                   List<TicketUserVo> ticketUserVoList) {
+        if (programVo == null || userLoginVo == null || CollectionUtil.isEmpty(programVo.getTicketCategoryVoList()) ||
+                CollectionUtil.isEmpty(ticketUserVoList)) {
+            return null;
+        }
         Long ticketCategoryId = programVo.getTicketCategoryVoList().get(0).getId();
         //创建订单
         ProgramOrderCreateDto programOrderCreateDto = new ProgramOrderCreateDto();
@@ -179,7 +186,7 @@ public class PresentationOrderDataTask {
                 .body(JSON.toJSONString(userLoginDto))
                 .execute().body();
         UserLoginResultModule userLoginResultModule = JSON.parseObject(result, UserLoginResultModule.class);
-        if (!Objects.equals(userLoginResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
+        if (userLoginResultModule == null || !Objects.equals(userLoginResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
             return null;
         }
         return userLoginResultModule.getData();
@@ -191,7 +198,7 @@ public class PresentationOrderDataTask {
                 .body(JSON.toJSONString(ticketUserListDto))
                 .execute().body();
         TickerUserListResultModule tickerUserListResultModule = JSON.parseObject(result, TickerUserListResultModule.class);
-        if (!Objects.equals(tickerUserListResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
+        if (tickerUserListResultModule == null || !Objects.equals(tickerUserListResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
             return null;
         }
         return tickerUserListResultModule.getData();
@@ -203,7 +210,7 @@ public class PresentationOrderDataTask {
                 .body(JSON.toJSONString(programGetDto))
                 .execute().body();
         ProgramDetailResultModule programDetailResultModule = JSON.parseObject(result, ProgramDetailResultModule.class);
-        if (!Objects.equals(programDetailResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
+        if (programDetailResultModule == null || !Objects.equals(programDetailResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
             return null;
         }
         return programDetailResultModule.getData();
@@ -215,7 +222,7 @@ public class PresentationOrderDataTask {
                 .body(JSON.toJSONString(programOrderCreateDto))
                 .execute().body();
         CreateProgramOrderResultModule createProgramOrderResultModule = JSON.parseObject(result, CreateProgramOrderResultModule.class);
-        if (!Objects.equals(createProgramOrderResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
+        if (createProgramOrderResultModule == null || !Objects.equals(createProgramOrderResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
             return null;
         }
         return createProgramOrderResultModule.getData();

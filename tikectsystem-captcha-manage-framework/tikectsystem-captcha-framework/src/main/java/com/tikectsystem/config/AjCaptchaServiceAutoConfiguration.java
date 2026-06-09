@@ -31,7 +31,7 @@ import java.util.Properties;
 @Configuration
 public class AjCaptchaServiceAutoConfiguration {
 
-    private static Logger logger = LoggerFactory.getLogger(AjCaptchaServiceAutoConfiguration.class);
+    private static final Logger logger = LoggerFactory.getLogger(AjCaptchaServiceAutoConfiguration.class);
 
     @Bean
     @ConditionalOnMissingBean
@@ -93,7 +93,7 @@ public class AjCaptchaServiceAutoConfiguration {
                 imgMap.put(filename, string);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("load captcha resource images failed, path:{}", path, e);
         }
         return imgMap;
     }

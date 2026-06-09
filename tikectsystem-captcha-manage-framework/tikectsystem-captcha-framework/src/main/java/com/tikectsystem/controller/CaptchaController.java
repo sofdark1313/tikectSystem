@@ -33,7 +33,6 @@ public class CaptchaController {
 
     @PostMapping("/get")
     public ResponseModel get(@RequestBody CaptchaVO data, HttpServletRequest request) {
-        assert request.getRemoteHost()!=null;
         data.setBrowserInfo(getRemoteId(request));
         return captchaService.get(data);
     }
@@ -46,9 +45,13 @@ public class CaptchaController {
     
 
     public static String getRemoteId(HttpServletRequest request) {
+        if (request == null) {
+            return "";
+        }
         String xForward = request.getHeader("X-Forwarded-For");
         String ip = getRemoteIpFromXfwd(xForward);
-        String ua = request.getHeader("user-agent");
+        String userAgent = request.getHeader("user-agent");
+        String ua = userAgent == null ? "" : userAgent;
         if (StringUtils.isNotBlank(ip)) {
             return ip + ua;
         }

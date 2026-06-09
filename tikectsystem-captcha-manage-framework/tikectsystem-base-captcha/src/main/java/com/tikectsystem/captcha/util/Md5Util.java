@@ -1,5 +1,9 @@
 package com.tikectsystem.captcha.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
 
@@ -9,15 +13,20 @@ import java.security.MessageDigest;
  * @author: 阿星不是程序员
  **/
 public class Md5Util {
+    private static final Logger logger = LoggerFactory.getLogger(Md5Util.class);
+
     /**
      * 获取指定字符串的md5值
      * @param dataStr 明文
      * @return String
      */
     public static String md5(String dataStr) {
+        if (dataStr == null) {
+            return "";
+        }
         try {
             MessageDigest m = MessageDigest.getInstance("MD5");
-            m.update(dataStr.getBytes("UTF8"));
+            m.update(dataStr.getBytes(StandardCharsets.UTF_8));
             byte[] s = m.digest();
             StringBuilder result = new StringBuilder();
             for (int i = 0; i < s.length; i++) {
@@ -25,7 +34,7 @@ public class Md5Util {
             }
             return result.toString();
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("md5 encrypt error", e);
         }
         return "";
     }

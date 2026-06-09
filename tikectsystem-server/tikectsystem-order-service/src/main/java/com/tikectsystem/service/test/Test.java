@@ -18,7 +18,21 @@ public class Test implements ConsumerTask {
     
     @Override
     public void execute(String content) {
-        TestSendDto testSendDto = JSON.parseObject(content, TestSendDto.class);
+        if (content == null) {
+            log.error("test message is null");
+            return;
+        }
+        TestSendDto testSendDto;
+        try {
+            testSendDto = JSON.parseObject(content, TestSendDto.class);
+        } catch (Exception e) {
+            log.error("test message parse error, content : {}", content, e);
+            return;
+        }
+        if (testSendDto == null || testSendDto.getTime() == null) {
+            log.error("test message data invalid, content : {}", content);
+            return;
+        }
         log.info("收到消息 : {} 延时: {} 毫秒" ,content,System.currentTimeMillis() - testSendDto.getTime() - 5000);
     }
     

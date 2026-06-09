@@ -78,7 +78,10 @@ public class DelayConsumerQueue extends DelayBaseQueue{
             listenStartThreadPool.execute(() -> {
                 while (!Thread.interrupted()) {
                     try {
-                        assert blockingQueue != null;
+                        if (Objects.isNull(blockingQueue)) {
+                            log.error("delay blocking queue is null, listen stop");
+                            return;
+                        }
                         String content = blockingQueue.take();
                         executeTaskThreadPool.execute(() -> {
                             try {

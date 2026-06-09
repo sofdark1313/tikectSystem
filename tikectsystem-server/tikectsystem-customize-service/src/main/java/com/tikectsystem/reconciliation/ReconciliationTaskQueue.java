@@ -61,11 +61,15 @@ public class ReconciliationTaskQueue {
      * 业务方调用：放任务进队列
      */
     public void putTask(ReconciliationTask task) {
+        if (task == null) {
+            log.warn("reconciliation task is null");
+            return;
+        }
         try {
             QUEUE.put(task);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("放入任务失败", e);
+            throw new IllegalStateException("put reconciliation task failed", e);
         }
     }
 

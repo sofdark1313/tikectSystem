@@ -3,6 +3,7 @@ package com.tikectsystem.config;
 import cn.hutool.core.date.DateTime;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.BeanDescription;
+import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.SerializerProvider;
@@ -20,11 +21,33 @@ import java.util.Set;
  **/
 public class JsonCustomSerializer extends BeanSerializerModifier {
 
+	private static final JsonSerializer<Object> EMPTY_STRING_NULL_SERIALIZER = new JsonSerializer<Object>() {
+		@Override
+		public void serialize(Object value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+			gen.writeString("");
+		}
+	};
+
+	private static final JsonSerializer<Object> FALSE_NULL_SERIALIZER = new JsonSerializer<Object>() {
+		@Override
+		public void serialize(Object value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+			gen.writeBoolean(false);
+		}
+	};
+
+	private static final JsonSerializer<Object> EMPTY_ARRAY_NULL_SERIALIZER = new JsonSerializer<Object>() {
+		@Override
+		public void serialize(Object value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+			gen.writeStartArray();
+			gen.writeEndArray();
+		}
+	};
+
 	@Override
 	public List<BeanPropertyWriter> changeProperties(SerializationConfig config, BeanDescription beanDesc,
 			List<BeanPropertyWriter> beanProperties) {
 		for (BeanPropertyWriter writer : beanProperties) {
-			com.fasterxml.jackson.databind.JsonSerializer<Object> js = judgeType(writer);
+			JsonSerializer<Object> js = judgeType(writer);
 			if (js != null) {
 				writer.assignNullSerializer(js);
 			}
@@ -32,63 +55,26 @@ public class JsonCustomSerializer extends BeanSerializerModifier {
 		return beanProperties;
 	}
 
-	public com.fasterxml.jackson.databind.JsonSerializer<Object> judgeType(BeanPropertyWriter writer) {
+	public JsonSerializer<Object> judgeType(BeanPropertyWriter writer) {
 		JavaType javaType = writer.getType();
 		Class<?> clazz = javaType.getRawClass();
 		if (String.class.isAssignableFrom(clazz)) {
-			return new com.fasterxml.jackson.databind.JsonSerializer<Object>() {
-				@Override
-				public void serialize(Object value, JsonGenerator gen, SerializerProvider serializers)
-						throws IOException {
-					gen.writeString("");
-				}
-			};
+			return EMPTY_STRING_NULL_SERIALIZER;
 		}
 		if (Number.class.isAssignableFrom(clazz)) {
-			return new com.fasterxml.jackson.databind.JsonSerializer<Object>() {
-				@Override
-				public void serialize(Object value, JsonGenerator gen, SerializerProvider serializers)
-						throws IOException {
-					gen.writeString("");
-				}
-			};
+			return EMPTY_STRING_NULL_SERIALIZER;
 		}
 		if (Boolean.class.isAssignableFrom(clazz)) {
-			return new com.fasterxml.jackson.databind.JsonSerializer<Object>() {
-				@Override
-				public void serialize(Object value, JsonGenerator gen, SerializerProvider serializers)
-						throws IOException {
-					gen.writeBoolean(false);
-				}
-			};
+			return FALSE_NULL_SERIALIZER;
 		}
 		if (java.util.Date.class.isAssignableFrom(clazz)) {
-			return new com.fasterxml.jackson.databind.JsonSerializer<Object>() {
-				@Override
-				public void serialize(Object value, JsonGenerator gen, SerializerProvider serializers)
-						throws IOException {
-					gen.writeString("");
-				}
-			};
+			return EMPTY_STRING_NULL_SERIALIZER;
 		}
 		if (clazz.equals(DateTime.class)) {
-			return new com.fasterxml.jackson.databind.JsonSerializer<Object>() {
-				@Override
-				public void serialize(Object value, JsonGenerator gen, SerializerProvider serializers)
-						throws IOException {
-					gen.writeString("");
-				}
-			};
+			return EMPTY_STRING_NULL_SERIALIZER;
 		}
-		if (clazz.isArray() || clazz.equals(List.class) || clazz.equals(Set.class)) {
-			return new com.fasterxml.jackson.databind.JsonSerializer<Object>() {
-				@Override
-				public void serialize(Object value, JsonGenerator gen, SerializerProvider serializers)
-						throws IOException {
-					gen.writeStartArray();
-					gen.writeEndArray();
-				}
-			};
+		if (clazz.isArray() || List.class.isAssignableFrom(clazz) || Set.class.isAssignableFrom(clazz)) {
+			return EMPTY_ARRAY_NULL_SERIALIZER;
 		}
 		return null;
 	}

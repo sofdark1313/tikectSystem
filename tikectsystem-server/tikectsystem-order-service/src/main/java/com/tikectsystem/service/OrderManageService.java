@@ -38,7 +38,7 @@ import com.tikectsystem.vo.OrderTicketUserManageVo;
 import com.tikectsystem.vo.RecordOrderManageVo;
 import com.tikectsystem.vo.RecordOrderTickerUserManageVo;
 import com.tikectsystem.vo.TicketCategoryVo;
-import groovy.util.logging.Slf4j;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -133,7 +133,13 @@ public class OrderManageService {
                 boolean redisRecordFlag = true;
                 String redisProgramRecordStr = redisProgramRecordMap.get(orderTicketUserRecord.getRecordTypeValue() + GLIDE_LINE + orderTicketUserRecord.getIdentifierId() + GLIDE_LINE + orderTicketUserRecord.getUserId());
                 if (StringUtil.isNotEmpty(redisProgramRecordStr)) {
-                    ProgramRecord redisProgramRecord = JSON.parseObject(redisProgramRecordStr, ProgramRecord.class);
+                    ProgramRecord redisProgramRecord;
+                    try {
+                        redisProgramRecord = JSON.parseObject(redisProgramRecordStr, ProgramRecord.class);
+                    } catch (Exception e) {
+                        log.warn("redis program record parse error, redisProgramRecordStr : {}", redisProgramRecordStr, e);
+                        redisProgramRecord = null;
+                    }
                     SeatRecord redisSeatRecord = getSeatRecord(redisProgramRecord, orderTicketUserRecord);
                     if (Objects.nonNull(redisSeatRecord)) {
                         recordOrderTickerUserManageVo.setRedisRecordTypeName(RecordType.getMsgByValue(redisProgramRecord.getRecordType()));
@@ -153,12 +159,20 @@ public class OrderManageService {
     
     
     public SeatRecord getSeatRecord(ProgramRecord programRecord,OrderTicketUserRecord orderTicketUserRecord){
-        Map<Long, TicketCategoryRecord> redisTicketCategoryRecordMap = programRecord.getTicketCategoryRecordList().stream().collect(Collectors.toMap(TicketCategoryRecord::getTicketCategoryId, v -> v, (v1, v2) -> v2));
-        TicketCategoryRecord redisTicketCategoryRecord = redisTicketCategoryRecordMap.get(orderTicketUserRecord.getTicketCategoryId());
-        if (Objects.isNull(redisTicketCategoryRecord)) {
+        if (programRecord == null || orderTicketUserRecord == null ||
+                CollectionUtil.isEmpty(programRecord.getTicketCategoryRecordList())) {
             return null;
         }
-        Map<Long, SeatRecord> redisSeatRecordMap = redisTicketCategoryRecord.getSeatRecordList().stream().collect(Collectors.toMap(SeatRecord::getSeatId, v -> v, (v1, v2) -> v2));
+        Map<Long, TicketCategoryRecord> redisTicketCategoryRecordMap = programRecord.getTicketCategoryRecordList().stream()
+                .filter(ticketCategoryRecord -> ticketCategoryRecord != null && ticketCategoryRecord.getTicketCategoryId() != null)
+                .collect(Collectors.toMap(TicketCategoryRecord::getTicketCategoryId, v -> v, (v1, v2) -> v2));
+        TicketCategoryRecord redisTicketCategoryRecord = redisTicketCategoryRecordMap.get(orderTicketUserRecord.getTicketCategoryId());
+        if (Objects.isNull(redisTicketCategoryRecord) || CollectionUtil.isEmpty(redisTicketCategoryRecord.getSeatRecordList())) {
+            return null;
+        }
+        Map<Long, SeatRecord> redisSeatRecordMap = redisTicketCategoryRecord.getSeatRecordList().stream()
+                .filter(seatRecord -> seatRecord != null && seatRecord.getSeatId() != null)
+                .collect(Collectors.toMap(SeatRecord::getSeatId, v -> v, (v1, v2) -> v2));
         SeatRecord redisSeatRecord = redisSeatRecordMap.get(orderTicketUserRecord.getSeatId());
         if (Objects.isNull(redisSeatRecord)) {
             return null;

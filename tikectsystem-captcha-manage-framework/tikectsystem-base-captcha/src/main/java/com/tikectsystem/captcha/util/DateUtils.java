@@ -17,7 +17,7 @@ import java.util.List;
  **/
 public class DateUtils {
 
-    private static final Logger logger = LoggerFactory.getLogger(CacheUtil.class);
+    private static final Logger logger = LoggerFactory.getLogger(DateUtils.class);
 
     public static final String DATE_FORMAT = "yyyy-MM-dd";
     public static final String DAYTIME_START = "00:00:00";
@@ -56,7 +56,7 @@ public class DateUtils {
                 startDate=calendar.getTime();
             }
         } catch (ParseException e) {
-            e.printStackTrace();
+            logger.warn("parse month range failed, startTime:{}, endTime:{}, format:{}", startTime, endTime, format, e);
         }
         return list;
     }
@@ -74,8 +74,6 @@ public class DateUtils {
         eCalendar.set(Calendar.MINUTE, 0);
         eCalendar.set(Calendar.SECOND, 0);
         eCalendar.set(Calendar.MILLISECOND, 0);
-        System.out.println(eCalendar.getTimeInMillis());
-        System.out.println(sCalendar.getTimeInMillis());
         int days = (int)((eCalendar.getTimeInMillis() - sCalendar.getTimeInMillis())/(1000*3600*24));
         return days;
     }

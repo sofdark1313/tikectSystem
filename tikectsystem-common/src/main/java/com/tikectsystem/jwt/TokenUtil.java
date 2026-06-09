@@ -1,6 +1,5 @@
 package com.tikectsystem.jwt;
 
-import com.alibaba.fastjson.JSONObject;
 import com.tikectsystem.enums.BaseCode;
 import com.tikectsystem.exception.TikectsystemFrameException;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -83,22 +82,5 @@ public class TokenUtil {
             throw new TikectsystemFrameException(BaseCode.LOGIN_USER_NOT_EXIST);
         }
 
-    }
-
-    public static void main(String[] args) {
-
-        String tokenSecret = "CSYZWECHAT";
-        //生成token的实力
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("001key", "001value");
-        jsonObject.put("002key", "001value");
-
-        String token1 = TokenUtil.createToken("1", jsonObject.toJSONString(), 10000, tokenSecret);
-        log.info("token: {}",token1);
-
-        //解析token的示例
-        String token2 = "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIxIiwiaWF0IjoxNjg4NTQyODM3LCJzdWIiOiJ7XCIwMDJrZXlcIjpcIjAwMXZhbHVlXCIsXCIwMDFrZXlcIjpcIjAwMXZhbHVlXCJ9IiwiZXhwIjoxNjg4NTQyODQ3fQ.vIKcAilTn_CR3VYssNE7rBpfuCSCH_RrkmsadLWf664";
-        String subject = TokenUtil.parseToken(token2, tokenSecret);
-        log.info("解析token后的值: {}",subject);
     }
 }

@@ -59,6 +59,14 @@ public class BusinessEsHandle {
     private final Boolean esSwitch;
     
     private final Boolean esTypeSwitch;
+
+    private boolean esEnabled() {
+        return Boolean.TRUE.equals(esSwitch);
+    }
+
+    private boolean esTypeEnabled() {
+        return Boolean.TRUE.equals(esTypeSwitch);
+    }
     
     /**
      * 创建索引
@@ -68,7 +76,7 @@ public class BusinessEsHandle {
      * @param list 参数集合
      */
     public void createIndex(String indexName, String indexType, List<EsDocumentMappingDto> list) throws IOException {
-        if (!esSwitch) {
+        if (!esEnabled()) {
             return;
         }
         if (CollectionUtil.isEmpty(list)) {
@@ -76,7 +84,7 @@ public class BusinessEsHandle {
         }
         IndexRequest indexRequest = new IndexRequest();
         XContentBuilder builder = JsonXContent.contentBuilder().startObject().startObject("mappings");
-        if (esTypeSwitch) {
+        if (esTypeEnabled()) {
             builder = builder.startObject(indexType);
         }
         builder = builder.startObject("properties");
@@ -94,7 +102,7 @@ public class BusinessEsHandle {
                 builder = builder.startObject(paramName).field("type", paramType).endObject();
             }
         }
-        if (esTypeSwitch) {
+        if (esTypeEnabled()) {
             builder.endObject();
         }
         builder = builder.endObject().endObject().startObject("settings").field("number_of_shards", 3)
@@ -118,12 +126,12 @@ public class BusinessEsHandle {
      * @return boolean
      */
     public boolean checkIndex(String indexName, String indexType)  {
-        if (!esSwitch) {
+        if (!esEnabled()) {
             return false;
         }
         try {
             String path = "";
-            if (esTypeSwitch) {
+            if (esTypeEnabled()) {
                 path = "/" + indexName + "/" + indexType + "/_mapping?include_type_name";
             }else {
                 path = "/" + indexName + "/_mapping";
@@ -132,7 +140,7 @@ public class BusinessEsHandle {
             request.addParameters(Collections.<String, String>emptyMap());
             Response response = restClient.performRequest(request);
             String result = EntityUtils.toString(response.getEntity());
-            System.out.println(JSON.toJSONString(result));
+            log.debug("checkIndex result : {}", JSON.toJSONString(result));
             return "OK".equals(response.getStatusLine().getReasonPhrase());
         }catch (Exception e) {
             if (e instanceof ResponseException && ((ResponseException)e).getResponse().getStatusLine().getStatusCode() == RestStatus.NOT_FOUND.getStatus()) {
@@ -150,7 +158,7 @@ public class BusinessEsHandle {
      * @return boolean
      */
     public boolean deleteIndex(String indexName) {
-        if (!esSwitch) {
+        if (!esEnabled()) {
             return false;
         }
         try {
@@ -170,7 +178,7 @@ public class BusinessEsHandle {
      * @param indexName 索引名字
      */
     public void deleteData(String indexName) {
-        if (!esSwitch) {
+        if (!esEnabled()) {
             return;
         }
         deleteIndex(indexName);
@@ -198,7 +206,7 @@ public class BusinessEsHandle {
      * @return boolean
      */
     public boolean add(String indexName, String indexType,Map<String,Object> params, String id) {
-        if (!esSwitch) {
+        if (!esEnabled()) {
             return false;
         }
         if (CollectionUtil.isEmpty(params)) {
@@ -208,7 +216,7 @@ public class BusinessEsHandle {
             String jsonString = JSON.toJSONString(params);
             HttpEntity entity = new NStringEntity(jsonString, ContentType.APPLICATION_JSON);
             String endpoint = "";
-            if (esTypeSwitch) {
+            if (esTypeEnabled()) {
                 endpoint = "/" + indexName + "/" + indexType;
             }else {
                 endpoint = "/" + indexName + "/_doc";
@@ -239,7 +247,7 @@ public class BusinessEsHandle {
      * @return List
      */
     public <T> List<T> query(String indexName, String indexType, List<EsDataQueryDto> esDataQueryDtoList, Class<T> clazz) throws IOException {
-        if (!esSwitch) {
+        if (!esEnabled()) {
             return new ArrayList<>();
         }
         return query(indexName, indexType, null, esDataQueryDtoList, null, null, null, null, null, clazz);
@@ -256,7 +264,7 @@ public class BusinessEsHandle {
      * @return List
      */
     public <T> List<T> query(String indexName, String indexType, EsGeoPointDto esGeoPointDto, List<EsDataQueryDto> esDataQueryDtoList, Class<T> clazz) throws IOException {
-        if (!esSwitch) {
+        if (!esEnabled()) {
             return new ArrayList<>();
         }
         return query(indexName, indexType, esGeoPointDto, esDataQueryDtoList, null, null, null, null,null,clazz);
@@ -274,7 +282,7 @@ public class BusinessEsHandle {
      * @return List
      */
     public <T> List<T> query(String indexName, String indexType, List<EsDataQueryDto> esDataQueryDtoList, String sortParam, SortOrder sortOrder, Class<T> clazz) throws IOException {
-        if (!esSwitch) {
+        if (!esEnabled()) {
             return new ArrayList<>();
         }
         return query(indexName, indexType, null, esDataQueryDtoList, sortParam, null, sortOrder, null, null, clazz);
@@ -292,7 +300,7 @@ public class BusinessEsHandle {
      * @return List
      */
     public <T> List<T> query(String indexName, String indexType, List<EsDataQueryDto> esDataQueryDtoList, EsGeoPointSortDto geoPointDtoSortParam, SortOrder sortOrder, Class<T> clazz) throws IOException {
-        if (!esSwitch) {
+        if (!esEnabled()) {
             return new ArrayList<>();
         }
         return query(indexName, indexType, null, esDataQueryDtoList, null, geoPointDtoSortParam, sortOrder,null,null, clazz);
@@ -317,7 +325,7 @@ public class BusinessEsHandle {
      */
     public <T> List<T> query(String indexName, String indexType, EsGeoPointDto esGeoPointDto, List<EsDataQueryDto> esDataQueryDtoList, String sortParam, EsGeoPointSortDto geoPointDtoSortParam, SortOrder sortOrder, Integer pageSize, Object[] searchAfterSort, Class<T> clazz) throws IOException {
         List<T> list = new ArrayList<>();
-        if (!esSwitch) {
+        if (!esEnabled()) {
             return list;
         }
         SearchSourceBuilder sourceBuilder = getSearchSourceBuilder(esGeoPointDto,esDataQueryDtoList,sortParam,geoPointDtoSortParam,sortOrder);
@@ -393,18 +401,28 @@ public class BusinessEsHandle {
                                      List<EsDataQueryDto> esDataQueryDtoList, String sortParam, 
                                      EsGeoPointSortDto geoPointDtoSortParam, SortOrder sortOrder, Integer pageNo, 
                                      Integer pageSize, Class<T> clazz) throws IOException {
+        int pageNumber = normalizePageNumber(pageNo);
+        int pageLimit = normalizePageSize(pageSize);
         List<T> list = new ArrayList<>();
         PageInfo<T> pageInfo = new PageInfo<>(list);
-        pageInfo.setPageNum(pageNo);
-        pageInfo.setPageSize(pageSize);
-        if (!esSwitch) {
+        pageInfo.setPageNum(pageNumber);
+        pageInfo.setPageSize(pageLimit);
+        if (!esEnabled()) {
             return pageInfo;
         }
         SearchSourceBuilder sourceBuilder = getSearchSourceBuilder(esGeoPointDto,esDataQueryDtoList,sortParam,geoPointDtoSortParam,sortOrder);
-        sourceBuilder.from((pageNo - 1) * pageSize);
-        sourceBuilder.size(pageSize);
+        sourceBuilder.from((pageNumber - 1) * pageLimit);
+        sourceBuilder.size(pageLimit);
         executeQuery(indexName,indexType,list,pageInfo,clazz,sourceBuilder,null);
         return pageInfo;
+    }
+
+    private int normalizePageNumber(Integer pageNo) {
+        return Objects.isNull(pageNo) || pageNo < 1 ? 1 : pageNo;
+    }
+
+    private int normalizePageSize(Integer pageSize) {
+        return Objects.isNull(pageSize) || pageSize < 1 ? 10 : pageSize;
     }
     
     private SearchSourceBuilder getSearchSourceBuilder(EsGeoPointDto esGeoPointDto, List<EsDataQueryDto> esDataQueryDtoList, String sortParam, EsGeoPointSortDto geoPointDtoSortParam, SortOrder sortOrder){
@@ -417,19 +435,28 @@ public class BusinessEsHandle {
             sort.order(sortOrder);
             sourceBuilder.sort(sort);
         }
-        if (Objects.nonNull(geoPointDtoSortParam)) {
+        if (Objects.nonNull(geoPointDtoSortParam) && Objects.nonNull(geoPointDtoSortParam.getLatitude()) && Objects.nonNull(geoPointDtoSortParam.getLongitude())) {
             GeoDistanceSortBuilder sort = SortBuilders.geoDistanceSort("geoPoint", geoPointDtoSortParam.getLatitude().doubleValue(), geoPointDtoSortParam.getLongitude().doubleValue());
             sort.unit(DistanceUnit.METERS);
             sort.order(sortOrder);
             sourceBuilder.sort(sort);
         }
-        if (Objects.nonNull(esGeoPointDto)) {
+        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+        if (Objects.nonNull(esGeoPointDto) && StringUtil.isNotEmpty(esGeoPointDto.getParamName())
+                && Objects.nonNull(esGeoPointDto.getLatitude()) && Objects.nonNull(esGeoPointDto.getLongitude())) {
             QueryBuilder geoQuery = new GeoDistanceQueryBuilder(esGeoPointDto.getParamName()).distance(Long.MAX_VALUE, DistanceUnit.KILOMETERS)
                     .point(esGeoPointDto.getLatitude().doubleValue(), esGeoPointDto.getLongitude().doubleValue()).geoDistance(GeoDistance.PLANE);
-            sourceBuilder.query(geoQuery);
+            boolQuery.must(geoQuery);
         }
-        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+        if (CollectionUtil.isEmpty(esDataQueryDtoList)) {
+            sourceBuilder.trackTotalHits(true);
+            sourceBuilder.query(boolQuery);
+            return sourceBuilder;
+        }
         for (EsDataQueryDto esDataQueryDto : esDataQueryDtoList) {
+            if (Objects.isNull(esDataQueryDto) || StringUtil.isEmpty(esDataQueryDto.getParamName())) {
+                continue;
+            }
             String paramName = esDataQueryDto.getParamName();
             Object paramValue = esDataQueryDto.getParamValue();
             Date startTime = esDataQueryDto.getStartTime();
@@ -480,7 +507,7 @@ public class BusinessEsHandle {
         HttpEntity entity = new NStringEntity(string, ContentType.APPLICATION_JSON);
         StringBuilder endpointStringBuilder = new StringBuilder("/" + indexName);
         //如果开启type，则进行拼接
-        if (esTypeSwitch) {
+        if (esTypeEnabled()) {
             endpointStringBuilder.append("/").append(indexType).append("/_search");
         }else {
             //没有开启type
@@ -508,7 +535,7 @@ public class BusinessEsHandle {
         }
         // 总条数
         Long value = null;
-        if (esTypeSwitch) {
+        if (esTypeEnabled()) {
             value = hits.getLong("total");
         }else {
             JSONObject totalJsonObject = hits.getJSONObject("total");
@@ -531,6 +558,9 @@ public class BusinessEsHandle {
             }
             //数据
             JSONObject jsonObject = data.getJSONObject("_source");
+            if (Objects.isNull(jsonObject)) {
+                continue;
+            }
             //排序字段
             JSONArray jsonArray = data.getJSONArray("sort");
             if (Objects.nonNull(jsonArray) && !jsonArray.isEmpty()) {
@@ -553,7 +583,7 @@ public class BusinessEsHandle {
     }
     
     public void deleteByDocumentId(String index,String documentId) {
-        if (!esSwitch) {
+        if (!esEnabled()) {
             return;
         }
         try {

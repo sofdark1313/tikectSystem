@@ -1,6 +1,8 @@
 package com.tikectsystem.service.tool;
 
 import cn.hutool.core.collection.CollectionUtil;
+import com.tikectsystem.enums.BaseCode;
+import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.vo.SeatVo;
 
 import java.util.ArrayList;
@@ -22,14 +24,14 @@ public class SeatMatch {
      * @param allSeats 可选座位（已按票档过滤）
      * @param seatCount 需要的座位数
      * @return 匹配到的座位列表
-     * @throws RuntimeException 如果找不到满足条件的座位
+     * @throws TikectsystemFrameException 如果找不到满足条件的座位
      */
     public static List<SeatVo> findAdjacentSeatVos(List<SeatVo> allSeats, int seatCount) {
         if (CollectionUtil.isEmpty(allSeats)) {
-            throw new RuntimeException("没有可用的座位");
+            throw new TikectsystemFrameException(BaseCode.SEAT_OCCUPY);
         }
         if (seatCount <= 0) {
-            throw new IllegalArgumentException("seatCount 必须大于 0");
+            throw new TikectsystemFrameException(BaseCode.TICKET_COUNT_ERROR);
         }
         
         Map<Integer, List<SeatVo>> rowMap = allSeats.stream()
@@ -55,7 +57,7 @@ public class SeatMatch {
             return shuffled.subList(0, seatCount);
         }
         
-        throw new RuntimeException("没有足够的座位可供分配");
+        throw new TikectsystemFrameException(BaseCode.SEAT_OCCUPY);
     }
     
     private static List<SeatVo> findConsecutiveSeats(List<SeatVo> rowSeats, int seatCount) {

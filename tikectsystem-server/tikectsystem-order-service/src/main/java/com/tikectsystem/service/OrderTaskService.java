@@ -241,7 +241,15 @@ public class OrderTaskService {
     public ExaminationRecordTypeResult executeRedisAndDbExamination(Map<String, String> programRecordMap, 
                                                                     List<OrderTicketUserRecord> dbOrderTicketUserRecordList, 
                                                                     String dbRecordType, String identifierId, String userId) {
-        ProgramRecord programRecord = JSON.parseObject(programRecordMap.get(dbRecordType + GLIDE_LINE + identifierId + GLIDE_LINE + userId), ProgramRecord.class);
+        String programRecordJson = programRecordMap == null ? null : programRecordMap.get(dbRecordType + GLIDE_LINE + identifierId + GLIDE_LINE + userId);
+        ProgramRecord programRecord = null;
+        if (programRecordJson != null) {
+            try {
+                programRecord = JSON.parseObject(programRecordJson, ProgramRecord.class);
+            } catch (Exception e) {
+                log.warn("program record parse error, programRecordJson : {}", programRecordJson, e);
+            }
+        }
         //如果数据库和redis都没有这条记录的话
         if (CollectionUtil.isEmpty(dbOrderTicketUserRecordList) && Objects.isNull(programRecord)) {
             //redis和数据对账结果(记录类型维度)
@@ -273,14 +281,21 @@ public class OrderTaskService {
     }
     
     public Map<Long, SeatRecord> getRedisSeatRecordMap(ProgramRecord programRecord) {
+        if (programRecord == null || CollectionUtil.isEmpty(programRecord.getTicketCategoryRecordList())) {
+            return new HashMap<>();
+        }
         List<TicketCategoryRecord> ticketCategoryRecordList = programRecord.getTicketCategoryRecordList();
         //redis记录中的座位
         List<SeatRecord> seatRecordList = new ArrayList<>();
         for (TicketCategoryRecord ticketCategoryRecord : ticketCategoryRecordList) {
-            seatRecordList.addAll(ticketCategoryRecord.getSeatRecordList());
+            if (ticketCategoryRecord != null && CollectionUtil.isNotEmpty(ticketCategoryRecord.getSeatRecordList())) {
+                seatRecordList.addAll(ticketCategoryRecord.getSeatRecordList());
+            }
         }
         //redis记录中的座位转成Map，key：座位id，value：SeatRecord
-        return seatRecordList.stream().collect(Collectors.toMap(SeatRecord::getSeatId, seatRecord -> seatRecord, (v1, v2) -> v2));
+        return seatRecordList.stream()
+                .filter(seatRecord -> seatRecord != null && seatRecord.getSeatId() != null)
+                .collect(Collectors.toMap(SeatRecord::getSeatId, seatRecord -> seatRecord, (v1, v2) -> v2));
     }
     /**
      * @param redisSeatRecordMap redis记录中的座位转成Map，key：座位id，value：SeatRecord
@@ -297,8 +312,10 @@ public class OrderTaskService {
         List<OrderTicketUserRecord> needToRedisSeatRecordList = new ArrayList<>();
         //redis没有的话，直接构建数据
         if (CollectionUtil.isEmpty(redisSeatRecordMap)) {
-            for (Map.Entry<Long, OrderTicketUserRecord> orderTicketUserRecordEntry : dbOrderTicketUserRecordMap.entrySet()) {
-                needToRedisSeatRecordList.add(orderTicketUserRecordEntry.getValue());
+            if (CollectionUtil.isNotEmpty(dbOrderTicketUserRecordMap)) {
+                for (Map.Entry<Long, OrderTicketUserRecord> orderTicketUserRecordEntry : dbOrderTicketUserRecordMap.entrySet()) {
+                    needToRedisSeatRecordList.add(orderTicketUserRecordEntry.getValue());
+                }
             }
             //对比结果
             return new ExaminationSeatResult(redisStandardStatisticCount, dbStandardStatisticCount, needToDbSeatRecordList, needToRedisSeatRecordList);
@@ -549,7 +566,7 @@ public class OrderTaskService {
                 
                 //2.3 回填所有对应 TicketCategoryRecord 的字段
                 for (TicketCategoryRecord tcr : programRecord.getTicketCategoryRecordList()) {
-                    if (tcr.getTicketCategoryId().equals(categoryId)) {
+                    if (Objects.equals(tcr.getTicketCategoryId(), categoryId)) {
                         tcr.setBeforeAmount(beforeAmount);
                         tcr.setAfterAmount(afterAmount);
                         tcr.setChangeAmount(Objects.equals(recordType, RecordType.CHANGE_STATUS.getValue()) ? 0L : changeAmt);

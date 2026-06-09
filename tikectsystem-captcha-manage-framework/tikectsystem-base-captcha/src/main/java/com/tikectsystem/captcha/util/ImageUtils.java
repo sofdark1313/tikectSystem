@@ -164,7 +164,7 @@ public class ImageUtils {
         try {
             ImageIO.write(templateImage, "png", baos);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("image convert to base64 failed", e);
         }
         byte[] bytes = baos.toByteArray();
 
@@ -186,7 +186,7 @@ public class ImageUtils {
             ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
             return ImageIO.read(inputStream);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("base64 convert to image failed", e);
         }
         return null;
     }
@@ -202,7 +202,7 @@ public class ImageUtils {
             try {
                 bytes = FileCopyUtils.copyToByteArray(resourceAsStream);
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.error("load captcha default image failed, path:{}, index:{}", path, i, e);
             }
             String string = Base64Utils.encodeToString(bytes);
             String filename = String.valueOf(i).concat(".png");
@@ -218,7 +218,9 @@ public class ImageUtils {
             return new HashMap<>(64);
         }
         File[] files = file.listFiles();
-        assert files != null;
+        if (files == null) {
+            return imgMap;
+        }
         Arrays.stream(files).forEach(item -> {
             try {
                 FileInputStream fileInputStream = new FileInputStream(item);
@@ -226,9 +228,9 @@ public class ImageUtils {
                 String string = Base64Utils.encodeToString(bytes);
                 imgMap.put(item.getName(), string);
             } catch (FileNotFoundException e) {
-                e.printStackTrace();
+                logger.error("captcha image file not found, path:{}", item.getAbsolutePath(), e);
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.error("read captcha image file failed, path:{}", item.getAbsolutePath(), e);
             }
         });
         return imgMap;

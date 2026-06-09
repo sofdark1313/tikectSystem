@@ -140,6 +140,10 @@ public class ClickWordCaptchaServiceImpl extends AbstractCaptchaService {
             afterValidateFail(captchaVO);
             return ResponseModel.errorMsg(e.getMessage());
         }
+        if (point == null || point1 == null || point.isEmpty() || point.size() != point1.size()) {
+            afterValidateFail(captchaVO);
+            return ResponseModel.errorMsg(RepCodeEnum.API_CAPTCHA_COORDINATE_ERROR);
+        }
         for (int i = 0; i < point.size(); i++) {
             if (point.get(i).x - HAN_ZI_SIZE > point1.get(i).x
                     || point1.get(i).x > point.get(i).x + HAN_ZI_SIZE

@@ -36,7 +36,7 @@ public abstract class AbstractNetUtils {
         try {
             localAddress = getLocalInetAddress();
         } catch (SocketException e) {
-            throw new RuntimeException("fail to get local ip.");
+            throw new IllegalStateException("fail to get local ip.", e);
         }
     }
 
@@ -69,7 +69,7 @@ public abstract class AbstractNetUtils {
             }
         }
 
-        throw new RuntimeException("No validated local address!");
+        throw new IllegalStateException("No validated local address!");
     }
 
     /**

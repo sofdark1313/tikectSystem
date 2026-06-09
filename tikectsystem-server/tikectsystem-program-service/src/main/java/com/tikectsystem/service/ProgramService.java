@@ -697,7 +697,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         }
         Integer orderVersion = programOperateDataDto.getOrderVersion();
         //如果创建订单版本是v1，v2，v3
-        if (!orderVersion.equals(ProgramOrderVersion.V4_VERSION.getValue())) {
+        if (!Objects.equals(orderVersion, ProgramOrderVersion.V4_VERSION.getValue())) {
             for (Seat seat : seatList) {
                 if (Objects.equals(seat.getSellStatus(), SellStatus.SOLD.getCode())) {
                     throw new TikectsystemFrameException(BaseCode.SEAT_SOLD);
@@ -783,7 +783,17 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                 Optional.ofNullable(programGroupMapper.selectById(programGroupId))
                         .orElseThrow(() -> new TikectsystemFrameException(BaseCode.PROGRAM_GROUP_NOT_EXIST));
         programGroupVo.setId(programGroup.getId());
-        programGroupVo.setProgramSimpleInfoVoList(JSON.parseArray(programGroup.getProgramJson(), ProgramSimpleInfoVo.class));
+        List<ProgramSimpleInfoVo> programSimpleInfoVoList;
+        try {
+            programSimpleInfoVoList = JSON.parseArray(programGroup.getProgramJson(), ProgramSimpleInfoVo.class);
+        } catch (Exception e) {
+            log.warn("program group json parse error, programGroupId : {}", programGroupId, e);
+            programSimpleInfoVoList = new ArrayList<>();
+        }
+        if (programSimpleInfoVoList == null) {
+            programSimpleInfoVoList = new ArrayList<>();
+        }
+        programGroupVo.setProgramSimpleInfoVoList(programSimpleInfoVoList);
         programGroupVo.setRecentShowTime(programGroup.getRecentShowTime());
         return programGroupVo;
     }
@@ -923,7 +933,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                 Long remainNumber = ticketCategory.getRemainNumber();
                 Long totalNumber = ticketCategory.getTotalNumber();
                 //如果总数和剩余数不一致，则进行重置
-                if (!(remainNumber.equals(totalNumber))) {
+                if (!Objects.equals(remainNumber, totalNumber)) {
                     TicketCategory ticketCategoryUpdate = new TicketCategory();
                     ticketCategoryUpdate.setRemainNumber(totalNumber);
                     

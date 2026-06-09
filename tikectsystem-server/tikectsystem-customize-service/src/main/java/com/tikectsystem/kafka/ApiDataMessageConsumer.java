@@ -30,9 +30,13 @@ public class ApiDataMessageConsumer {
     @KafkaListener(topics = {SPRING_INJECT_PREFIX_DISTINCTION_NAME+"-"+"${spring.kafka.topic:save_api_data}"})
     public void consumerOrderMessage(ConsumerRecord<String,String> consumerRecord){
         try {
-            Optional.ofNullable(consumerRecord.value()).map(String::valueOf).ifPresent(value -> {
+            Optional.ofNullable(consumerRecord).map(record -> record.value()).map(String::valueOf).ifPresent(value -> {
                 log.info("consumerOrderMessage message:{}",value);
                 ApiData apiData = JSON.parseObject(value, ApiData.class);
+                if (apiData == null || apiData.getId() == null) {
+                    log.error("consumerApiDataMessage data invalid, value:{}", value);
+                    return;
+                }
                 apiDataService.saveApiData(apiData);
             });
         }catch (Exception e) {

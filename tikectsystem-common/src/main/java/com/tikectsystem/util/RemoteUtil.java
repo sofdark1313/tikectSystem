@@ -10,21 +10,34 @@ import jakarta.servlet.http.HttpServletRequest;
  * @author: 阿星不是程序员
  **/
 public class RemoteUtil {
+
+    private static final String UNKNOWN = "unknown";
     
     public static String getRemoteId(HttpServletRequest request) {
+        if (request == null) {
+            return UNKNOWN;
+        }
         String forward = request.getHeader("X-Forwarded-For");
         String ip = getRemoteIpFromForward(forward);
-        String ua = request.getHeader("user-agent");
-        if (StringUtils.isNotBlank(ip)) {
-            return ip + ua;
+        if (StringUtils.isBlank(ip)) {
+            ip = request.getRemoteAddr();
         }
-        return request.getRemoteAddr() + ua;
+        if (StringUtils.isBlank(ip)) {
+            ip = UNKNOWN;
+        }
+        String ua = StringUtils.trimToEmpty(request.getHeader("user-agent"));
+        return ip + ua;
     }
     
     private static String getRemoteIpFromForward(String forward) {
         if (StringUtils.isNotBlank(forward)) {
             String[] ipList = forward.split(",");
-            return StringUtils.trim(ipList[0]);
+            for (String ip : ipList) {
+                String trimIp = StringUtils.trim(ip);
+                if (StringUtils.isNotBlank(trimIp) && !UNKNOWN.equalsIgnoreCase(trimIp)) {
+                    return trimIp;
+                }
+            }
         }
         return null;
     }

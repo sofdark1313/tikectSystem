@@ -18,14 +18,14 @@ import java.util.ServiceLoader;
  **/
 public class CaptchaServiceFactory {
 
-    private static Logger logger = LoggerFactory.getLogger(CaptchaServiceFactory.class);
+    private static final Logger logger = LoggerFactory.getLogger(CaptchaServiceFactory.class);
 
     public static CaptchaService getInstance(Properties config) {
         //先把所有CaptchaService初始化，通过init方法，实例字体等
         String captchaType = config.getProperty(Const.CAPTCHA_TYPE, "default");
         CaptchaService ret = instances.get(captchaType);
         if (ret == null) {
-            throw new RuntimeException("unsupported-[captcha.type]=" + captchaType);
+            throw new IllegalArgumentException("unsupported-[captcha.type]=" + captchaType);
         }
         ret.init(config);
         return ret;

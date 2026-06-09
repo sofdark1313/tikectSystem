@@ -202,7 +202,7 @@ public class RingBuffer {
      */
     protected void exceptionRejectedTakeBuffer(RingBuffer ringBuffer) {
         LOGGER.warn("Rejected take buffer. {}", ringBuffer);
-        throw new RuntimeException("Rejected take buffer. " + ringBuffer);
+        throw new IllegalStateException("Rejected take buffer. " + ringBuffer);
     }
     
     /**

@@ -22,22 +22,24 @@ public class CaptchaHandle {
     private final CaptchaService captchaService;
     
     public ResponseModel getCaptcha(CaptchaVO captchaVO) {
-        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        assert requestAttributes != null;
-        HttpServletRequest request = ((ServletRequestAttributes) requestAttributes).getRequest();
-        captchaVO.setBrowserInfo(RemoteUtil.getRemoteId(request));
+        captchaVO.setBrowserInfo(RemoteUtil.getRemoteId(getCurrentRequest()));
         return captchaService.get(captchaVO);
     }
     
     public ResponseModel checkCaptcha(CaptchaVO captchaVO) {
-        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        assert requestAttributes != null;
-        HttpServletRequest request = ((ServletRequestAttributes) requestAttributes).getRequest();
-        captchaVO.setBrowserInfo(RemoteUtil.getRemoteId(request));
+        captchaVO.setBrowserInfo(RemoteUtil.getRemoteId(getCurrentRequest()));
         return captchaService.check(captchaVO);
     }
     
     public ResponseModel verification(CaptchaVO captchaVO) {
         return captchaService.verification(captchaVO);
+    }
+
+    private HttpServletRequest getCurrentRequest() {
+        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+        if (requestAttributes instanceof ServletRequestAttributes servletRequestAttributes) {
+            return servletRequestAttributes.getRequest();
+        }
+        return null;
     }
 }

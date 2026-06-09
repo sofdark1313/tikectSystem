@@ -75,7 +75,9 @@ public abstract class AbstractComposite<T> {
                 AbstractComposite<T> current = queue.poll(); 
                 
                 
-                assert current != null;
+                if (current == null) {
+                    continue;
+                }
                 current.execute(param);
                 
                 queue.addAll(current.list);

@@ -58,11 +58,24 @@ public class ProgramSeatCacheData {
         }
         if (seatVoStrlist.size() > THRESHOLD_VALUE) {
             list = seatVoStrlist.parallelStream()
-                    .map(seatVoStr -> JSON.parseObject(seatVoStr,SeatVo.class)).collect(Collectors.toList());
+                    .map(this::parseSeatVo)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
         }else {
             list = seatVoStrlist.stream()
-                    .map(seatVoStr -> JSON.parseObject(seatVoStr,SeatVo.class)).collect(Collectors.toList());
+                    .map(this::parseSeatVo)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
         }
         return list;
+    }
+
+    private SeatVo parseSeatVo(String seatVoStr) {
+        try {
+            return JSON.parseObject(seatVoStr, SeatVo.class);
+        } catch (Exception e) {
+            log.warn("seat cache data parse error, seatVoStr : {}", seatVoStr, e);
+            return null;
+        }
     }
 }

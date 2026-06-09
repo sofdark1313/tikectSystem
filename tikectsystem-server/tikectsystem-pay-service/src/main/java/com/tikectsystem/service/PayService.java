@@ -95,8 +95,17 @@ public class PayService {
                 savePayBill.setId(uidGenerator.getUid());
                 payBillMapper.insert(savePayBill);
             } else {
-                savePayBill.setId(payBill.getId());
-                payBillMapper.updateById(savePayBill);
+                LambdaUpdateWrapper<PayBill> updateWrapper = Wrappers.lambdaUpdate(PayBill.class)
+                        .eq(PayBill::getId, payBill.getId())
+                        .eq(PayBill::getOutOrderNo, savePayBill.getOutOrderNo())
+                        .set(PayBill::getPayChannel, savePayBill.getPayChannel())
+                        .set(PayBill::getPayScene, savePayBill.getPayScene())
+                        .set(PayBill::getSubject, savePayBill.getSubject())
+                        .set(PayBill::getPayAmount, savePayBill.getPayAmount())
+                        .set(PayBill::getPayBillType, savePayBill.getPayBillType())
+                        .set(PayBill::getPayBillStatus, savePayBill.getPayBillStatus())
+                        .set(PayBill::getPayTime, savePayBill.getPayTime());
+                payBillMapper.update(null, updateWrapper);
             }
         }
         
@@ -174,6 +183,10 @@ public class PayService {
         PayStrategyHandler payStrategyHandler = payStrategyContext.get(tradeCheckDto.getChannel());
         //调用支付状态查询
         TradeResult tradeResult = payStrategyHandler.queryTrade(tradeCheckDto.getOutTradeNo());
+        if (tradeResult == null) {
+            log.error("trade check result is null, tradeCheckDto : {}", JSON.toJSONString(tradeCheckDto));
+            return tradeCheckVo;
+        }
         BeanUtil.copyProperties(tradeResult,tradeCheckVo);
         if (!tradeResult.isSuccess()) {
             return tradeCheckVo;
@@ -228,6 +241,9 @@ public class PayService {
         PayStrategyHandler payStrategyHandler = payStrategyContext.get(refundDto.getChannel());
         RefundResult refundResult = 
                 payStrategyHandler.refund(refundDto.getOrderNumber(), refundDto.getAmount(), refundDto.getReason());
+        if (refundResult == null) {
+            throw new TikectsystemFrameException(BaseCode.REFUND_ERROR);
+        }
         if (refundResult.isSuccess()) {
             RefundBill refundBill = new RefundBill();
             refundBill.setId(uidGenerator.getUid());
@@ -244,6 +260,9 @@ public class PayService {
             payBillMapper.updateById(updatePayBill);
             return refundBill.getOutOrderNo();
         }else {
+            if (refundResult.getMessage() == null) {
+                throw new TikectsystemFrameException(BaseCode.REFUND_ERROR);
+            }
             throw new TikectsystemFrameException(refundResult.getMessage());
         }
     }

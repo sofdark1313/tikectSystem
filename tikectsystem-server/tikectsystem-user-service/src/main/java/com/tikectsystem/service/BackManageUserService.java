@@ -11,6 +11,8 @@ import com.tikectsystem.vo.BackManageUserDetailVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 /**
  * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
  * @description: 后台管理登录 service
@@ -51,14 +53,23 @@ public class BackManageUserService {
         if (userDetailObj == null) {
             throw new TikectsystemFrameException("用户未登录或登录已过期");
         }
-        return JSON.parseObject(String.valueOf(userDetailObj), BackManageUserDetailVo.class);
+        BackManageUserDetailVo backManageUserDetailVo;
+        try {
+            backManageUserDetailVo = JSON.parseObject(String.valueOf(userDetailObj), BackManageUserDetailVo.class);
+        } catch (Exception e) {
+            throw new TikectsystemFrameException("user not login or login expired");
+        }
+        if (backManageUserDetailVo == null) {
+            throw new TikectsystemFrameException("user not login or login expired");
+        }
+        return backManageUserDetailVo;
     }
     
     public void verifyUser(BackManageLoginDto backManageLoginDto){
-        if (!backManageProperties.getUsername().equals(backManageLoginDto.getUsername())) {
+        if (!Objects.equals(backManageProperties.getUsername(), backManageLoginDto.getUsername())) {
             throw new TikectsystemFrameException("用户名错误");
         }
-        if (!backManageProperties.getPassword().equals(backManageLoginDto.getPassword())) {
+        if (!Objects.equals(backManageProperties.getPassword(), backManageLoginDto.getPassword())) {
             throw new TikectsystemFrameException("用户密码错误");
         }
     }

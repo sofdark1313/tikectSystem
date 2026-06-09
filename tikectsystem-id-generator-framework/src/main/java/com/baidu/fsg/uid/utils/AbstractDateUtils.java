@@ -68,7 +68,7 @@ public abstract class AbstractDateUtils extends org.apache.commons.lang.time.Dat
         try {
             return parseDate(str, new String[]{pattern});
         } catch (ParseException e) {
-            throw new RuntimeException(e);
+            throw new IllegalArgumentException("parse date failed, str:" + str + ", pattern:" + pattern, e);
         }
     }
 

@@ -56,7 +56,7 @@ public class StringUtil {
 				result = baos.toString(StandardCharsets.UTF_8);
 			}
 		}catch(IOException e) {
-			throw new RuntimeException("流转换为字符串失败！");
+			throw new IllegalStateException("input stream convert string failed", e);
 		}finally {
 			if(baos != null) {
 				try {

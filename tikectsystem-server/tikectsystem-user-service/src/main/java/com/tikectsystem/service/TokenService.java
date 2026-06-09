@@ -31,9 +31,18 @@ public class TokenService {
     public String parseToken(String token){
         String userStr = TokenUtil.parseToken(token,TOKEN_SECRET);
         if (StringUtil.isNotEmpty(userStr)) {
-            return JSONObject.parseObject(userStr).getString("userId");
+            return parseUserId(userStr);
         }
         return null;
+    }
+
+    private String parseUserId(String userStr) {
+        try {
+            JSONObject user = JSONObject.parseObject(userStr);
+            return user == null ? null : user.getString("userId");
+        } catch (Exception e) {
+            return null;
+        }
     }
     
     public UserVo getUser(String token){

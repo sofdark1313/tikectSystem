@@ -1,6 +1,9 @@
 package com.tikectsystem.captcha.util;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +19,7 @@ import java.io.Writer;
  * @author: 阿星不是程序员
  **/
 public class FileCopyUtils {
+    private static final Logger logger = LoggerFactory.getLogger(FileCopyUtils.class);
 
     public FileCopyUtils() {
     }
@@ -128,10 +132,9 @@ public class FileCopyUtils {
                 return true;
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.warn("delete file failed, fileUrl:{}", fileUrl, e);
         }
         return false;
     }
 
 }
-

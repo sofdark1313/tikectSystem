@@ -31,7 +31,21 @@ public class DelayOperateProgramDataConsumer implements ConsumerTask {
             log.error("延迟队列消息不存在");
             return;
         }
-        ProgramOperateDataDto programOperateDataDto = JSON.parseObject(content, ProgramOperateDataDto.class);
+        ProgramOperateDataDto programOperateDataDto;
+        try {
+            programOperateDataDto = JSON.parseObject(content, ProgramOperateDataDto.class);
+        } catch (Exception e) {
+            log.error("寤惰繜闃熷垪娑堟伅瑙ｆ瀽澶辫触 content : {}", content, e);
+            return;
+        }
+        if (programOperateDataDto == null || programOperateDataDto.getProgramId() == null ||
+                programOperateDataDto.getSellStatus() == null || programOperateDataDto.getOrderVersion() == null ||
+                programOperateDataDto.getSeatIdList() == null || programOperateDataDto.getSeatIdList().isEmpty() ||
+                programOperateDataDto.getTicketCategoryCountDtoList() == null ||
+                programOperateDataDto.getTicketCategoryCountDtoList().isEmpty()) {
+            log.error("寤惰繜闃熷垪娑堟伅鍙傛暟涓嶅畬鏁?programOperateDataDto : {}", JSON.toJSONString(programOperateDataDto));
+            return;
+        }
         programService.operateProgramData(programOperateDataDto);
     }
     

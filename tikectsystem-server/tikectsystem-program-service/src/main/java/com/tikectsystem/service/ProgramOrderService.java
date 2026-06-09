@@ -197,6 +197,9 @@ public class ProgramOrderService {
 
     public String createNew(ProgramOrderCreateDto programOrderCreateDto, Integer orderVersion) {
         CreateOrderTemporaryData createOrderTemporaryData = createOrderOperateProgramCacheResolution(programOrderCreateDto);
+        if (createOrderTemporaryData == null || CollectionUtil.isEmpty(createOrderTemporaryData.getPurchaseSeatList())) {
+            throw new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST);
+        }
         List<SeatVo> purchaseSeatList = createOrderTemporaryData.getPurchaseSeatList().stream().map(purchaseSeat -> {
             SeatVo seatVo = new SeatVo();
             BeanUtils.copyProperties(purchaseSeat, seatVo);
@@ -325,6 +328,9 @@ public class ProgramOrderService {
     private String doCreateV2(ProgramOrderCreateDto programOrderCreateDto,
                               CreateOrderTemporaryData createOrderTemporaryData,
                               Integer orderVersion) {
+        if (createOrderTemporaryData == null || CollectionUtil.isEmpty(createOrderTemporaryData.getPurchaseSeatList())) {
+            throw new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST);
+        }
         OrderCreateDto orderCreateDto = buildCreateOrderParamV2(programOrderCreateDto.getProgramId(),
                 programOrderCreateDto.getUserId(), createOrderTemporaryData.getPurchaseSeatList(), orderVersion);
         OrderCreateMq orderCreateMq = new OrderCreateMq();
@@ -371,6 +377,10 @@ public class ProgramOrderService {
         orderCreateDto.setOrderVersion(orderVersion);
 
         List<Long> ticketUserIdList = programOrderCreateDto.getTicketUserIdList();
+        if (CollectionUtil.isEmpty(ticketUserIdList) || CollectionUtil.isEmpty(purchaseSeatList) ||
+                ticketUserIdList.size() != purchaseSeatList.size()) {
+            throw new TikectsystemFrameException(BaseCode.TICKET_USER_COUNT_UNEQUAL_SEAT_COUNT);
+        }
         List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = new ArrayList<>();
         for (int i = 0; i < ticketUserIdList.size(); i++) {
             Long ticketUserId = ticketUserIdList.get(i);
@@ -396,6 +406,9 @@ public class ProgramOrderService {
     }
 
     private OrderCreateDto buildCreateOrderParamV2(Long programId, Long userId, List<PurchaseSeat> purchaseSeatList, Integer orderVersion) {
+        if (CollectionUtil.isEmpty(purchaseSeatList)) {
+            throw new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST);
+        }
         ProgramVo programVo = programService.simpleGetProgramAndShowMultipleCache(programId);
         OrderCreateDto orderCreateDto = new OrderCreateDto();
         orderCreateDto.setOrderNumber(uidGenerator.getOrderNumber(userId, ORDER_TABLE_COUNT));
@@ -452,6 +465,11 @@ public class ProgramOrderService {
         CountDownLatch latch = new CountDownLatch(1);
         createOrderMqDomain.orderNumber = String.valueOf(orderCreateMq.getOrderNumber());
         createOrderSend.sendMessage(JSON.toJSONString(orderCreateMq), sendResult -> {
+            if (sendResult == null || sendResult.getRecordMetadata() == null) {
+                log.info("create order kafka send success, topic : {}", (Object)null);
+                latch.countDown();
+                return;
+            }
             log.info("创建订单kafka发送消息成功 topic : {}", sendResult.getRecordMetadata().topic());
             latch.countDown();
         }, ex -> {

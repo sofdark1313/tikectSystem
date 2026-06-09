@@ -243,9 +243,22 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         if (StringUtil.isEmpty(userStr)) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
-        String userId = JSONObject.parseObject(userStr).getString("userId");
+        String userId = parseUserId(userStr);
+        if (StringUtil.isEmpty(userId)) {
+            throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
+        }
         redisCache.del(RedisKeyBuild.createRedisKey(RedisKeyManage.USER_LOGIN,userLogoutDto.getCode(),userId));
         return true;
+    }
+
+    private String parseUserId(String userStr) {
+        try {
+            JSONObject user = JSONObject.parseObject(userStr);
+            return user == null ? null : user.getString("userId");
+        } catch (Exception e) {
+            log.warn("parse user id from token subject failed", e);
+            return null;
+        }
     }
     
     public GetChannelDataVo getChannelDataByCode(String code){

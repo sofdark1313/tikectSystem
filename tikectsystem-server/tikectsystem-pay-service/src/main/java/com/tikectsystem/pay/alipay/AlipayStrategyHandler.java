@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
@@ -69,7 +70,7 @@ public class AlipayStrategyHandler implements PayStrategyHandler {
             bizContent.put("product_code", "FAST_INSTANT_TRADE_PAY");
             request.setBizContent(bizContent.toString());
             AlipayTradePagePayResponse response = alipayClient.pageExecute(request,"POST");
-            return new PayResult(response.isSuccess(),response.getBody());
+            return new PayResult(response != null && response.isSuccess(),response == null ? null : response.getBody());
         }catch (Exception e) {
            log.error("alipay pay error",e);
            throw new TikectsystemFrameException(BaseCode.PAY_ERROR);
@@ -78,6 +79,10 @@ public class AlipayStrategyHandler implements PayStrategyHandler {
     
     @Override
     public boolean signVerify(final Map<String, String> params) {
+        if (params == null || params.isEmpty()) {
+            log.error("alipay sign verify params is empty");
+            return false;
+        }
         try {
             return AlipaySignature.rsaCheckV1(
                     params,
@@ -95,7 +100,22 @@ public class AlipayStrategyHandler implements PayStrategyHandler {
     @Override
     public boolean dataVerify(final Map<String, String> params, PayBill payBill) {
         //2 判断 total_amount 是否确实为该订单的实际金额（即商户订单创建时的金额）
-        BigDecimal notifyPayAmount = new BigDecimal(params.get("total_amount"));
+        if (params == null || params.isEmpty() || payBill == null || payBill.getPayAmount() == null) {
+            log.error("alipay notify data verify params or payBill is invalid");
+            return false;
+        }
+        String totalAmount = params.get("total_amount");
+        if (totalAmount == null) {
+            log.error("alipay notify total_amount is null");
+            return false;
+        }
+        BigDecimal notifyPayAmount;
+        try {
+            notifyPayAmount = new BigDecimal(totalAmount);
+        } catch (NumberFormatException e) {
+            log.error("alipay notify total_amount is invalid, totalAmount : {}", totalAmount, e);
+            return false;
+        }
         BigDecimal payAmount = payBill.getPayAmount();
         if (notifyPayAmount.compareTo(payAmount) != 0) {
             log.error("回调金额和账单支付金额不一致 回调金额 : {}, 账单支付金额 : {}",notifyPayAmount,payAmount);
@@ -104,14 +124,14 @@ public class AlipayStrategyHandler implements PayStrategyHandler {
         //3 校验通知中的 seller_id（或者 seller_email) 是否为 out_trade_no 这笔单据的对应的操作方
         String notifySellerId = params.get("seller_id");
         String alipaySellerId = aliPayProperties.getSellerId();
-        if (!notifySellerId.equals(alipaySellerId)) {
+        if (notifySellerId == null || !Objects.equals(notifySellerId, alipaySellerId)) {
             log.error("回调商户pid和已配置商户pid不一致 回调商户pid : {}, 已配置商户pid : {}",notifySellerId,alipaySellerId);
             return false;
         }
         //4 验证 app_id 是否为该商户本身
         String notifyAppId = params.get("app_id");
         String alipayAppId = aliPayProperties.getAppId();
-        if(!notifyAppId.equals(alipayAppId)){
+        if(notifyAppId == null || !Objects.equals(notifyAppId, alipayAppId)){
             log.error("回调appId和已配置appId不一致 回调appId : {}, 已配置appId : {}",notifyAppId,alipayAppId);
             return false;
         }
@@ -138,9 +158,17 @@ public class AlipayStrategyHandler implements PayStrategyHandler {
             bizContent.put("out_trade_no", outTradeNo);
             request.setBizContent(bizContent.toString());
             AlipayTradeQueryResponse response = alipayClient.execute(request);
-            if (response.isSuccess()) {
+            if (response != null && response.isSuccess()) {
                 JSONObject jsonResponse = JSON.parseObject(response.getBody());
+                if (jsonResponse == null) {
+                    log.error("alipay trade query response body is empty, response : {}", JSON.toJSONString(response));
+                    return tradeResult;
+                }
                 JSONObject alipayTradeQueryResponse = jsonResponse.getJSONObject("alipay_trade_query_response");
+                if (alipayTradeQueryResponse == null) {
+                    log.error("alipay trade query response body invalid, response : {}", response.getBody());
+                    return tradeResult;
+                }
                 String code = alipayTradeQueryResponse.getString("code");
                 String msg = alipayTradeQueryResponse.getString("msg");
                 //如果调用成功
@@ -174,7 +202,7 @@ public class AlipayStrategyHandler implements PayStrategyHandler {
         request.setBizContent(bizContent.toString());
         try {
             AlipayTradeRefundResponse response = alipayClient.execute(request);
-            return new RefundResult(response.isSuccess(),response.getBody(),response.getMsg());
+            return new RefundResult(response != null && response.isSuccess(),response == null ? null : response.getBody(),response == null ? null : response.getMsg());
         } catch (AlipayApiException e) {
             log.error("alipay refund error",e);
             throw new TikectsystemFrameException(BaseCode.REFUND_ERROR);

@@ -46,11 +46,19 @@ public class CreateOrderConsumer {
     @KafkaListener(topics = {SPRING_INJECT_PREFIX_DISTINCTION_NAME+"-"+"${spring.kafka.topic:create_order}"})
     public void consumerOrderMessage(ConsumerRecord<String,String> consumerRecord){
         try {
-            Optional.ofNullable(consumerRecord.value()).map(String::valueOf).ifPresent(value -> {
+            Optional.ofNullable(consumerRecord).map(record -> record.value()).map(String::valueOf).ifPresent(value -> {
       
-                OrderCreateMq orderCreateMq = JSON.parseObject(value, OrderCreateMq.class);
+                OrderCreateMq orderCreateMq;
+                try {
+                    orderCreateMq = JSON.parseObject(value, OrderCreateMq.class);
+                } catch (Exception e) {
+                    log.error("create order kafka message parse error, value : {}", value, e);
+                    return;
+                }
                 if (orderCreateMq == null || orderCreateMq.getCreateOrderTime() == null ||
-                        orderCreateMq.getOrderNumber() == null) {
+                        orderCreateMq.getOrderNumber() == null || orderCreateMq.getProgramId() == null ||
+                        orderCreateMq.getUserId() == null || orderCreateMq.getOrderTicketUserCreateDtoList() == null ||
+                        orderCreateMq.getOrderTicketUserCreateDtoList().isEmpty()) {
                     log.error("消费到kafka的创建订单消息格式错误 消息体: {}",value);
                     return;
                 }

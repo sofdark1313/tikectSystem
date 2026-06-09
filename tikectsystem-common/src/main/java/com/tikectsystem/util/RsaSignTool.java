@@ -151,7 +151,7 @@ public class RsaSignTool {
      */
     private static String getSignCheckContent(Map<String, String> params) {
         if (params == null) {
-            return null;
+            return "";
         }
         Map<String, String> checkParams = new HashMap<>(params);
         checkParams.remove("sign");

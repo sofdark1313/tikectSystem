@@ -78,7 +78,7 @@ public class ChannelDataService {
         apiDataDto.setHeadVersion("1.0");
         apiDataClient.add(apiDataDto);
         if ("2".equals(channelDataAddDto.getCode())) {
-            throw new RuntimeException("测试异常");
+            throw new IllegalStateException("测试异常");
         }
     }
 }

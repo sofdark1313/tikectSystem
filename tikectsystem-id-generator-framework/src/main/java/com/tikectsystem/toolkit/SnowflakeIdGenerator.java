@@ -153,15 +153,16 @@ public class SnowflakeIdGenerator {
             if (offset <= five) {
                 try {
                     wait(offset << 1);
-                    timestamp = timeGen();
-                    if (timestamp < lastTimestamp) {
-                        throw new RuntimeException(String.format("Clock moved backwards.  Refusing to generate id for %d milliseconds", offset));
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("Interrupted while waiting clock moved backwards", e);
+                }
+                timestamp = timeGen();
+                if (timestamp < lastTimestamp) {
+                    throw clockMovedBackwardsException(offset);
                 }
             } else {
-                throw new RuntimeException(String.format("Clock moved backwards.  Refusing to generate id for %d milliseconds", offset));
+                throw clockMovedBackwardsException(offset);
             }
         }
 
@@ -223,6 +224,10 @@ public class SnowflakeIdGenerator {
 
     protected long timeGen() {
         return SystemClock.now();
+    }
+
+    private IllegalStateException clockMovedBackwardsException(long offset) {
+        return new IllegalStateException(String.format("Clock moved backwards. Refusing to generate id for %d milliseconds", offset));
     }
 
     /**

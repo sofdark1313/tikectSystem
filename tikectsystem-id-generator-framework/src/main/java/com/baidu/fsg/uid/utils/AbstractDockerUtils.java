@@ -96,7 +96,7 @@ public abstract class AbstractDockerUtils {
 
         } else {
             LOGGER.error("Missing host or port from env for Docker. host:{}, port:{}", DOCKER_HOST, DOCKER_PORT);
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Missing host or port from env for Docker. host:" + DOCKER_HOST + ", port:" + DOCKER_PORT);
         }
     }

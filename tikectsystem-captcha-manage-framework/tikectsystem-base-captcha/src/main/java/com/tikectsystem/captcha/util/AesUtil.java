@@ -131,12 +131,5 @@ public class AesUtil {
     /**
      * 测试
      */
-    public static void main(String[] args) throws Exception {
-        String token = "a899b51c01a5492b8560f8a0d3856679";
-        String pointJson = "G3mqMJ7S7yF1mK3KnDjglETT6mnddXLipIai68OtIkE=";
-        String secretKey = "tIDLvXdmDfMlfMHT";
-        String s = AesUtil.aesEncrypt(token.concat("---").concat(pointJson), secretKey);
-        System.out.println("加密后：" + s);
-    }
 
 }

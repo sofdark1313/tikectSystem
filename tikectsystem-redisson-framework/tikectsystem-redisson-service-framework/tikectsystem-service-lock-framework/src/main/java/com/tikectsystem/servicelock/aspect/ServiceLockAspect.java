@@ -85,7 +85,7 @@ public class ServiceLockAspect {
             handleMethod = target.getClass().getDeclaredMethod(customLockTimeoutStrategy, currentMethod.getParameterTypes());
             handleMethod.setAccessible(true);
         } catch (NoSuchMethodException e) {
-            throw new RuntimeException("Illegal annotation param customLockTimeoutStrategy :" + customLockTimeoutStrategy,e);
+            throw new IllegalArgumentException("Illegal annotation param customLockTimeoutStrategy :" + customLockTimeoutStrategy,e);
         }
         Object[] args = joinPoint.getArgs();
 
@@ -94,9 +94,9 @@ public class ServiceLockAspect {
         try {
             result = handleMethod.invoke(target, args);
         } catch (IllegalAccessException e) {
-            throw new RuntimeException("Fail to illegal access custom lock timeout handler: " + customLockTimeoutStrategy ,e);
+            throw new IllegalStateException("Fail to illegal access custom lock timeout handler: " + customLockTimeoutStrategy ,e);
         } catch (InvocationTargetException e) {
-            throw new RuntimeException("Fail to invoke custom lock timeout handler: " + customLockTimeoutStrategy ,e);
+            throw new IllegalStateException("Fail to invoke custom lock timeout handler: " + customLockTimeoutStrategy ,e.getTargetException());
         }
         return result;
     }

@@ -10,7 +10,6 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.Objects;
 
 import static com.tikectsystem.constant.Constant.CODE;
 import static com.tikectsystem.constant.Constant.GRAY_PARAMETER;
@@ -33,8 +32,7 @@ public class FeignRequestInterceptor implements RequestInterceptor {
     public void apply(RequestTemplate template) {
         try {
             RequestAttributes ra = RequestContextHolder.getRequestAttributes();
-            if (Objects.nonNull(ra)) {
-                ServletRequestAttributes sra = (ServletRequestAttributes) ra;
+            if (ra instanceof ServletRequestAttributes sra) {
                 HttpServletRequest request = sra.getRequest();
                 String traceId = request.getHeader(TRACE_ID);
                 String code = request.getHeader(CODE);
@@ -42,12 +40,18 @@ public class FeignRequestInterceptor implements RequestInterceptor {
                 if (StringUtil.isEmpty(gray)) {
                     gray = serverGray;
                 }
-                template.header(TRACE_ID,traceId);
-                template.header(CODE,code);
-                template.header(GRAY_PARAMETER,gray);
+                addHeaderIfNotEmpty(template, TRACE_ID, traceId);
+                addHeaderIfNotEmpty(template, CODE, code);
+                addHeaderIfNotEmpty(template, GRAY_PARAMETER, gray);
             }
         }catch (Exception e) {
             log.error("FeignRequestInterceptor apply error",e);
+        }
+    }
+
+    private void addHeaderIfNotEmpty(RequestTemplate template, String name, String value) {
+        if (StringUtil.isNotEmpty(value)) {
+            template.header(name,value);
         }
     }
 }

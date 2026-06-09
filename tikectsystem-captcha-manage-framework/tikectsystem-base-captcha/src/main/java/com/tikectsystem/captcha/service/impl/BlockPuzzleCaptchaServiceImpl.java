@@ -79,7 +79,7 @@ public class BlockPuzzleCaptchaServiceImpl extends AbstractCaptchaService {
                 || StringUtils.isBlank(captcha.getOriginalImageBase64())) {
             return ResponseModel.errorMsg(RepCodeEnum.API_CAPTCHA_ERROR);
         }
-        logger.info("=====captcha get secretKey:{}", captcha.getSecretKey());
+        logger.debug("captcha generated successfully");
         return ResponseModel.successData(captcha);
     }
     
@@ -110,6 +110,10 @@ public class BlockPuzzleCaptchaServiceImpl extends AbstractCaptchaService {
             afterValidateFail(captchaVO);
             return ResponseModel.errorMsg(e.getMessage());
         }
+        if (point == null || point1 == null) {
+            afterValidateFail(captchaVO);
+            return ResponseModel.errorMsg(RepCodeEnum.API_CAPTCHA_COORDINATE_ERROR);
+        }
         if (point.x - Integer.parseInt(slipOffset) > point1.x
                 || point1.x > point.x + Integer.parseInt(slipOffset)
                 || point.y != point1.y) {
@@ -121,8 +125,6 @@ public class BlockPuzzleCaptchaServiceImpl extends AbstractCaptchaService {
         String value;
         try {
             value = AesUtil.aesEncrypt(captchaVO.getToken().concat("---").concat(pointJson), secretKey);
-            logger.info("=====captcha secretKey:{}",secretKey);
-            logger.info("=====captcha value:{}",value);
         } catch (Exception e) {
             logger.error("AES加密失败", e);
             afterValidateFail(captchaVO);
@@ -133,8 +135,7 @@ public class BlockPuzzleCaptchaServiceImpl extends AbstractCaptchaService {
         captchaVO.setResult(true);
         captchaVO.resetClientFlag();
         captchaVO.setCaptchaVerification(value);
-        logger.info("=====captcha pointJson:{}",captchaVO.getPointJson());
-        logger.info("=====captcha token:{}",captchaVO.getToken());
+        logger.debug("captcha check success");
         return ResponseModel.successData(captchaVO);
     }
     
@@ -212,10 +213,10 @@ public class BlockPuzzleCaptchaServiceImpl extends AbstractCaptchaService {
             //将坐标信息存入redis中
             String codeKey = String.format(REDIS_CAPTCHA_KEY, dataVO.getToken());
             CaptchaServiceFactory.getCache(cacheType).set(codeKey, JsonUtil.toJsonString(point), EXPIRE_SIN_SECONDS);
-            logger.debug("token：{},point:{}", dataVO.getToken(), JsonUtil.toJsonString(point));
+            logger.debug("captcha point cached");
             return dataVO;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("picture template cut failed", e);
             return null;
         }
     }

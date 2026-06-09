@@ -628,7 +628,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         programOperateDataDto.setTicketCategoryCountDtoList(ticketCategoryCountDtoList);
         programOperateDataDto.setOrderVersion(orderVersion);
         //如果创建订单版本是v1，v2，v3
-        if (!orderVersion.equals(ProgramOrderVersion.V4_VERSION.getValue())){
+        if (!Objects.equals(orderVersion, ProgramOrderVersion.V4_VERSION.getValue())){
             orderProgramCacheResolutionOperate.programCacheReverseOperate(keys,data);
             if (Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode())) {
                 programOperateDataDto.setSellStatus(SellStatus.SOLD.getCode());

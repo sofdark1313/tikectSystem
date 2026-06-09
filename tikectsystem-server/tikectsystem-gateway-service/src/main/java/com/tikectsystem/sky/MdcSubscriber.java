@@ -35,13 +35,17 @@ public class MdcSubscriber implements CoreSubscriber {
         Context c = actual.currentContext();
         Optional<String> traceIdOptional = Optional.empty();
         if (!c.isEmpty() && c.hasKey(SKYWALKING_CTX_SNAPSHOT)) {
-            Object object = c.get(SKYWALKING_CTX_SNAPSHOT);
-            Object traceId = findField(object, TRACE_ID);
-            String ids = JSON.toJSONString(traceId);
-            traceIdOptional = Optional.ofNullable(ids)
-                    .map(JSON::parseObject)
-                    .map(t -> t.get("id"))
-                    .map(Object::toString);
+            try {
+                Object object = c.get(SKYWALKING_CTX_SNAPSHOT);
+                Object traceId = findField(object, TRACE_ID);
+                String ids = JSON.toJSONString(traceId);
+                traceIdOptional = Optional.ofNullable(ids)
+                        .map(JSON::parseObject)
+                        .map(t -> t.get("id"))
+                        .map(Object::toString);
+            } catch (Exception e) {
+                log.debug("parse skywalking trace id error", e);
+            }
         }
 
         try {
@@ -74,14 +78,14 @@ public class MdcSubscriber implements CoreSubscriber {
         try {
             Class<?> aClass = object.getClass();
             
-            Field mValuesField = null;
-            mValuesField = aClass.getDeclaredField(field);
+            Field mValuesField = aClass.getDeclaredField(field);
             // 3、打开访问权限
             mValuesField.setAccessible(true);
             // 4、获取 memberValuesMap
             return mValuesField.get(object);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.debug("find skywalking trace field error, field : {}", field, e);
+            return null;
         }
     }
 

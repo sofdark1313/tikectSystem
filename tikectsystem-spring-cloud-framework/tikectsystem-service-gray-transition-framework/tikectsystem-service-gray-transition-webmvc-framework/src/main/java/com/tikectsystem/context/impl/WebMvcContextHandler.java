@@ -34,7 +34,7 @@ public class WebMvcContextHandler implements ContextHandler {
     
     public ServletRequestAttributes getRestAttributes() {
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        if (requestAttributes == null) {
+        if (!(requestAttributes instanceof ServletRequestAttributes)) {
             return null;
         }
         return (ServletRequestAttributes) requestAttributes;

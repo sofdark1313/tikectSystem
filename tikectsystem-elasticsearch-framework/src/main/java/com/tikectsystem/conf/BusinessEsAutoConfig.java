@@ -73,12 +73,18 @@ public class BusinessEsAutoConfig {
 	 *
 	 */
 	private HttpHost makeHttpHost(String s) {
-		assert StringUtil.isNotEmpty(s);
+		if (StringUtil.isEmpty(s)) {
+			return null;
+		}
 		String[] address = s.split(":");
 		if (address.length == ADDRESS_LENGTH) {
 			String ip = address[0];
-			int port = Integer.parseInt(address[1]);
-			return new HttpHost(ip, port, HTTP_SCHEME);
+			try {
+				int port = Integer.parseInt(address[1]);
+				return new HttpHost(ip, port, HTTP_SCHEME);
+			} catch (NumberFormatException e) {
+				return null;
+			}
 		} else {
 			return null;
 		}
