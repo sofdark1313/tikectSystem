@@ -86,16 +86,22 @@ public class ChannelDataService {
                 threadPoolExecutor.submit(() -> baseDataClient.getByCode(getChannelDataByCodeDto));
         try {
             ApiResponse<GetChannelDataVo> getChannelDataApiResponse = future.get(10, TimeUnit.SECONDS);
-            if (Objects.equals(getChannelDataApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
-                return getChannelDataApiResponse.getData();
+            if (Objects.nonNull(getChannelDataApiResponse) && Objects.equals(getChannelDataApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+                GetChannelDataVo channelDataVo = getChannelDataApiResponse.getData();
+                if (Objects.nonNull(channelDataVo)) {
+                    return channelDataVo;
+                }
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            future.cancel(true);
             log.error("baseDataClient getByCode Interrupted",e);
             throw new TikectsystemFrameException(BaseCode.THREAD_INTERRUPTED);
         } catch (ExecutionException e) {
             log.error("baseDataClient getByCode execution exception",e);
             throw new TikectsystemFrameException(BaseCode.SYSTEM_ERROR);
         } catch (TimeoutException e) {
+            future.cancel(true);
             log.error("baseDataClient getByCode timeout exception",e);
             throw new TikectsystemFrameException(BaseCode.EXECUTE_TIME_OUT);
         }

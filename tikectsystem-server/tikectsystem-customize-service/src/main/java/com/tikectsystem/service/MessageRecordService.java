@@ -136,8 +136,8 @@ public class MessageRecordService {
                     MessageConsumerRecord messageConsumerRecord =
                             messageConsumerRecordMap.get(messageProducerRecord.getMessageId());
                     if (Objects.isNull(messageConsumerRecord) ||
-                            messageConsumerRecord.getMessageConsumerStatus().equals(MessageConsumerStatus.UNCONSUMED.getCode()) ||
-                            messageConsumerRecord.getMessageConsumerStatus().equals(MessageConsumerStatus.CONSUMER_FAIL.getCode())) {
+                            Objects.equals(messageConsumerRecord.getMessageConsumerStatus(),MessageConsumerStatus.UNCONSUMED.getCode()) ||
+                            Objects.equals(messageConsumerRecord.getMessageConsumerStatus(),MessageConsumerStatus.CONSUMER_FAIL.getCode())) {
                         ReconciliationTask reconciliationTask = () -> {
                             exceptionMessageHandlerContext.getExceptionMessageHandler(messageType).handle(messageProducerRecord);
                         };
@@ -145,8 +145,8 @@ public class MessageRecordService {
                     }else {
                         Integer messageSendStatus = messageProducerRecord.getMessageSendStatus();
                         Integer messageConsumerStatus = messageConsumerRecord.getMessageConsumerStatus();
-                        if (messageSendStatus.equals(MessageSendStatus.SEND_SUCCESS.getCode()) &&
-                                messageConsumerStatus.equals(MessageConsumerStatus.CONSUMER_SUCCESS.getCode())) {
+                        if (Objects.equals(messageSendStatus,MessageSendStatus.SEND_SUCCESS.getCode()) &&
+                                Objects.equals(messageConsumerStatus,MessageConsumerStatus.CONSUMER_SUCCESS.getCode())) {
                             messageProducerRecordService.updateToReconciliationSuccess(messageProducerRecord,messageConsumerRecord);
                         }
                     }

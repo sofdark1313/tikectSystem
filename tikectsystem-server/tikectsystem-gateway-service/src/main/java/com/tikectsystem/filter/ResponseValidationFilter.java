@@ -1,10 +1,11 @@
 package com.tikectsystem.filter;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONException;
 import com.tikectsystem.common.ApiResponse;
-import com.tikectsystem.util.StringUtil;
 import com.tikectsystem.service.ChannelDataService;
 import com.tikectsystem.util.RsaTool;
+import com.tikectsystem.util.StringUtil;
 import com.tikectsystem.vo.GetChannelDataVo;
 import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
@@ -17,6 +18,8 @@ import org.springframework.cloud.gateway.support.BodyInserterContext;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ReactiveHttpOutputMessage;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -29,7 +32,6 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Objects;
 import java.util.function.BiFunction;
 
 import static com.tikectsystem.constant.GatewayConstant.CODE;
@@ -76,11 +78,17 @@ public class ResponseValidationFilter implements GlobalFilter, Ordered {
                 String originalResponseContentType = exchange
                         .getAttribute(ORIGINAL_RESPONSE_CONTENT_TYPE_ATTR);
                 HttpHeaders httpHeaders = new HttpHeaders();
-                httpHeaders.add(HttpHeaders.CONTENT_TYPE,
-                        originalResponseContentType);
+                if (StringUtil.isNotEmpty(originalResponseContentType)) {
+                    httpHeaders.add(HttpHeaders.CONTENT_TYPE,
+                            originalResponseContentType);
+                }
 
+                HttpStatusCode statusCode = exchange.getResponse().getStatusCode();
+                if (statusCode == null) {
+                    statusCode = HttpStatus.OK;
+                }
                 ClientResponse clientResponse = ClientResponse
-                        .create(Objects.requireNonNull(exchange.getResponse().getStatusCode()))
+                        .create(statusCode)
                         .headers(headers -> headers.putAll(httpHeaders))
                         .body(Flux.from(body)).build();
                 
@@ -125,7 +133,16 @@ public class ResponseValidationFilter implements GlobalFilter, Ordered {
         String noVerify = request.getHeaders().getFirst(NO_VERIFY);
         String encrypt = request.getHeaders().getFirst(ENCRYPT);
         if ((!VERIFY_VALUE.equals(noVerify)) && V2.equals(encrypt) && StringUtil.isNotEmpty(responseBody)) {
-            ApiResponse apiResponse = JSON.parseObject(responseBody, ApiResponse.class);
+            ApiResponse apiResponse;
+            try {
+                apiResponse = JSON.parseObject(responseBody, ApiResponse.class);
+            } catch (JSONException e) {
+                log.warn("response body is not ApiResponse json, skip encrypt", e);
+                return modifyResponseBody;
+            }
+            if (apiResponse == null) {
+                return modifyResponseBody;
+            }
             Object data = apiResponse.getData();
             if (data != null) {
                 String code = request.getHeaders().getFirst(CODE);

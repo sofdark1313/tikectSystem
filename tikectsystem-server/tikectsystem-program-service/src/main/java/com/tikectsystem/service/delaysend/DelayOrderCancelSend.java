@@ -32,7 +32,7 @@ import static com.tikectsystem.constant.ProgramOrderConstant.DELAY_ORDER_CANCEL_
 @Slf4j
 @Component
 public class DelayOrderCancelSend {
-    
+
     @Autowired
     private UidGenerator uidGenerator;
     
@@ -47,19 +47,28 @@ public class DelayOrderCancelSend {
     private Boolean delayOrderCancel;
     
     public void sendMessage(DelayOrderCancelDto delayOrderCancelDto){
-        if (!delayOrderCancel){
+        if (!Boolean.TRUE.equals(delayOrderCancel)){
             return;
         }
-        BusinessThreadPool.execute(() -> {
+        if (delayOrderCancelDto == null || delayOrderCancelDto.getProgramId() == null ||
+                delayOrderCancelDto.getOrderNumber() == null) {
+            log.error("延迟订单取消消息参数为空 delayOrderCancelDto : {}", JSON.toJSONString(delayOrderCancelDto));
+            return;
+        }
+        BusinessThreadPool.execute(() -> doSendMessage(delayOrderCancelDto));
+    }
+
+    private void doSendMessage(DelayOrderCancelDto delayOrderCancelDto) {
+        try {
             Long messageTraceId = uidGenerator.getUid();
             Long messageId = uidGenerator.getUid();
-            
+
             DelayOrderCancelMessageModule delayOrderCancelMessageModule = new DelayOrderCancelMessageModule();
             delayOrderCancelMessageModule.setMessageTraceId(messageTraceId);
             delayOrderCancelMessageModule.setMessageId(messageId);
             delayOrderCancelMessageModule.setProgramId(delayOrderCancelDto.getProgramId());
             delayOrderCancelMessageModule.setOrderNumber(delayOrderCancelDto.getOrderNumber());
-            
+
             String messageContent = JSON.toJSONString(delayOrderCancelMessageModule);
             InsertMessageProducerRecordDto insertMessageProducerRecordDto = new InsertMessageProducerRecordDto();
             insertMessageProducerRecordDto.setMessageType(MessageType.DELAY_ORDER_CANCEL.getCode());
@@ -69,15 +78,20 @@ public class DelayOrderCancelSend {
             insertMessageProducerRecordDto.setMessageTopic(SpringUtil.getPrefixDistinctionName() + "-" + DELAY_ORDER_CANCEL_TOPIC);
             insertMessageProducerRecordDto.setMessageContent(messageContent);
             ApiResponse<MessageProducerRecordVo> insertMessageProducerRecordApiResponse = apiDataClient.insertMessageProducerRecord(insertMessageProducerRecordDto);
-            if (!insertMessageProducerRecordApiResponse.getCode().equals(BaseCode.SUCCESS.getCode())){
+            if (insertMessageProducerRecordApiResponse == null ||
+                    !BaseCode.SUCCESS.getCode().equals(insertMessageProducerRecordApiResponse.getCode())){
                 log.error("添加记录消息发送日志失败，参数 : {}", JSON.toJSONString(insertMessageProducerRecordDto));
                 return;
             }
             MessageProducerRecordVo messageProducerRecordVo = insertMessageProducerRecordApiResponse.getData();
-            
+            if (messageProducerRecordVo == null || messageProducerRecordVo.getId() == null) {
+                log.error("添加记录消息发送日志返回数据为空，参数 : {}", JSON.toJSONString(insertMessageProducerRecordDto));
+                return;
+            }
+
             UpdateMessageProducerRecordDto updateMessageProducerRecordDto = new UpdateMessageProducerRecordDto();
             updateMessageProducerRecordDto.setId(messageProducerRecordVo.getId());
-            
+
             try {
                 log.info("延迟订单取消消息进行发送 消息体 : {}",messageContent);
                 delayQueueContext.sendMessage(SpringUtil.getPrefixDistinctionName() + "-" + DELAY_ORDER_CANCEL_TOPIC,
@@ -89,6 +103,8 @@ public class DelayOrderCancelSend {
                 updateMessageProducerRecordDto.setMessageSendException(e.getMessage());
             }
             apiDataClient.updateMessageProducerRecord(updateMessageProducerRecordDto);
-        });
+        }catch (Exception e) {
+            log.error("延迟订单取消消息异步发送任务执行失败 delayOrderCancelDto : {}", JSON.toJSONString(delayOrderCancelDto),e);
+        }
     }
 }

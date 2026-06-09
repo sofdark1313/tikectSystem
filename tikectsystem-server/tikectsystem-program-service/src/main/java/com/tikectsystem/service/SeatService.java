@@ -184,7 +184,7 @@ public class SeatService extends ServiceImpl<SeatMapper, Seat> {
                     DateUtils.countBetweenSecond(DateUtils.now(), programShowTime.getShowTime()), TimeUnit.SECONDS));
         }
         
-        if (programVo.getPermitChooseSeat().equals(BusinessStatus.NO.getCode())) {
+        if (Objects.equals(programVo.getPermitChooseSeat(),BusinessStatus.NO.getCode())) {
             throw new TikectsystemFrameException(BaseCode.PROGRAM_NOT_ALLOW_CHOOSE_SEAT);
         }
         

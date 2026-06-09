@@ -34,7 +34,7 @@ public class ProgramDetailCheckHandler extends AbstractProgramCheckHandler {
         programGetDto.setId(programOrderCreateDto.getProgramId());
         ProgramVo programVo = programService.detail(programGetDto);
         //如果节目不允许选择座位，但传入的了手动座位，则抛出异常
-        if (programVo.getPermitChooseSeat().equals(BusinessStatus.NO.getCode())) {
+        if (Objects.equals(programVo.getPermitChooseSeat(),BusinessStatus.NO.getCode())) {
             if (Objects.nonNull(programOrderCreateDto.getSeatDtoList())) {
                 throw new TikectsystemFrameException(BaseCode.PROGRAM_NOT_ALLOW_CHOOSE_SEAT);
             }
@@ -64,7 +64,6 @@ public class ProgramDetailCheckHandler extends AbstractProgramCheckHandler {
         return 1;
     }
 }
-
 
 
 

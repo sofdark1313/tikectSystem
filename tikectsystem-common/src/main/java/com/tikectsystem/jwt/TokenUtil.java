@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.tikectsystem.enums.BaseCode;
 import com.tikectsystem.exception.TikectsystemFrameException;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -77,6 +78,9 @@ public class TokenUtil {
         }catch (ExpiredJwtException jwtException) {
             log.error("parseToken error",jwtException);
             throw new TikectsystemFrameException(BaseCode.TOKEN_EXPIRE);
+        } catch (JwtException | IllegalArgumentException e) {
+            log.error("parseToken invalid token",e);
+            throw new TikectsystemFrameException(BaseCode.LOGIN_USER_NOT_EXIST);
         }
 
     }
@@ -90,11 +94,11 @@ public class TokenUtil {
         jsonObject.put("002key", "001value");
 
         String token1 = TokenUtil.createToken("1", jsonObject.toJSONString(), 10000, tokenSecret);
-        System.out.println("token:" + token1);
+        log.info("token: {}",token1);
 
         //解析token的示例
         String token2 = "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIxIiwiaWF0IjoxNjg4NTQyODM3LCJzdWIiOiJ7XCIwMDJrZXlcIjpcIjAwMXZhbHVlXCIsXCIwMDFrZXlcIjpcIjAwMXZhbHVlXCJ9IiwiZXhwIjoxNjg4NTQyODQ3fQ.vIKcAilTn_CR3VYssNE7rBpfuCSCH_RrkmsadLWf664";
         String subject = TokenUtil.parseToken(token2, tokenSecret);
-        System.out.println("解析token后的值:" + subject);
+        log.info("解析token后的值: {}",subject);
     }
 }

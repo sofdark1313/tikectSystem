@@ -2,6 +2,7 @@ package com.tikectsystem.csv;
 
 import cn.hutool.core.io.FileUtil;
 import com.opencsv.CSVWriter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -19,6 +20,7 @@ import java.util.Map.Entry;
  * @description: jmeter csv文件生成工具类
  * @author: 阿星不是程序员
  **/
+@Slf4j
 public class CsvCreate {
     
     private static final String CSV_FILE_LOCATION = Paths.get("").toAbsolutePath() + "/csv";
@@ -40,7 +42,7 @@ public class CsvCreate {
         try (CSVWriter writer = new CSVWriter(new FileWriter(CSV_FILE_NAME, StandardCharsets.UTF_8))) {
             writer.writeAll(csvCompleteData);
         } catch (IOException e) {
-            System.out.println("生成失败:"+e.getMessage());
+            log.error("生成CSV文件失败，fileName={}", CSV_FILE_NAME, e);
         }
     }
     

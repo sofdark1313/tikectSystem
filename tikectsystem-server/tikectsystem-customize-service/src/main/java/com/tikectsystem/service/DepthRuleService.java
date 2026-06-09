@@ -33,12 +33,12 @@ public class DepthRuleService {
 
     @Autowired
     private DepthRuleMapper depthRuleMapper;
-    
+
     @Autowired
     private RuleService ruleService;
     @Autowired
     private UidGenerator uidGenerator;
-    
+
     @Transactional(rollbackFor = Exception.class)
     public void depthRuleAdd(DepthRuleDto depthRuleDto) {
         check(depthRuleDto.getStartTimeWindow(),depthRuleDto.getEndTimeWindow());
@@ -50,16 +50,20 @@ public class DepthRuleService {
         if (StringUtil.isEmpty(startTimeWindow) || StringUtil.isEmpty(endTimeWindow)) {
             return;
         }
+        long checkStartTimeWindowTimestamp = getTimeWindowTimestamp(startTimeWindow);
+        long checkEndTimeWindowTimestamp = getTimeWindowTimestamp(endTimeWindow);
+        checkTimeWindowRange(checkStartTimeWindowTimestamp,checkEndTimeWindowTimestamp);
         LambdaQueryWrapper<DepthRule> queryWrapper = Wrappers.lambdaQuery(DepthRule.class).eq(DepthRule::getStatus, RuleStatus.RUN.getCode());
         List<DepthRule> depthRules = depthRuleMapper.selectList(queryWrapper);
         for (final DepthRule depthRule : depthRules) {
-            long checkStartTimeWindowTimestamp = getTimeWindowTimestamp(startTimeWindow);
-            long checkEndTimeWindowTimestamp = getTimeWindowTimestamp(endTimeWindow);
+            if (StringUtil.isEmpty(depthRule.getStartTimeWindow()) || StringUtil.isEmpty(depthRule.getEndTimeWindow())) {
+                continue;
+            }
             long startTimeWindowTimestamp = getTimeWindowTimestamp(depthRule.getStartTimeWindow());
             long endTimeWindowTimestamp = getTimeWindowTimestamp(depthRule.getEndTimeWindow());
-            boolean checkStartLimitTimeResult = checkStartTimeWindowTimestamp >= startTimeWindowTimestamp && checkStartTimeWindowTimestamp <= endTimeWindowTimestamp;
-            boolean checkEndLimitTimeResult = checkEndTimeWindowTimestamp >= startTimeWindowTimestamp && checkEndTimeWindowTimestamp <= endTimeWindowTimestamp;
-            if (checkStartLimitTimeResult || checkEndLimitTimeResult) {
+            checkTimeWindowRange(startTimeWindowTimestamp,endTimeWindowTimestamp);
+            if (checkTimeWindowIntersect(checkStartTimeWindowTimestamp,checkEndTimeWindowTimestamp,
+                    startTimeWindowTimestamp,endTimeWindowTimestamp)) {
                 throw new TikectsystemFrameException(BaseCode.API_RULE_TIME_WINDOW_INTERSECT);
             }
         }
@@ -67,7 +71,22 @@ public class DepthRuleService {
     
     public long getTimeWindowTimestamp(String timeWindow){
         String today = DateUtil.today();
-        return DateUtil.parse(today + " " + timeWindow).getTime();
+        try {
+            return DateUtil.parse(today + " " + timeWindow).getTime();
+        } catch (RuntimeException e) {
+            throw new TikectsystemFrameException(BaseCode.PARAMETER_ERROR);
+        }
+    }
+
+    private void checkTimeWindowRange(long startTimeWindowTimestamp, long endTimeWindowTimestamp) {
+        if (endTimeWindowTimestamp < startTimeWindowTimestamp) {
+            throw new TikectsystemFrameException(BaseCode.PARAMETER_ERROR);
+        }
+    }
+
+    private boolean checkTimeWindowIntersect(long checkStartTimeWindowTimestamp, long checkEndTimeWindowTimestamp,
+                                             long startTimeWindowTimestamp, long endTimeWindowTimestamp) {
+        return checkStartTimeWindowTimestamp <= endTimeWindowTimestamp && checkEndTimeWindowTimestamp >= startTimeWindowTimestamp;
     }
     
     @Transactional(rollbackFor = Exception.class)

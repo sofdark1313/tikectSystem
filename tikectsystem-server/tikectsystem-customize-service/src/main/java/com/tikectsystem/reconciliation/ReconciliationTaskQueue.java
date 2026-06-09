@@ -99,15 +99,16 @@ public class ReconciliationTaskQueue {
                 return; // 成功就退出
             } catch (Exception e) {
                 attempt++;
-                System.err.println("任务执行失败，第 " + attempt + " 次重试: " + e.getMessage());
                 if (attempt >= MAX_RETRY_ATTEMPTS) {
-                    System.err.println("任务执行失败，超过最大重试次数，丢弃任务");
+                    log.error("任务执行失败，超过最大重试次数，丢弃任务", e);
                 } else {
+                    log.warn("任务执行失败，第 {} 次重试", attempt, e);
                     try {
                         // 可加点延时再重试
                         Thread.sleep(1000);
                     } catch (InterruptedException ex) {
                         Thread.currentThread().interrupt();
+                        log.warn("任务重试等待被中断", ex);
                         break;
                     }
                 }

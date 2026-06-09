@@ -48,8 +48,8 @@ public class ReconciliationTask {
                 //查询当前时间前3分钟的对账记录
                 programRecordTaskListDto.setCreateTime(DateUtils.addMinute(DateUtils.now(),-3));
                 ApiResponse<List<ProgramRecordTaskVo>> listApiResponse = programClient.select(programRecordTaskListDto);
-                if (!Objects.equals(listApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
-                    log.error("获取节目对账记录任务集合失败 dto : {} message: {}", JSON.toJSONString(programRecordTaskListDto),listApiResponse.getMessage());
+                if (listApiResponse == null || !Objects.equals(listApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+                    log.error("获取节目对账记录任务集合失败 dto : {} response: {}", JSON.toJSONString(programRecordTaskListDto),JSON.toJSONString(listApiResponse));
                     return;
                 }
                 List<ProgramRecordTaskVo> programRecordTaskVoList = listApiResponse.getData();
@@ -72,8 +72,8 @@ public class ReconciliationTask {
                 programRecordTaskUpdateDto.setAfterHandleStatus(HandleStatus.YES_HANDLE.getCode());
                 programRecordTaskUpdateDto.setCreateTimeSet(createTimeSet);
                 ApiResponse<Integer> updateApiResponse = programClient.update(programRecordTaskUpdateDto);
-                if (!Objects.equals(listApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
-                    log.error("更新节目对账记录任务失败 dto : {} message: {}", JSON.toJSONString(programRecordTaskUpdateDto),updateApiResponse.getMessage());
+                if (updateApiResponse == null || !Objects.equals(updateApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+                    log.error("更新节目对账记录任务失败 dto : {} response: {}", JSON.toJSONString(programRecordTaskUpdateDto),JSON.toJSONString(updateApiResponse));
                 }
             }catch (Exception e) {
                 log.error("reconciliation task error",e);

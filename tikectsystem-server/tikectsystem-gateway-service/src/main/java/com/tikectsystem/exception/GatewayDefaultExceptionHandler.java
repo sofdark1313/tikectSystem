@@ -15,6 +15,8 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
  * @description: 自定义异常
@@ -41,7 +43,9 @@ public class GatewayDefaultExceptionHandler implements ErrorWebExceptionHandler 
             if (responseStatusException.getStatusCode() == HttpStatus.NOT_FOUND) {
                 String path = exchange.getRequest().getPath().value();
                 String methodValue = exchange.getRequest().getMethod().name();
-                ApiResponse.error(BaseCode.NOT_FOUND.getCode(),String.format(BaseCode.NOT_FOUND.getMsg(),methodValue,path));
+                ApiResponse<String> apiResponse = ApiResponse.error(BaseCode.NOT_FOUND.getCode(),String.format(BaseCode.NOT_FOUND.getMsg(),methodValue,path));
+                requestTemporaryWrapper.setApiResponse(apiResponse);
+                exceptionFlag = true;
             }
         }else if (ex instanceof TikectsystemFrameException) {
             TikectsystemFrameException tikectsystemFrameException = (TikectsystemFrameException)ex;
@@ -74,7 +78,7 @@ public class GatewayDefaultExceptionHandler implements ErrorWebExceptionHandler 
                         return bufferFactory.wrap(objectMapper.writeValueAsBytes(requestTemporaryWrapper.getApiResponse()));
                     } catch (JsonProcessingException e) {
                         log.error("response error",e);
-                        return null;
+                        return bufferFactory.wrap("{\"code\":-1,\"message\":\"系统异常，请稍后重试\"}".getBytes(StandardCharsets.UTF_8));
                     }
                 }));
     }

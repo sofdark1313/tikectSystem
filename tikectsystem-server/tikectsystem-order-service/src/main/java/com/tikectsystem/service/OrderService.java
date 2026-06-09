@@ -262,10 +262,14 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         }
         PayDto payDto = getPayDto(orderPayDto, orderNumber);
         ApiResponse<String> payResponse = payClient.commonPay(payDto);
+        if (payResponse == null) {
+            throw new TikectsystemFrameException(BaseCode.PAY_ERROR);
+        }
         if (!Objects.equals(payResponse.getCode(), BaseCode.SUCCESS.getCode())) {
             throw new TikectsystemFrameException(payResponse);
         }
-        return payResponse.getData();
+        return Optional.ofNullable(payResponse.getData())
+                .orElseThrow(() -> new TikectsystemFrameException(BaseCode.PAY_ERROR));
     }
     
     private PayDto getPayDto(OrderPayDto orderPayDto, Long orderNumber) {
@@ -303,7 +307,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             refundDto.setChannel("alipay");
             refundDto.setReason("延迟订单关闭");
             ApiResponse<String> response = payClient.refund(refundDto);
-            if (response.getCode().equals(BaseCode.SUCCESS.getCode())) {
+            if (response != null && Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode())) {
                 //调用支付服务退款成功后，把订单更新为已退款状态
                 Order updateOrder = new Order();
                 updateOrder.setEditTime(DateUtils.now());
@@ -323,6 +327,9 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         tradeCheckDto.setChannel(Optional.ofNullable(PayChannel.getRc(orderPayCheckDto.getPayChannelType()))
                 .map(PayChannel::getValue).orElseThrow(() -> new TikectsystemFrameException(BaseCode.PAY_CHANNEL_NOT_EXIST)));
         ApiResponse<TradeCheckVo> tradeCheckVoApiResponse = payClient.tradeCheck(tradeCheckDto);
+        if (tradeCheckVoApiResponse == null) {
+            throw new TikectsystemFrameException(BaseCode.PAY_TRADE_CHECK_ERROR);
+        }
         if (!Objects.equals(tradeCheckVoApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
             throw new TikectsystemFrameException(tradeCheckVoApiResponse);
         }
@@ -385,7 +392,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 refundDto.setChannel("alipay");
                 refundDto.setReason("延迟订单关闭");
                 ApiResponse<String> response = payClient.refund(refundDto);
-                if (response.getCode().equals(BaseCode.SUCCESS.getCode())) {
+                if (response != null && Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode())) {
                     //调用支付服务退款成功后，把订单更新为已退款状态
                     Order updateOrder = new Order();
                     updateOrder.setEditTime(DateUtils.now());
@@ -402,19 +409,24 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             notifyDto.setParams(params);
             //调用支付服务，将回调中的参数进行签名验证
             ApiResponse<NotifyVo> notifyResponse = payClient.notify(notifyDto);
+            if (notifyResponse == null) {
+                throw new TikectsystemFrameException(BaseCode.PAY_ERROR);
+            }
             if (!Objects.equals(notifyResponse.getCode(), BaseCode.SUCCESS.getCode())) {
                 throw new TikectsystemFrameException(notifyResponse);
             }
+            NotifyVo notifyVo = Optional.ofNullable(notifyResponse.getData())
+                    .orElseThrow(() -> new TikectsystemFrameException(BaseCode.PAY_ERROR));
             //如果验证过程的话则进行订单状态更新
-            if (ALIPAY_NOTIFY_SUCCESS_RESULT.equals(notifyResponse.getData().getPayResult())) {
+            if (ALIPAY_NOTIFY_SUCCESS_RESULT.equals(notifyVo.getPayResult())) {
                 try {
-                    orderService.updateOrderRelatedData(Long.parseLong(notifyResponse.getData().getOutTradeNo())
+                    orderService.updateOrderRelatedData(Long.parseLong(notifyVo.getOutTradeNo())
                             ,OrderStatus.PAY);
                 }catch (Exception e) {
                     log.warn("updateOrderRelatedData warn message",e);
                 }
             }
-            return notifyResponse.getData().getPayResult();
+            return notifyVo.getPayResult();
         }finally {
             lock.unlock();
         }
@@ -628,7 +640,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                     Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode())) {
                 programOperateDataDto.setSellStatus(Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode()) ? SellStatus.SOLD.getCode() : SellStatus.NO_SOLD.getCode());
                 ApiResponse<Boolean> programApiResponse = programClient.operateProgramData(programOperateDataDto);
-                if (!Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+                if (programApiResponse == null || !Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
                     throw new TikectsystemFrameException(programApiResponse);
                 }
             }
@@ -687,11 +699,11 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             OrderTicketInfoVo orderTicketInfoVo = new OrderTicketInfoVo();
             String seatInfo = "暂无座位信息";
             //如果节目是允许选座的，才显示出当时生成订单时产生的座位信息
-            if (order.getProgramPermitChooseSeat().equals(BusinessStatus.YES.getCode())) {
+            if (Objects.equals(order.getProgramPermitChooseSeat(),BusinessStatus.YES.getCode())) {
                 seatInfo = v.stream().map(OrderTicketUser::getSeatInfo).collect(Collectors.joining(","));
             }
             orderTicketInfoVo.setSeatInfo(seatInfo);
-            orderTicketInfoVo.setPrice(v.get(0).getOrderPrice());
+            orderTicketInfoVo.setPrice(k);
             orderTicketInfoVo.setQuantity(v.size());
             orderTicketInfoVo.setRelPrice(v.stream().map(OrderTicketUser::getOrderPrice)
                     .reduce(BigDecimal.ZERO,BigDecimal::add));
@@ -706,7 +718,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         ApiResponse<UserGetAndTicketUserListVo> userGetAndTicketUserApiResponse =
                 userClient.getUserAndTicketUserList(userGetAndTicketUserListDto);
 
-        if (!Objects.equals(userGetAndTicketUserApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+        if (userGetAndTicketUserApiResponse == null || !Objects.equals(userGetAndTicketUserApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
             throw new TikectsystemFrameException(userGetAndTicketUserApiResponse);
 
         }
@@ -767,7 +779,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         reduceRemainNumberDto.setSeatIdList(orderTicketUserCreateDtoList.stream().map(OrderTicketUserCreateDto::getSeatId).collect(Collectors.toList()));
         reduceRemainNumberDto.setTicketCategoryCountDtoList(ticketCountList);
         ApiResponse<Boolean> programApiResponse = programClient.operateSeatLockAndTicketCategoryRemainNumber(reduceRemainNumberDto);
-        if (!Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+        if (programApiResponse == null || !Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
             //将因为修改节目服务余票和座位失败，导致丢弃的订单放入redis中
             redisCache.leftPushForList(RedisKeyBuild.createRedisKey(RedisKeyManage.DISCARD_ORDER,
                     orderCreateMq.getProgramId()),new DiscardOrder(orderCreateMq, DiscardOrderReason.MODIFY_PROGRAM_REMAIN_NUMBER_SEAT_FAIL.getCode()));

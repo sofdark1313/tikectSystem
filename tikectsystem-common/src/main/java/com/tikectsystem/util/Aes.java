@@ -23,8 +23,6 @@ public class Aes {
 	
 	private final static String AES = "AES";
 	
-	private final static String ENCODE_UTF_8 = "UTF-8";
-	
 	
 	/**
 	 * 根据键值进行加密
@@ -40,6 +38,7 @@ public class Aes {
 			String strs = Base64.encode(bt);
 			return strs;
 		}catch (Exception e) {
+			log.error("aes encrypt error",e);
 			throw new TikectsystemFrameException(BaseCode.AES_ERROR);
 		}
 		
@@ -62,6 +61,7 @@ public class Aes {
 			byte[] bt = decrypt(key.getBytes(StandardCharsets.UTF_8), initVector.getBytes(StandardCharsets.UTF_8), buf);
 			return new String(bt, StandardCharsets.UTF_8);
 		}catch (Exception e) {
+			log.error("aes decrypt error",e);
 			throw new TikectsystemFrameException(BaseCode.AES_ERROR);
 		}
 		
@@ -121,7 +121,7 @@ public class Aes {
 		try {
 			int sixteen = 16;
 			KeyGenerator kg = KeyGenerator.getInstance("AES");
-			kg.init(128, new SecureRandom(key.getBytes()));
+			kg.init(128, new SecureRandom(key.getBytes(StandardCharsets.UTF_8)));
 			SecretKey sk = kg.generateKey();
 			byte[] b = sk.getEncoded();
 			resultString = byteToHexString(b);

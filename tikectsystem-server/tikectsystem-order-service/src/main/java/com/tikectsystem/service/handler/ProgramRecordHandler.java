@@ -96,7 +96,9 @@ public class ProgramRecordHandler {
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
                 log.error("Thread sleep interrupted", ex);
+                throw new TikectsystemFrameException(BaseCode.THREAD_INTERRUPTED);
             }
             retryCount++;
             add(retryCount, programId, completeRedisCordMap, totalProgramRecordMap);

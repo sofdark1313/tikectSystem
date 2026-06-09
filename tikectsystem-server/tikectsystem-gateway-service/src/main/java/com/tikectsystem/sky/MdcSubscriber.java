@@ -44,8 +44,12 @@ public class MdcSubscriber implements CoreSubscriber {
                     .map(Object::toString);
         }
 
-        MDC.put(SKY_WALKING_TRACE_ID, traceIdOptional.orElse("N/A"));
-        actual.onNext(o);
+        try {
+            MDC.put(SKY_WALKING_TRACE_ID, traceIdOptional.orElse("N/A"));
+            actual.onNext(o);
+        } finally {
+            MDC.remove(SKY_WALKING_TRACE_ID);
+        }
     }
 
     @Override

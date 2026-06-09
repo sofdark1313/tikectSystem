@@ -3,6 +3,7 @@ package com.tikectsystem.service.lua;
 import com.alibaba.fastjson.JSON;
 import com.tikectsystem.redis.RedisCache;
 import com.tikectsystem.service.ApiRestrictData;
+import com.tikectsystem.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -39,7 +40,14 @@ public class ApiRestrictCacheOperate {
     }
     
     public ApiRestrictData apiRuleOperate(List<String> keys, Object[] args){
+        if (redisScript == null) {
+            throw new IllegalStateException("apiLimit Lua脚本未初始化");
+        }
         Object object = redisCache.getInstance().execute(redisScript, keys, args);
-        return JSON.parseObject((String)object, ApiRestrictData.class);
+        String result = (String)object;
+        if (StringUtil.isEmpty(result)) {
+            throw new IllegalStateException("apiLimit Lua脚本返回为空");
+        }
+        return JSON.parseObject(result, ApiRestrictData.class);
     }
 }

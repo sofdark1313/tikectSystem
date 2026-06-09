@@ -391,7 +391,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         AreaSelectDto areaSelectDto = new AreaSelectDto();
         areaSelectDto.setIdList(iPage.getRecords().stream().map(Program::getAreaId).distinct().collect(Collectors.toList()));
         ApiResponse<List<AreaVo>> areaResponse = baseDataClient.selectByIdList(areaSelectDto);
-        if (Objects.equals(areaResponse.getCode(), ApiResponse.ok().getCode())) {
+        if (areaResponse != null && Objects.equals(areaResponse.getCode(), BaseCode.SUCCESS.getCode())) {
             if (CollectionUtil.isNotEmpty(areaResponse.getData())) {
                 tempAreaMap = areaResponse.getData().stream()
                         .collect(Collectors.toMap(AreaVo::getId,AreaVo::getName,(v1,v2) -> v2));
@@ -767,7 +767,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         AreaGetDto areaGetDto = new AreaGetDto();
         areaGetDto.setId(program.getAreaId());
         ApiResponse<AreaVo> areaResponse = baseDataClient.getById(areaGetDto);
-        if (Objects.equals(areaResponse.getCode(), ApiResponse.ok().getCode())) {
+        if (areaResponse != null && Objects.equals(areaResponse.getCode(), BaseCode.SUCCESS.getCode())) {
             if (Objects.nonNull(areaResponse.getData())) {
                 programVo.setAreaName(areaResponse.getData().getName());
             }
@@ -840,7 +840,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                     TicketUserListDto ticketUserListDto = new TicketUserListDto();
                     ticketUserListDto.setUserId(Long.parseLong(userId));
                     ApiResponse<List<TicketUserVo>> apiResponse = userClient.list(ticketUserListDto);
-                    if (Objects.equals(apiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+                    if (apiResponse != null && Objects.equals(apiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
                         Optional.ofNullable(apiResponse.getData()).filter(CollectionUtil::isNotEmpty)
                                 .ifPresent(ticketUserVoList -> redisCache.set(RedisKeyBuild.createRedisKey(
                                         RedisKeyManage.TICKET_USER_LIST,userId),ticketUserVoList));
@@ -873,7 +873,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                     accountOrderCountDto.setUserId(Long.parseLong(userId));
                     accountOrderCountDto.setProgramId(programId);
                     ApiResponse<AccountOrderCountVo> apiResponse = orderClient.accountOrderCount(accountOrderCountDto);
-                    if (Objects.equals(apiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+                    if (apiResponse != null && Objects.equals(apiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
                         Optional.ofNullable(apiResponse.getData())
                                 .ifPresent(accountOrderCountVo -> redisCache.set(
                                         RedisKeyBuild.createRedisKey(RedisKeyManage.ACCOUNT_ORDER_COUNT,userId,programId),
@@ -1012,4 +1012,3 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         return true;
     }
 }
-

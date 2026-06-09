@@ -28,7 +28,7 @@ public class ProgramSeatCacheData {
     @Autowired
     private RedisCache redisCache;
     
-    private DefaultRedisScript redisScript;
+    private DefaultRedisScript<Object> redisScript;
     
     private static final Integer THRESHOLD_VALUE = 2000;
     
@@ -45,10 +45,16 @@ public class ProgramSeatCacheData {
     
     public List<SeatVo> getData(List<String> keys, String[] args){
         List<SeatVo> list;
+        if (redisScript == null) {
+            throw new IllegalStateException("programSeat lua script is not initialized");
+        }
         Object object = redisCache.getInstance().execute(redisScript, keys, args);
         List<String> seatVoStrlist = new ArrayList<>();
-        if (Objects.nonNull(object) && object instanceof ArrayList) {
-            seatVoStrlist = (ArrayList<String>)object;
+        if (object instanceof List<?> objectList) {
+            seatVoStrlist = objectList.stream()
+                    .filter(Objects::nonNull)
+                    .map(String::valueOf)
+                    .collect(Collectors.toList());
         }
         if (seatVoStrlist.size() > THRESHOLD_VALUE) {
             list = seatVoStrlist.parallelStream()

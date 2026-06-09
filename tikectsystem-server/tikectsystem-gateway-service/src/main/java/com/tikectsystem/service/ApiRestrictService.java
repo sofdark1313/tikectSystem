@@ -44,6 +44,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 public class ApiRestrictService {
+
+    private static final PathMatcher PATH_MATCHER = new AntPathMatcher();
     
     @Autowired
     private RedisCache redisCache;
@@ -63,8 +65,7 @@ public class ApiRestrictService {
     public boolean checkApiRestrict(String requestUri){
         if (gatewayProperty.getApiRestrictPaths() != null) {
             for (String apiRestrictPath : gatewayProperty.getApiRestrictPaths()) {
-                PathMatcher matcher = new AntPathMatcher();
-                if(matcher.match(apiRestrictPath, requestUri)){
+                if(PATH_MATCHER.match(apiRestrictPath, requestUri)){
                     return true;
                 }
             }
@@ -110,12 +111,16 @@ public class ApiRestrictService {
                 }
                 if (apiRuleType == ApiRuleType.RULE.getCode() || apiRuleType == ApiRuleType.DEPTH_RULE.getCode()) {
 
-                    assert ruleVo != null;
+                    if (ruleVo == null) {
+                        log.warn("api restrict rule missing, apiRuleType: {}, key: {}",apiRuleType,commonKey);
+                        return;
+                    }
                     //普通规则构建
                     JSONObject parameter = getRuleParameter(apiRuleType,commonKey,ruleVo);
 
                     if (apiRuleType == ApiRuleType.DEPTH_RULE.getCode()) {
                         //深度规则构建
+                        depthRuleVoList = sortStartTimeWindow(depthRuleVoList);
                         parameter = getDepthRuleParameter(parameter,commonKey,depthRuleVoList);
                     }
                     ApiRestrictData apiRestrictData = apiRestrictCacheOperate
@@ -130,8 +135,9 @@ public class ApiRestrictService {
                     threshold = apiRestrictData.getThreshold();
                     //定制的规则提示语
                     messageIndex = apiRestrictData.getMessageIndex();
-                    if (messageIndex != -1) {
-                        message = Optional.ofNullable(depthRuleVoList.get((int)messageIndex))
+                    int depthRuleIndex = (int) messageIndex - 1;
+                    if (depthRuleIndex >= 0 && depthRuleIndex < depthRuleVoList.size()) {
+                        message = Optional.ofNullable(depthRuleVoList.get(depthRuleIndex))
                                 .map(DepthRuleVo::getMessage)
                                 .filter(StringUtil::isNotEmpty)
                                 .orElse(message);
@@ -184,7 +190,6 @@ public class ApiRestrictService {
     public JSONObject getDepthRuleParameter(JSONObject parameter,String commonKey,List<DepthRuleVo> depthRuleVoList){
         //深度规则构建
         //将限制时间窗口进行排序
-        depthRuleVoList = sortStartTimeWindow(depthRuleVoList);
         //深度规则的个数
         parameter.put("depthRuleSize",String.valueOf(depthRuleVoList.size()));
         //当前时间戳
@@ -216,15 +221,32 @@ public class ApiRestrictService {
     }
     
     public List<DepthRuleVo> sortStartTimeWindow(List<DepthRuleVo> depthRuleVoList){
-        return depthRuleVoList.stream().peek(depthRuleVo -> {
+        return depthRuleVoList.stream().filter(Objects::nonNull).peek(depthRuleVo -> {
             depthRuleVo.setStartTimeWindowTimestamp(getTimeWindowTimestamp(depthRuleVo.getStartTimeWindow()));
             depthRuleVo.setEndTimeWindowTimestamp((getTimeWindowTimestamp(depthRuleVo.getEndTimeWindow())));
+        }).filter(depthRuleVo -> {
+            boolean valid = depthRuleVo.getStartTimeWindowTimestamp() > 0
+                    && depthRuleVo.getEndTimeWindowTimestamp() > 0
+                    && depthRuleVo.getStartTimeWindowTimestamp() <= depthRuleVo.getEndTimeWindowTimestamp();
+            if (!valid) {
+                log.warn("skip invalid depth rule time window, startTimeWindow: {}, endTimeWindow: {}",
+                        depthRuleVo.getStartTimeWindow(),depthRuleVo.getEndTimeWindow());
+            }
+            return valid;
         }).sorted(Comparator.comparing(DepthRuleVo::getStartTimeWindowTimestamp)).collect(Collectors.toList());
     }
     
     public long getTimeWindowTimestamp(String timeWindow){
+        if (StringUtil.isEmpty(timeWindow)) {
+            return 0L;
+        }
         String today = DateUtil.today();
-        return DateUtil.parse(today + " " + timeWindow).getTime();
+        try {
+            return DateUtil.parse(today + " " + timeWindow).getTime();
+        } catch (RuntimeException e) {
+            log.warn("parse api restrict time window failed, timeWindow: {}",timeWindow,e);
+            return 0L;
+        }
     }
     
     /**
@@ -259,7 +281,10 @@ public class ApiRestrictService {
             ip = headers.getFirst("X-Real-IP");
         }
         if (ip == null || ip.length() == 0 || unknown.equalsIgnoreCase(ip)) {
-            ip = Objects.requireNonNull(request.getRemoteAddress()).getAddress().getHostAddress();
+            ip = Optional.ofNullable(request.getRemoteAddress())
+                    .map(remoteAddress -> remoteAddress.getAddress())
+                    .map(address -> address.getHostAddress())
+                    .orElse(unknown);
         }
         return ip;
     }

@@ -2,6 +2,7 @@ package com.tikectsystem.service.lua;
 
 import com.alibaba.fastjson.JSON;
 import com.tikectsystem.redis.RedisCache;
+import com.tikectsystem.util.StringUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,14 @@ public class ProgramCacheCreateOrderResolutionOperate {
     }
     
     public ProgramCacheCreateOrderData programCacheOperate(List<String> keys, String[] args){
+        if (redisScript == null) {
+            throw new IllegalStateException("programDataCreateOrderResolution lua script is not initialized");
+        }
         Object object = redisCache.getInstance().execute(redisScript, keys, args);
-        return JSON.parseObject((String)object, ProgramCacheCreateOrderData.class);
+        String result = (String)object;
+        if (StringUtil.isEmpty(result)) {
+            throw new IllegalStateException("programDataCreateOrderResolution lua script result is empty");
+        }
+        return JSON.parseObject(result, ProgramCacheCreateOrderData.class);
     }
 }

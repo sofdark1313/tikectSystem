@@ -72,6 +72,9 @@ public class RsaSignTool {
      * @return
      */
     private static String buildParam(Map<String, String> params) {
+        if (params.isEmpty()) {
+            return "";
+        }
         List<String> keys = new ArrayList<>(params.keySet());
         Collections.sort(keys);
         
@@ -150,10 +153,11 @@ public class RsaSignTool {
         if (params == null) {
             return null;
         }
-        params.remove("sign");
-        params.remove("files");
+        Map<String, String> checkParams = new HashMap<>(params);
+        checkParams.remove("sign");
+        checkParams.remove("files");
         
-        return buildParam(params);
+        return buildParam(checkParams);
     }
     
     /**
@@ -191,11 +195,11 @@ public class RsaSignTool {
         map.put("businessBody", "{\"id\":\"1111\",\"sleepTime\":10}");
         //签名
         String sign = RsaSignTool.rsaSign256(map, signPrivateKey);
-        System.out.println("签名:" + sign);
+        log.info("签名: {}",sign);
         map.put("sign", sign);
         //验签
         boolean result = RsaSignTool.verifyRsaSign256(map, signPublicKey);
-        System.out.println("签名结果:" + result);
+        log.info("签名结果: {}",result);
     }
     
     public static void parameterTransferV2() {
@@ -210,19 +214,19 @@ public class RsaSignTool {
         
         //将业务参数进行加密
         String encrypt = RsaTool.encrypt(JSON.toJSONString(businessMap), dataPublicKey);
-        System.out.println("参数加密后:" + encrypt);
+        log.info("参数加密后: {}",encrypt);
         
         String decrypt = RsaTool.decrypt(encrypt, dataPrivateKey);
-        System.out.println("参数解密后:" + decrypt);
+        log.info("参数解密后: {}",decrypt);
         
         //将未加密的业务参数和基础参数进行拼接
         map.put("businessBody", JSON.toJSONString(businessMap));
         //rsa生成签名
         String sign = RsaSignTool.rsaSign256(map, signPrivateKey);
-        System.out.println("签名:" + sign);
+        log.info("签名: {}",sign);
         map.put("sign",sign);
         //rsa进行验签
         boolean result = RsaSignTool.verifyRsaSign256(map, signPublicKey);
-        System.out.println("签名结果:" + result);
+        log.info("签名结果: {}",result);
     }
 }

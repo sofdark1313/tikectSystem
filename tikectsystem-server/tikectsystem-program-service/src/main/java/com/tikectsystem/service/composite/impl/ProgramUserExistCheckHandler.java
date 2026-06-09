@@ -66,7 +66,7 @@ public class ProgramUserExistCheckHandler extends AbstractProgramCheckHandler {
             TicketUserListDto ticketUserListDto = new TicketUserListDto();
             ticketUserListDto.setUserId(programOrderCreateDto.getUserId());
             ApiResponse<List<TicketUserVo>> apiResponse = userClient.list(ticketUserListDto);
-            if (Objects.equals(apiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+            if (apiResponse != null && Objects.equals(apiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
                 ticketUserVoList = apiResponse.getData();
             }else {
                 log.error("user client rpc getUserAndTicketUserList select response : {}", JSON.toJSONString(apiResponse));
@@ -104,7 +104,7 @@ public class ProgramUserExistCheckHandler extends AbstractProgramCheckHandler {
             accountOrderCountDto.setUserId(programOrderCreateDto.getUserId());
             accountOrderCountDto.setProgramId(programOrderCreateDto.getProgramId());
             ApiResponse<AccountOrderCountVo> apiResponse = orderClient.accountOrderCount(accountOrderCountDto);
-            if (Objects.equals(apiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+            if (apiResponse != null && Objects.equals(apiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
                 count = Optional.ofNullable(apiResponse.getData()).map(AccountOrderCountVo::getCount).orElse(0);
                 redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.ACCOUNT_ORDER_COUNT,
                                 programOrderCreateDto.getUserId(),

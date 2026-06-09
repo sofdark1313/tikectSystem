@@ -42,6 +42,7 @@ public class BaseParameterHolder {
         Map<String, String> map = THREAD_LOCAL_MAP.get();
         if (map == null) {
             map = new HashMap<>(64);
+            THREAD_LOCAL_MAP.set(map);
         }
         return map;
     }

@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,11 @@ public class CreateOrderConsumer {
             Optional.ofNullable(consumerRecord.value()).map(String::valueOf).ifPresent(value -> {
       
                 OrderCreateMq orderCreateMq = JSON.parseObject(value, OrderCreateMq.class);
+                if (orderCreateMq == null || orderCreateMq.getCreateOrderTime() == null ||
+                        orderCreateMq.getOrderNumber() == null) {
+                    log.error("消费到kafka的创建订单消息格式错误 消息体: {}",value);
+                    return;
+                }
                 
                 long createOrderTimeTimestamp = orderCreateMq.getCreateOrderTime().getTime();
                 
@@ -59,8 +65,10 @@ public class CreateOrderConsumer {
                 
        
                 if (currentTimeTimestamp - createOrderTimeTimestamp > MESSAGE_DELAY_TIME) {
+                    List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList =
+                            Optional.ofNullable(orderCreateMq.getOrderTicketUserCreateDtoList()).orElse(Collections.emptyList());
                     Map<Long, List<OrderTicketUserCreateDto>> orderTicketUserSeatList =
-                            orderCreateMq.getOrderTicketUserCreateDtoList().stream().collect(Collectors.groupingBy(OrderTicketUserCreateDto::getTicketCategoryId));
+                            orderTicketUserCreateDtoList.stream().collect(Collectors.groupingBy(OrderTicketUserCreateDto::getTicketCategoryId));
                     //key: 节目票档id value: 座位id集合
                     Map<Long,List<Long>> seatMap = new HashMap<>(orderTicketUserSeatList.size());
                     orderTicketUserSeatList.forEach((k,v) -> {

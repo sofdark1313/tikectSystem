@@ -68,6 +68,8 @@ import static com.tikectsystem.constant.GatewayConstant.VERIFY_VALUE;
 @Slf4j
 public class RequestValidationFilter implements GlobalFilter, Ordered {
 
+    private static final PathMatcher PATH_MATCHER = new AntPathMatcher();
+
     @Autowired
     private ServerCodecConfigurer serverCodecConfigurer;
 
@@ -95,15 +97,21 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(final ServerWebExchange exchange, final GatewayFilterChain chain) {
-        if (rateLimiterProperty.getRateSwitch()) {
+        if (Boolean.TRUE.equals(rateLimiterProperty.getRateSwitch())) {
+            boolean acquired = false;
             try {
                 rateLimiter.acquire();
-                return doFilter(exchange,chain);
+                acquired = true;
+                return doFilter(exchange,chain).doFinally(signalType -> rateLimiter.release());
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 log.error("interrupted error",e);
                 throw new TikectsystemFrameException(BaseCode.THREAD_INTERRUPTED);
-            } finally {
-                rateLimiter.release();
+            } catch (RuntimeException e) {
+                if (acquired) {
+                    rateLimiter.release();
+                }
+                throw e;
             }
         }else{
             return doFilter(exchange, chain);
@@ -126,29 +134,44 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
         MDC.put(TRACE_ID,traceId);
         Map<String,String> headMap = new HashMap<>(8);
         headMap.put(TRACE_ID,traceId);
-        headMap.put(GRAY_PARAMETER,gray);
+        if (StringUtil.isNotEmpty(gray)) {
+            headMap.put(GRAY_PARAMETER,gray);
+        }
         if (StringUtil.isNotEmpty(noVerify)) {
             headMap.put(NO_VERIFY,noVerify);
         }
         //将链路id放到ThreadLocal中
         BaseParameterHolder.setParameter(TRACE_ID,traceId);
         //将灰度标识放到ThreadLocal中
-        BaseParameterHolder.setParameter(GRAY_PARAMETER,gray);
-        //获取请求类型
-        MediaType contentType = request.getHeaders().getContentType();
-        //application json请求
-        if (Objects.nonNull(contentType) && contentType.toString().toLowerCase().contains(MediaType.APPLICATION_JSON_VALUE.toLowerCase())) {
-            //如果是json则进行参数验证
-            return readBody(exchange,chain,headMap);
-        }else {
-            //如果不是json请求，则直接执行
-            Map<String, String> map = doExecute("", exchange);
-            map.remove(REQUEST_BODY);
-            map.putAll(headMap);
-            request.mutate().headers(httpHeaders ->
-                map.forEach(httpHeaders::add));
-            return chain.filter(exchange);
+        if (StringUtil.isNotEmpty(gray)) {
+            BaseParameterHolder.setParameter(GRAY_PARAMETER,gray);
         }
+        try {
+            //获取请求类型
+            MediaType contentType = request.getHeaders().getContentType();
+            //application json请求
+            if (Objects.nonNull(contentType) && contentType.toString().toLowerCase().contains(MediaType.APPLICATION_JSON_VALUE.toLowerCase())) {
+                //如果是json则进行参数验证
+                return readBody(exchange,chain,headMap).doFinally(signalType -> clearRequestContext());
+            }else {
+                //如果不是json请求，则直接执行
+                Map<String, String> map = doExecute("", exchange);
+                map.remove(REQUEST_BODY);
+                map.putAll(headMap);
+                ServerHttpRequest mutatedRequest = request.mutate()
+                        .headers(httpHeaders -> httpHeaders.setAll(map))
+                        .build();
+                return chain.filter(exchange.mutate().request(mutatedRequest).build()).doFinally(signalType -> clearRequestContext());
+            }
+        } catch (RuntimeException e) {
+            clearRequestContext();
+            throw e;
+        }
+    }
+
+    private void clearRequestContext() {
+        BaseParameterHolder.removeParameterMap();
+        MDC.remove(TRACE_ID);
     }
 
     /**
@@ -201,7 +224,15 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
         Map<String, String> bodyContent = new HashMap<>(32);
         if (StringUtil.isNotEmpty(originalBody)) {
             //请求体转为map结构
-            bodyContent = JSON.parseObject(originalBody, Map.class);
+            try {
+                bodyContent = JSON.parseObject(originalBody, Map.class);
+            } catch (RuntimeException e) {
+                log.warn("request body json parse error, path: {}",request.getPath().value(),e);
+                throw new TikectsystemFrameException(BaseCode.PARAMETER_ERROR);
+            }
+            if (bodyContent == null) {
+                bodyContent = new HashMap<>(32);
+            }
         }
         //基础参数code渠道
         String code = null;
@@ -245,7 +276,7 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
             boolean skipCheckTokenResult = skipCheckToken(url);
             if (!skipCheckTokenResult && StringUtil.isEmpty(token)) {
                 ArgumentError argumentError = new ArgumentError();
-                argumentError.setArgumentName(token);
+                argumentError.setArgumentName(TOKEN);
                 argumentError.setMessage("token参数为空");
                 List<ArgumentError> argumentErrorList = new ArrayList<>();
                 argumentErrorList.add(argumentError);
@@ -325,9 +356,11 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
      * 验证是否跳过token验证
      * */
     public boolean skipCheckToken(String url){
+        if (gatewayProperty.getCheckTokenPaths() == null) {
+            return true;
+        }
         for (String skipCheckTokenPath : gatewayProperty.getCheckTokenPaths()) {
-            PathMatcher matcher = new AntPathMatcher();
-            if (matcher.match(skipCheckTokenPath, url)) {
+            if (PATH_MATCHER.match(skipCheckTokenPath, url)) {
                 return false;
             }
         }
@@ -337,9 +370,11 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
      * 验证是否跳过参数验证
      * */
     public boolean skipCheckParameter(String url){
+        if (gatewayProperty.getCheckSkipParmeterPaths() == null) {
+            return false;
+        }
         for (String skipCheckTokenPath : gatewayProperty.getCheckSkipParmeterPaths()) {
-            PathMatcher matcher = new AntPathMatcher();
-            if (matcher.match(skipCheckTokenPath, url)) {
+            if (PATH_MATCHER.match(skipCheckTokenPath, url)) {
                 return true;
             }
         }
@@ -355,9 +390,11 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
      * 验证是否需要userId
      * */
     private boolean checkNeedUserId(String url){
+        if (gatewayProperty.getUserIdPaths() == null) {
+            return false;
+        }
         for (String userIdPath : gatewayProperty.getUserIdPaths()) {
-            PathMatcher matcher = new AntPathMatcher();
-            if (matcher.match(userIdPath, url)) {
+            if (PATH_MATCHER.match(userIdPath, url)) {
                 return true;
             }
         }

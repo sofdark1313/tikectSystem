@@ -79,11 +79,13 @@ public class ProgramEs {
                 PageInfo<ProgramListVo> pageInfo = businessEsHandle.queryPage(
                         SpringUtil.getPrefixDistinctionName() + "-" + ProgramDocumentParamName.INDEX_NAME,
                         ProgramDocumentParamName.INDEX_TYPE, programEsQueryDto, 1, 7, ProgramListVo.class);
-                if (!pageInfo.getList().isEmpty()) {
+                List<ProgramListVo> pageList = pageInfo == null ? null : pageInfo.getList();
+                if (CollectionUtil.isNotEmpty(pageList)) {
+                    ProgramListVo firstProgram = pageList.get(0);
                     ProgramHomeVo programHomeVo = new ProgramHomeVo();
-                    programHomeVo.setCategoryName(pageInfo.getList().get(0).getParentProgramCategoryName());
-                    programHomeVo.setCategoryId(pageInfo.getList().get(0).getParentProgramCategoryId());
-                    programHomeVo.setProgramListVoList(pageInfo.getList());
+                    programHomeVo.setCategoryName(firstProgram.getParentProgramCategoryName());
+                    programHomeVo.setCategoryId(firstProgram.getParentProgramCategoryId());
+                    programHomeVo.setProgramListVoList(pageList);
                     programHomeVoList.add(programHomeVo);
                 }
             }

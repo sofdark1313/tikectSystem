@@ -86,7 +86,10 @@ public class TicketUserService extends ServiceImpl<TicketUserMapper, TicketUser>
         if (Objects.isNull(ticketUser)) {
             throw new TikectsystemFrameException(BaseCode.TICKET_USER_EMPTY);
         }
-        ticketUserMapper.deleteById(ticketUserIdDto.getId());
+        LambdaQueryWrapper<TicketUser> deleteWrapper = Wrappers.lambdaQuery(TicketUser.class)
+                .eq(TicketUser::getId, ticketUserIdDto.getId())
+                .eq(TicketUser::getUserId, ticketUser.getUserId());
+        ticketUserMapper.delete(deleteWrapper);
         delTicketUserVoListCache(String.valueOf(ticketUser.getUserId()));
     }
     

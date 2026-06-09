@@ -23,7 +23,7 @@ public class ProgramCacheResolutionOperate {
     @Autowired
     private RedisCache redisCache;
     
-    private DefaultRedisScript redisScript;
+    private DefaultRedisScript<Integer> redisScript;
     
     @PostConstruct
     public void init(){
@@ -37,6 +37,9 @@ public class ProgramCacheResolutionOperate {
     }
     
     public void programCacheOperate(List<String> keys, String[] args){
+        if (redisScript == null) {
+            throw new IllegalStateException("programDataResolution lua script is not initialized");
+        }
         redisCache.getInstance().execute(redisScript, keys, args);
     }
 }

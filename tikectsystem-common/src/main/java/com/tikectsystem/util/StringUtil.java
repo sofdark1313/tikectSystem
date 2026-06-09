@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,7 +16,7 @@ import java.util.Map;
  * @author: 阿星不是程序员
  **/
 public class StringUtil {
-	private final static Logger logger = LoggerFactory.getLogger(StringUtil.class);
+	private static final Logger logger = LoggerFactory.getLogger(StringUtil.class);
 
 	/**
 	 * 判断字符串不为空
@@ -52,7 +53,7 @@ public class StringUtil {
 				while ((i = is.read()) != -1) {
 					baos.write(i);
 				}
-				result = baos.toString();
+				result = baos.toString(StandardCharsets.UTF_8);
 			}
 		}catch(IOException e) {
 			throw new RuntimeException("流转换为字符串失败！");
@@ -61,7 +62,7 @@ public class StringUtil {
 				try {
 					baos.close();
 				} catch (IOException e) {
-					logger.error("关闭流失败！");
+					logger.error("关闭流失败！",e);
 				}
 			}
 		}
@@ -73,16 +74,19 @@ public class StringUtil {
 	 * */
 	public static Map<String, String> convertQueryStringToMap(String queryString) {
 		Map<String, String> resultMap = new HashMap<>(256);
+		if (isEmpty(queryString)) {
+			return resultMap;
+		}
 		String[] params = queryString.split("&");
 		for (String param : params) {
-			String[] keyValue = param.split("=");
+			String[] keyValue = param.split("=", 2);
 			if (keyValue.length == 2) {
 				try {
-					String key = java.net.URLDecoder.decode(keyValue[0], "UTF-8");
-					String value = java.net.URLDecoder.decode(keyValue[1], "UTF-8");
+					String key = java.net.URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8);
+					String value = java.net.URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8);
 					resultMap.put(key, value);
 				} catch (Exception e) {
-					e.printStackTrace();
+					logger.warn("URL参数解析失败，param={}", param, e);
 				}
 			}
 		}

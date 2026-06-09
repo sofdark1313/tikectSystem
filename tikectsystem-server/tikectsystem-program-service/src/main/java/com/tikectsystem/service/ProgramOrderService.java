@@ -34,6 +34,7 @@ import com.tikectsystem.service.lua.ProgramCacheCreateOrderResolutionOperate;
 import com.tikectsystem.service.lua.ProgramCacheResolutionOperate;
 import com.tikectsystem.service.tool.SeatMatch;
 import com.tikectsystem.util.DateUtils;
+import com.tikectsystem.util.StringUtil;
 import com.tikectsystem.vo.ProgramVo;
 import com.tikectsystem.vo.SeatVo;
 import com.tikectsystem.vo.TicketCategoryVo;
@@ -145,7 +146,7 @@ public class ProgramOrderService {
                     seatService.selectSeatResolution(programOrderCreateDto.getProgramId(), ticketCategory.getId(),
                             DateUtils.countBetweenSecond(DateUtils.now(), programShowTime.getShowTime()), TimeUnit.SECONDS);
             seatVoList.addAll(allSeatVoList.stream().
-                    filter(seatVo -> seatVo.getSellStatus().equals(SellStatus.NO_SOLD.getCode())).toList());
+                    filter(seatVo -> Objects.equals(seatVo.getSellStatus(),SellStatus.NO_SOLD.getCode())).toList());
             ticketCategoryRemainNumber.putAll(ticketCategoryService.getRedisRemainNumberResolution(
                     programOrderCreateDto.getProgramId(), ticketCategory.getId()));
         }
@@ -298,8 +299,12 @@ public class ProgramOrderService {
         //执行lua脚本
         ProgramCacheCreateOrderData programCacheCreateOrderData =
                 programCacheCreateOrderResolutionOperate.programCacheOperate(keys, data);
+        if (programCacheCreateOrderData == null) {
+            throw new TikectsystemFrameException(BaseCode.SYSTEM_ERROR);
+        }
         if (!Objects.equals(programCacheCreateOrderData.getCode(), BaseCode.SUCCESS.getCode())) {
-            throw new TikectsystemFrameException(Objects.requireNonNull(BaseCode.getRc(programCacheCreateOrderData.getCode())));
+            BaseCode baseCode = BaseCode.getRc(programCacheCreateOrderData.getCode());
+            throw new TikectsystemFrameException(baseCode == null ? BaseCode.SYSTEM_ERROR : baseCode);
         }
         return new CreateOrderTemporaryData(identifierId, programCacheCreateOrderData.getPurchaseSeatList());
     }
@@ -427,10 +432,17 @@ public class ProgramOrderService {
 
     private String createOrderByRpc(OrderCreateDto orderCreateDto, List<SeatVo> purchaseSeatList) {
         ApiResponse<String> createOrderResponse = orderClient.create(orderCreateDto);
+        if (createOrderResponse == null) {
+            log.error("创建订单RPC返回为空 orderCreateDto : {}", JSON.toJSONString(orderCreateDto));
+            throw new TikectsystemFrameException(BaseCode.RPC_RESULT_DATA_EMPTY);
+        }
         if (!Objects.equals(createOrderResponse.getCode(), BaseCode.SUCCESS.getCode())) {
             log.error("创建订单失败 需人工处理 orderCreateDto : {}", JSON.toJSONString(orderCreateDto));
             updateProgramCacheDataResolution(orderCreateDto.getProgramId(), purchaseSeatList, OrderStatus.CANCEL);
             throw new TikectsystemFrameException(createOrderResponse);
+        }
+        if (StringUtil.isEmpty(createOrderResponse.getData())) {
+            throw new TikectsystemFrameException(BaseCode.RPC_RESULT_DATA_EMPTY);
         }
         return createOrderResponse.getData();
     }
@@ -456,6 +468,7 @@ public class ProgramOrderService {
         try {
             latch.await();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             log.error("createOrderByMq InterruptedException", e);
             throw new TikectsystemFrameException(e);
         }

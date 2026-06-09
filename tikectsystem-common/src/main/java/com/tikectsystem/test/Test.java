@@ -1,5 +1,7 @@
 package com.tikectsystem.test;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -11,6 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author: k
  * @create: 2024-09-03
  **/
+@Slf4j
 public class Test {
     
     private final AtomicInteger listenStartThreadCount = new AtomicInteger(1);
@@ -30,6 +33,6 @@ public class Test {
     
     public static void main(String[] args) {
         Test test = new Test();
-        test.execute(() -> System.out.println("执行任务，当前线程名:"+Thread.currentThread().getName()));
+        test.execute(() -> log.info("执行任务，当前线程名: {}",Thread.currentThread().getName()));
     }
 }

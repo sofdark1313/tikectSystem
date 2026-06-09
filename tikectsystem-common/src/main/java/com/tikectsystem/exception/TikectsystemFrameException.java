@@ -44,9 +44,17 @@ public class TikectsystemFrameException extends BaseException {
 	}
 	
 	public TikectsystemFrameException(ApiResponse apiResponse) {
-		super(apiResponse.getMessage());
-		this.code = apiResponse.getCode();
-		this.message = apiResponse.getMessage();
+		super(getApiResponseMessage(apiResponse));
+		this.code = getApiResponseCode(apiResponse);
+		this.message = getApiResponseMessage(apiResponse);
+	}
+
+	private static Integer getApiResponseCode(ApiResponse apiResponse) {
+		return apiResponse == null || apiResponse.getCode() == null ? BaseCode.SYSTEM_ERROR.getCode() : apiResponse.getCode();
+	}
+
+	private static String getApiResponseMessage(ApiResponse apiResponse) {
+		return apiResponse == null || apiResponse.getMessage() == null ? BaseCode.SYSTEM_ERROR.getMsg() : apiResponse.getMessage();
 	}
 
 	public TikectsystemFrameException(Throwable cause) {

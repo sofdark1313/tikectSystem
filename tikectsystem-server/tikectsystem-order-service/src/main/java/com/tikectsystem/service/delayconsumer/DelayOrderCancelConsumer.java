@@ -50,16 +50,24 @@ public class DelayOrderCancelConsumer implements ConsumerTask {
             return;
         }
         DelayOrderCancelMessageModule delayOrderCancelMessageModule = JSON.parseObject(content, DelayOrderCancelMessageModule.class);
+        if (delayOrderCancelMessageModule == null) {
+            log.error("延迟队列消息格式错误 content : {}", content);
+            return;
+        }
         
         Long messageTraceId = delayOrderCancelMessageModule.getMessageTraceId();
         Long messageId = delayOrderCancelMessageModule.getMessageId();
         Long programId = delayOrderCancelMessageModule.getProgramId();
         Long orderNumber = delayOrderCancelMessageModule.getOrderNumber();
+        if (messageId == null || orderNumber == null) {
+            log.error("延迟队列消息缺少必要参数 content : {}", content);
+            return;
+        }
         
         MessageIdDto messageIdDto = new MessageIdDto();
         messageIdDto.setMessageId(messageId);
         ApiResponse<MessageConsumerRecordVo> apiResponse = apiDataClient.getMessageConsumerByMessageId(messageIdDto);
-        if (!apiResponse.getCode().equals(BaseCode.SUCCESS.getCode())) {
+        if (apiResponse == null || !Objects.equals(apiResponse.getCode(),BaseCode.SUCCESS.getCode())) {
             log.error("查询消息消费记录失败 messageId : {}",messageId);
             return;
         }
@@ -67,7 +75,7 @@ public class DelayOrderCancelConsumer implements ConsumerTask {
         MessageConsumerRecordVo existMessageConsumerRecordVo = apiResponse.getData();
         
         if (Objects.nonNull(existMessageConsumerRecordVo) &&
-                existMessageConsumerRecordVo.getMessageConsumerStatus().equals(MessageConsumerStatus.CONSUMER_SUCCESS.getCode())) {
+                Objects.equals(existMessageConsumerRecordVo.getMessageConsumerStatus(),MessageConsumerStatus.CONSUMER_SUCCESS.getCode())) {
             return;
         }
         Long messageConsumerRecordId = null;
@@ -81,16 +89,22 @@ public class DelayOrderCancelConsumer implements ConsumerTask {
             insertMessageConsumerRecordDto.setMessageTopic(SpringUtil.getPrefixDistinctionName() + "-" + DELAY_ORDER_CANCEL_TOPIC);
             insertMessageConsumerRecordDto.setMessageContent(content);
             ApiResponse<MessageConsumerRecordVo> insertApiResponse = apiDataClient.insertMessageConsumerRecord(insertMessageConsumerRecordDto);
-            if (!insertApiResponse.getCode().equals(BaseCode.SUCCESS.getCode())) {
+            if (insertApiResponse == null || !Objects.equals(insertApiResponse.getCode(),BaseCode.SUCCESS.getCode())) {
                 log.error("添加消息消费记录失败 insertMessageConsumerRecordDto : {}", JSON.toJSONString(insertMessageConsumerRecordDto));
                 return;
             }
             MessageConsumerRecordVo saveMessageConsumerRecordVo = insertApiResponse.getData();
+            if (saveMessageConsumerRecordVo == null || saveMessageConsumerRecordVo.getId() == null) {
+                log.error("添加消息消费记录返回数据为空 insertMessageConsumerRecordDto : {}", JSON.toJSONString(insertMessageConsumerRecordDto));
+                return;
+            }
             messageConsumerRecordId = saveMessageConsumerRecordVo.getId();
-            messageConsumerCount = saveMessageConsumerRecordVo.getMessageConsumerCount();
+            messageConsumerCount = saveMessageConsumerRecordVo.getMessageConsumerCount() == null ? 1 :
+                    saveMessageConsumerRecordVo.getMessageConsumerCount();
         }else {
             messageConsumerRecordId = existMessageConsumerRecordVo.getId();
-            messageConsumerCount = existMessageConsumerRecordVo.getMessageConsumerCount() + 1;
+            messageConsumerCount = (existMessageConsumerRecordVo.getMessageConsumerCount() == null ? 0 :
+                    existMessageConsumerRecordVo.getMessageConsumerCount()) + 1;
         }
         UpdateMessageConsumerRecordDto updateMessageConsumerRecordDto = new UpdateMessageConsumerRecordDto();
         updateMessageConsumerRecordDto.setId(messageConsumerRecordId);

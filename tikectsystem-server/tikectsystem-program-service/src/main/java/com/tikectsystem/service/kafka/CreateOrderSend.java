@@ -37,9 +37,15 @@ public class CreateOrderSend {
                 kafkaTemplate.send(SpringUtil.getPrefixDistinctionName() + "-" + kafkaTopic.getTopic(), message);
         completableFuture.whenComplete((result,ex) -> {
             if (Objects.isNull(ex)) {
-                successCallback.onSuccess(result);
+                if (successCallback != null) {
+                    successCallback.onSuccess(result);
+                }
             }else {
-                failureCallback.onFailure(ex);
+                if (failureCallback != null) {
+                    failureCallback.onFailure(ex);
+                } else {
+                    log.error("创建订单kafka发送消息失败 消息体 : {}",message,ex);
+                }
             }
         });
     }

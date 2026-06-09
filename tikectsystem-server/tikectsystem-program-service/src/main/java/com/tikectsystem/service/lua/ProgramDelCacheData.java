@@ -23,7 +23,7 @@ public class ProgramDelCacheData {
     @Autowired
     private RedisCache redisCache;
     
-    private DefaultRedisScript redisScript;
+    private DefaultRedisScript<Integer> redisScript;
     
     @PostConstruct
     public void init(){
@@ -37,6 +37,9 @@ public class ProgramDelCacheData {
     }
     
     public void del(List<String> keys, String[] args){
+        if (redisScript == null) {
+            throw new IllegalStateException("programDel lua script is not initialized");
+        }
         redisCache.getInstance().execute(redisScript, keys, args);
     }
 }

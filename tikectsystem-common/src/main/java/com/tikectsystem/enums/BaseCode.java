@@ -287,6 +287,9 @@ public enum BaseCode {
     }
     
     public static String getMsg(Integer code) {
+        if (code == null) {
+            return "";
+        }
         for (BaseCode re : BaseCode.values()) {
             if (re.code.intValue() == code.intValue()) {
                 return re.msg;
@@ -296,6 +299,9 @@ public enum BaseCode {
     }
     
     public static BaseCode getRc(Integer code) {
+        if (code == null) {
+            return null;
+        }
         for (BaseCode re : BaseCode.values()) {
             if (re.code.intValue() == code.intValue()) {
                 return re;

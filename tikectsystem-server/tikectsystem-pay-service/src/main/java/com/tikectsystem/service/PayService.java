@@ -78,18 +78,26 @@ public class PayService {
         PayStrategyHandler payStrategyHandler = payStrategyContext.get(payDto.getChannel());
         PayResult pay = payStrategyHandler.pay(String.valueOf(payDto.getOrderNumber()), payDto.getPrice(), 
                 payDto.getSubject(),payDto.getNotifyUrl(),payDto.getReturnUrl());
+        if (pay == null) {
+            throw new TikectsystemFrameException(BaseCode.PAY_ERROR);
+        }
         if (pay.isSuccess()) {
-            payBill = new PayBill();
-            payBill.setId(uidGenerator.getUid());
-            payBill.setOutOrderNo(String.valueOf(payDto.getOrderNumber()));
-            payBill.setPayChannel(payDto.getChannel());
-            payBill.setPayScene("生产");
-            payBill.setSubject(payDto.getSubject());
-            payBill.setPayAmount(payDto.getPrice());
-            payBill.setPayBillType(payDto.getPayBillType());
-            payBill.setPayBillStatus(PayBillStatus.NO_PAY.getCode());
-            payBill.setPayTime(DateUtils.now());
-            payBillMapper.insert(payBill);
+            PayBill savePayBill = new PayBill();
+            savePayBill.setOutOrderNo(String.valueOf(payDto.getOrderNumber()));
+            savePayBill.setPayChannel(payDto.getChannel());
+            savePayBill.setPayScene("生产");
+            savePayBill.setSubject(payDto.getSubject());
+            savePayBill.setPayAmount(payDto.getPrice());
+            savePayBill.setPayBillType(payDto.getPayBillType());
+            savePayBill.setPayBillStatus(PayBillStatus.NO_PAY.getCode());
+            savePayBill.setPayTime(DateUtils.now());
+            if (payBill == null) {
+                savePayBill.setId(uidGenerator.getUid());
+                payBillMapper.insert(savePayBill);
+            } else {
+                savePayBill.setId(payBill.getId());
+                payBillMapper.updateById(savePayBill);
+            }
         }
         
         return pay.getBody();
@@ -230,6 +238,10 @@ public class PayService {
             refundBill.setRefundTime(DateUtils.now());
             refundBill.setReason(refundDto.getReason());
             refundBillMapper.insert(refundBill);
+            PayBill updatePayBill = new PayBill();
+            updatePayBill.setId(payBill.getId());
+            updatePayBill.setPayBillStatus(PayBillStatus.REFUND.getCode());
+            payBillMapper.updateById(updatePayBill);
             return refundBill.getOutOrderNo();
         }else {
             throw new TikectsystemFrameException(refundResult.getMessage());

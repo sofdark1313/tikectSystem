@@ -48,6 +48,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -479,10 +480,11 @@ public class OrderTaskService {
         ticketCategoryListDto.setProgramId(programId);
         ticketCategoryListDto.setTicketCategoryIdList(ticketCategoryIdSet);
         ApiResponse<List<TicketCategoryDetailVo>> programApiResponse = programClient.selectList(ticketCategoryListDto);
-        if (!Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+        if (programApiResponse == null || !Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
             throw new TikectsystemFrameException(programApiResponse);
         }
-        List<TicketCategoryDetailVo> ticketCategoryDetailVoList = programApiResponse.getData();
+        List<TicketCategoryDetailVo> ticketCategoryDetailVoList = Optional.ofNullable(programApiResponse.getData())
+                .orElseThrow(() -> new TikectsystemFrameException(BaseCode.RPC_RESULT_DATA_EMPTY));
         
         //节目票档集合转成map，key：节目票档id，value：余票数量
         Map<Long, Long> ticketCategoryRemainNumberMap = ticketCategoryDetailVoList.stream().collect(Collectors.toMap(TicketCategoryDetailVo::getId, TicketCategoryDetailVo::getRemainNumber, (v1, v2) -> v2));

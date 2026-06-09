@@ -14,7 +14,8 @@ CREATE TABLE `d_ticket_user_0` (
   `create_time` datetime NOT NULL COMMENT '创建时间',
   `edit_time` datetime NOT NULL COMMENT '编辑时间',
   `status` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1:正常 0:删除',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `user_id_idx` (`user_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='购票人表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -43,7 +44,8 @@ CREATE TABLE `d_ticket_user_1` (
   `create_time` datetime NOT NULL COMMENT '创建时间',
   `edit_time` datetime NOT NULL COMMENT '编辑时间',
   `status` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1:正常 0:删除',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `user_id_idx` (`user_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='购票人表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -237,4 +239,3 @@ LOCK TABLES `d_user_mobile_1` WRITE;
 /*!40000 ALTER TABLE `d_user_mobile_1` DISABLE KEYS */;
 /*!40000 ALTER TABLE `d_user_mobile_1` ENABLE KEYS */;
 UNLOCK TABLES;
-

@@ -224,10 +224,11 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         GetChannelDataByCodeDto getChannelDataByCodeDto = new GetChannelDataByCodeDto();
         getChannelDataByCodeDto.setCode(code);
         ApiResponse<GetChannelDataVo> getChannelDataApiResponse = baseDataClient.getByCode(getChannelDataByCodeDto);
-        if (Objects.equals(getChannelDataApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+        if (getChannelDataApiResponse != null && Objects.equals(getChannelDataApiResponse.getCode(), BaseCode.SUCCESS.getCode()) &&
+                Objects.nonNull(getChannelDataApiResponse.getData())) {
             return getChannelDataApiResponse.getData();
         }
-        throw new TikectsystemFrameException("没有找到ChannelData");
+        throw new TikectsystemFrameException(BaseCode.CHANNEL_DATA_NOT_EXIST);
     }
     
     public String createToken(Long userId,String tokenSecret){

@@ -2,6 +2,7 @@ package com.tikectsystem.service.lua;
 
 import com.tikectsystem.initialize.base.AbstractApplicationPostConstructHandler;
 import com.tikectsystem.redis.RedisCache;
+import com.tikectsystem.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -43,7 +44,14 @@ public class CheckNeedCaptchaOperate extends AbstractApplicationPostConstructHan
     }
     
     public Boolean checkNeedCaptchaOperate(List<String> keys, String[] args){
+        if (redisScript == null) {
+            throw new IllegalStateException("checkNeedCaptcha Lua脚本未初始化");
+        }
         Object object = redisCache.getInstance().execute(redisScript, keys, args);
-        return Boolean.parseBoolean((String)object);
+        String result = (String)object;
+        if (StringUtil.isEmpty(result)) {
+            throw new IllegalStateException("checkNeedCaptcha Lua脚本返回为空");
+        }
+        return Boolean.parseBoolean(result);
     }
 }

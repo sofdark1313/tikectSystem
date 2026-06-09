@@ -1,6 +1,8 @@
 package com.tikectsystem.util;
 
 import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -19,6 +21,8 @@ import java.util.TimeZone;
  * @author: 阿星不是程序员
  **/
 public class DateUtils {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DateUtils.class);
  
     /** 一星期的天数 */
     public static final int WEEK_DAYS = 7;
@@ -259,7 +263,7 @@ public class DateUtils {
         try {
             return getSimpleDateFormat(formatStyle).parse(dateString);
         } catch (ParseException e) {
-            e.printStackTrace();
+            LOGGER.warn("日期解析失败，dateString={}, formatStyle={}", dateString, formatStyle, e);
             return null;
         }
     }

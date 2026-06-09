@@ -23,7 +23,7 @@ public class OrderProgramCacheResolutionOperate {
     @Autowired
     private RedisCache redisCache;
     
-    private DefaultRedisScript redisScript;
+    private DefaultRedisScript<Integer> redisScript;
     
     @PostConstruct
     public void init(){
@@ -37,6 +37,9 @@ public class OrderProgramCacheResolutionOperate {
     }
     
     public void programCacheReverseOperate(List<String> keys, Object... args){
+        if (redisScript == null) {
+            throw new IllegalStateException("OrderProgramDataResolution lua script is not initialized");
+        }
         redisCache.getInstance().execute(redisScript, keys, args);
     }
 }
