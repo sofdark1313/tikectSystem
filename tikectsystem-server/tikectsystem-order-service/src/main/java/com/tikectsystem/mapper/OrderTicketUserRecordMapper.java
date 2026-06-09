@@ -2,6 +2,9 @@ package com.tikectsystem.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.tikectsystem.entity.OrderTicketUserRecord;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 /**
  * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
@@ -9,6 +12,8 @@ import com.tikectsystem.entity.OrderTicketUserRecord;
  * @author: 阿星不是程序员
  **/
 public interface OrderTicketUserRecordMapper extends BaseMapper<OrderTicketUserRecord> {
+
+    int batchInsert(@Param("orderTicketUserRecordList")List<OrderTicketUserRecord> orderTicketUserRecordList);
     
     /**
      * 真实删除购票人订单记录数据

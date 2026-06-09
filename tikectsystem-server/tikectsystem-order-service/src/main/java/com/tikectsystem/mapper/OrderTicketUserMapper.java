@@ -20,6 +20,8 @@ public interface OrderTicketUserMapper extends BaseMapper<OrderTicketUser> {
      * @return 结果
      * */
     List<OrderTicketUserAggregate> selectOrderTicketUserAggregate(@Param("orderNumberList")List<Long> orderNumberList);
+
+    int batchInsert(@Param("orderTicketUserList")List<OrderTicketUser> orderTicketUserList);
     
     /**
      * 真实删除购票人订单数据

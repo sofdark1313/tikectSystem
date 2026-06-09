@@ -22,11 +22,17 @@ public class CaptchaHandle {
     private final CaptchaService captchaService;
     
     public ResponseModel getCaptcha(CaptchaVO captchaVO) {
+        if (captchaVO == null) {
+            captchaVO = new CaptchaVO();
+        }
         captchaVO.setBrowserInfo(RemoteUtil.getRemoteId(getCurrentRequest()));
         return captchaService.get(captchaVO);
     }
     
     public ResponseModel checkCaptcha(CaptchaVO captchaVO) {
+        if (captchaVO == null) {
+            captchaVO = new CaptchaVO();
+        }
         captchaVO.setBrowserInfo(RemoteUtil.getRemoteId(getCurrentRequest()));
         return captchaService.check(captchaVO);
     }

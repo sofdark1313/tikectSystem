@@ -110,7 +110,7 @@ public class BusinessEsHandle {
     
         indexRequest.source(builder);
         String source = indexRequest.source().utf8ToString();
-        log.info("create index execute dsl : {}",source);
+        log.debug("create index execute dsl : {}",source);
         HttpEntity entity = new NStringEntity(source, ContentType.APPLICATION_JSON);
         Request request = new Request("PUT","/"+ indexName);
         request.setEntity(entity);
@@ -224,7 +224,7 @@ public class BusinessEsHandle {
             if (StringUtil.isNotEmpty(id)) {
                 endpoint = endpoint + "/" + id;
             }
-            log.info("add dsl : {}",jsonString);
+            log.debug("add dsl : {}",jsonString);
             Request request = new Request("POST",endpoint);
             request.setEntity(entity);
             request.addParameters(Collections.<String, String>emptyMap());
@@ -514,7 +514,7 @@ public class BusinessEsHandle {
             endpointStringBuilder.append("/_search");
         }
         String endpoint = endpointStringBuilder.toString();
-        log.info("query execute query dsl : {}",string);
+        log.debug("query execute query dsl : {}",string);
         Request request = new Request("POST",endpoint);
         request.setEntity(entity);
         request.addParameters(Collections.emptyMap());
@@ -590,7 +590,7 @@ public class BusinessEsHandle {
             Request request = new Request("DELETE", "/" + index + "/_doc/" + documentId);
             request.addParameters(Collections.<String, String>emptyMap());
             Response response = restClient.performRequest(request);
-            log.info("deleteByDocumentId result : {}",response.getStatusLine().getReasonPhrase());
+            log.debug("deleteByDocumentId result : {}",response.getStatusLine().getReasonPhrase());
         }catch (Exception e) {
             log.error("deleteData error",e);
         }

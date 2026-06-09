@@ -5,11 +5,12 @@ import cn.hutool.core.util.StrUtil;
 import com.tikectsystem.core.RepeatExecuteLimitConstants;
 import com.tikectsystem.dto.ProgramOrderCreateDto;
 import com.tikectsystem.dto.SeatDto;
+import com.tikectsystem.enums.BaseCode;
 import com.tikectsystem.enums.CompositeCheckType;
 import com.tikectsystem.enums.ProgramOrderVersion;
+import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.initialize.base.AbstractApplicationCommandLineRunnerHandler;
 import com.tikectsystem.initialize.impl.composite.CompositeContainer;
-import com.tikectsystem.locallock.LocalLockCache;
 import com.tikectsystem.repeatexecutelimit.annotion.RepeatExecuteLimit;
 import com.tikectsystem.service.ProgramOrderService;
 import com.tikectsystem.service.strategy.ProgramOrderContext;
@@ -24,16 +25,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
+import java.util.Set;
+import java.util.TreeSet;
 
 import static com.tikectsystem.core.DistributedLockConstants.PROGRAM_ORDER_CREATE_V2;
 
-/**
- * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
- * @description: 节目订单v2
- * @author: 阿星不是程序员
- **/
 @Slf4j
 @Component
 public class ProgramOrderV21Strategy extends AbstractApplicationCommandLineRunnerHandler implements ProgramOrderStrategy {
@@ -47,53 +43,50 @@ public class ProgramOrderV21Strategy extends AbstractApplicationCommandLineRunne
     @Autowired
     private CompositeContainer compositeContainer;
     
-    @Autowired
-    private LocalLockCache localLockCache;
-    
-    
     @RepeatExecuteLimit(
             name = RepeatExecuteLimitConstants.CREATE_PROGRAM_ORDER,
             keys = {"#programOrderCreateDto.userId","#programOrderCreateDto.programId"})
     @Override
     public String createOrder(ProgramOrderCreateDto programOrderCreateDto) {
         compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
-        List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
-        List<Long> ticketCategoryIdList = new ArrayList<>();
-        if (CollectionUtil.isNotEmpty(seatDtoList)) {
-            ticketCategoryIdList =
-                    seatDtoList.stream().map(SeatDto::getTicketCategoryId).distinct().sorted().collect(Collectors.toList());
-        }else {
-            ticketCategoryIdList.add(programOrderCreateDto.getTicketCategoryId());
-        }
-        List<RLock> serviceLockList = new ArrayList<>(ticketCategoryIdList.size());
-        List<RLock> serviceLockSuccessList = new ArrayList<>(ticketCategoryIdList.size());
-        for (Long ticketCategoryId : ticketCategoryIdList) {
-            String lockKey = StrUtil.join("-",PROGRAM_ORDER_CREATE_V2,
-                    programOrderCreateDto.getProgramId(),ticketCategoryId);
-            ReentrantLock localLock = localLockCache.getLock(lockKey,false);
-            RLock serviceLock = serviceLockTool.getLock(LockType.Reentrant, lockKey);
-            serviceLockList.add(serviceLock);
-        }
-        for (RLock rLock : serviceLockList) {
-            try {
-                rLock.lock();
-            }catch (Throwable t) {
-                break;
-            }
-            serviceLockSuccessList.add(rLock);
-        }
+        Set<Long> ticketCategoryIdSet = getTicketCategoryIdSet(programOrderCreateDto);
+        List<RLock> serviceLockSuccessList = new ArrayList<>(ticketCategoryIdSet.size());
         try {
+            for (Long ticketCategoryId : ticketCategoryIdSet) {
+                String lockKey = StrUtil.join("-",PROGRAM_ORDER_CREATE_V2,
+                        programOrderCreateDto.getProgramId(),ticketCategoryId);
+                RLock serviceLock = serviceLockTool.getLock(LockType.Reentrant, lockKey);
+                try {
+                    serviceLock.lock();
+                } catch (Throwable t) {
+                    throw new TikectsystemFrameException(BaseCode.SERVICE_LOCK_FAIL);
+                }
+                serviceLockSuccessList.add(serviceLock);
+            }
             return programOrderService.create(programOrderCreateDto,ProgramOrderVersion.V21_VERSION.getValue());
-        }finally {
+        } finally {
             for (int i = serviceLockSuccessList.size() - 1; i >= 0; i--) {
                 RLock rLock = serviceLockSuccessList.get(i);
                 try {
                     rLock.unlock();
-                }catch (Throwable t) {
+                } catch (Throwable t) {
                     log.error("service lock unlock error",t);
                 }
             }
         }
+    }
+
+    private Set<Long> getTicketCategoryIdSet(ProgramOrderCreateDto programOrderCreateDto) {
+        Set<Long> ticketCategoryIdSet = new TreeSet<>();
+        List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
+        if (CollectionUtil.isNotEmpty(seatDtoList)) {
+            for (SeatDto seatDto : seatDtoList) {
+                ticketCategoryIdSet.add(seatDto.getTicketCategoryId());
+            }
+        } else {
+            ticketCategoryIdSet.add(programOrderCreateDto.getTicketCategoryId());
+        }
+        return ticketCategoryIdSet;
     }
     
     @Override

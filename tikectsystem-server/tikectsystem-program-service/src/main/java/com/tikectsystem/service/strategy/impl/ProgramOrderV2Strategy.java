@@ -26,16 +26,12 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
 
 import static com.tikectsystem.core.DistributedLockConstants.PROGRAM_ORDER_CREATE_V2;
 
-/**
- * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
- * @description: 节目订单v2
- * @author: 阿星不是程序员
- **/
 @Slf4j
 @Component
 public class ProgramOrderV2Strategy extends AbstractApplicationCommandLineRunnerHandler implements ProgramOrderStrategy {
@@ -52,72 +48,74 @@ public class ProgramOrderV2Strategy extends AbstractApplicationCommandLineRunner
     @Autowired
     private LocalLockCache localLockCache;
     
-    
     @RepeatExecuteLimit(
             name = RepeatExecuteLimitConstants.CREATE_PROGRAM_ORDER,
             keys = {"#programOrderCreateDto.userId","#programOrderCreateDto.programId"})
     @Override
     public String createOrder(ProgramOrderCreateDto programOrderCreateDto) {
         compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
-        List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
-        List<Long> ticketCategoryIdList = new ArrayList<>();
-        if (CollectionUtil.isNotEmpty(seatDtoList)) {
-            ticketCategoryIdList =
-                    seatDtoList.stream().map(SeatDto::getTicketCategoryId).distinct().sorted().collect(Collectors.toList());
-        }else {
-            ticketCategoryIdList.add(programOrderCreateDto.getTicketCategoryId());
-        }
-        List<ReentrantLock> localLockList = new ArrayList<>(ticketCategoryIdList.size());
-        List<RLock> serviceLockList = new ArrayList<>(ticketCategoryIdList.size());
-        List<ReentrantLock> localLockSuccessList = new ArrayList<>(ticketCategoryIdList.size());
-        List<RLock> serviceLockSuccessList = new ArrayList<>(ticketCategoryIdList.size());
-        for (Long ticketCategoryId : ticketCategoryIdList) {
-            String lockKey = StrUtil.join("-",PROGRAM_ORDER_CREATE_V2,
-                    programOrderCreateDto.getProgramId(),ticketCategoryId);
-            ReentrantLock localLock = localLockCache.getLock(lockKey,false);
-            RLock serviceLock = serviceLockTool.getLock(LockType.Reentrant, lockKey);
-            localLockList.add(localLock);
-            serviceLockList.add(serviceLock);
-        }
-        for (ReentrantLock reentrantLock : localLockList) {
-            try {
-                reentrantLock.lock();
-            }catch (Throwable t) {
-                break;
-            }
-            localLockSuccessList.add(reentrantLock);
-        }
-        boolean serviceLockFail = false;
-        for (RLock rLock : serviceLockList) {
-            try {
-                rLock.lock();
-            }catch (Throwable t) {
-                serviceLockFail = true;
-                break;
-            }
-            serviceLockSuccessList.add(rLock);
-        }
+        Set<Long> ticketCategoryIdSet = getTicketCategoryIdSet(programOrderCreateDto);
+        List<ReentrantLock> localLockSuccessList = new ArrayList<>(ticketCategoryIdSet.size());
+        List<RLock> serviceLockSuccessList = new ArrayList<>(ticketCategoryIdSet.size());
         try {
-            if (serviceLockFail) {
-                throw new TikectsystemFrameException(BaseCode.SERVICE_LOCK_FAIL);
+            for (Long ticketCategoryId : ticketCategoryIdSet) {
+                String lockKey = buildLockKey(programOrderCreateDto, ticketCategoryId);
+                ReentrantLock localLock = localLockCache.getLock(lockKey,false);
+                localLock.lock();
+                localLockSuccessList.add(localLock);
+            }
+            for (Long ticketCategoryId : ticketCategoryIdSet) {
+                String lockKey = buildLockKey(programOrderCreateDto, ticketCategoryId);
+                RLock serviceLock = serviceLockTool.getLock(LockType.Reentrant, lockKey);
+                try {
+                    serviceLock.lock();
+                } catch (Throwable t) {
+                    throw new TikectsystemFrameException(BaseCode.SERVICE_LOCK_FAIL);
+                }
+                serviceLockSuccessList.add(serviceLock);
             }
             return programOrderService.create(programOrderCreateDto,ProgramOrderVersion.V2_VERSION.getValue());
-        }finally {
-            for (int i = serviceLockSuccessList.size() - 1; i >= 0; i--) {
-                RLock rLock = serviceLockSuccessList.get(i);
-                try {
-                    rLock.unlock();
-                }catch (Throwable t) {
-                    log.error("service lock unlock error",t);
-                }
+        } finally {
+            unlockServiceLocks(serviceLockSuccessList);
+            unlockLocalLocks(localLockSuccessList);
+        }
+    }
+
+    private Set<Long> getTicketCategoryIdSet(ProgramOrderCreateDto programOrderCreateDto) {
+        Set<Long> ticketCategoryIdSet = new TreeSet<>();
+        List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
+        if (CollectionUtil.isNotEmpty(seatDtoList)) {
+            for (SeatDto seatDto : seatDtoList) {
+                ticketCategoryIdSet.add(seatDto.getTicketCategoryId());
             }
-            for (int i = localLockSuccessList.size() - 1; i >= 0; i--) {
-                ReentrantLock reentrantLock = localLockSuccessList.get(i);
-                try {
-                    reentrantLock.unlock();
-                }catch (Throwable t) {
-                    log.error("local lock unlock error",t);
-                }
+        } else {
+            ticketCategoryIdSet.add(programOrderCreateDto.getTicketCategoryId());
+        }
+        return ticketCategoryIdSet;
+    }
+
+    private String buildLockKey(ProgramOrderCreateDto programOrderCreateDto, Long ticketCategoryId) {
+        return StrUtil.join("-",PROGRAM_ORDER_CREATE_V2, programOrderCreateDto.getProgramId(),ticketCategoryId);
+    }
+
+    private void unlockServiceLocks(List<RLock> serviceLockSuccessList) {
+        for (int i = serviceLockSuccessList.size() - 1; i >= 0; i--) {
+            RLock rLock = serviceLockSuccessList.get(i);
+            try {
+                rLock.unlock();
+            } catch (Throwable t) {
+                log.error("service lock unlock error",t);
+            }
+        }
+    }
+
+    private void unlockLocalLocks(List<ReentrantLock> localLockSuccessList) {
+        for (int i = localLockSuccessList.size() - 1; i >= 0; i--) {
+            ReentrantLock reentrantLock = localLockSuccessList.get(i);
+            try {
+                reentrantLock.unlock();
+            } catch (Throwable t) {
+                log.error("local lock unlock error",t);
             }
         }
     }

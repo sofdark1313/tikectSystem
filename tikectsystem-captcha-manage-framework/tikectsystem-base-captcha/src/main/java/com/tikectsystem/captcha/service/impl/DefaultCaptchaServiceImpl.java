@@ -59,7 +59,11 @@ public class DefaultCaptchaServiceImpl extends AbstractCaptchaService{
         if (StringUtils.isEmpty(captchaVO.getCaptchaType())) {
             return RepCodeEnum.NULL_ERROR.parseError("类型");
         }
-        return getService(captchaVO.getCaptchaType()).get(captchaVO);
+        CaptchaService captchaService = getService(captchaVO.getCaptchaType());
+        if (captchaService == null) {
+            return RepCodeEnum.PARAM_TYPE_ERROR.parseError("captchaType");
+        }
+        return captchaService.get(captchaVO);
     }
 
     @Override
@@ -73,7 +77,11 @@ public class DefaultCaptchaServiceImpl extends AbstractCaptchaService{
         if (StringUtils.isEmpty(captchaVO.getToken())) {
             return RepCodeEnum.NULL_ERROR.parseError("token");
         }
-        return getService(captchaVO.getCaptchaType()).check(captchaVO);
+        CaptchaService captchaService = getService(captchaVO.getCaptchaType());
+        if (captchaService == null) {
+            return RepCodeEnum.PARAM_TYPE_ERROR.parseError("captchaType");
+        }
+        return captchaService.check(captchaVO);
     }
 
     @Override

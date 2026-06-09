@@ -91,6 +91,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -122,9 +123,6 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     
     @Autowired
     private OrderTicketUserMapper orderTicketUserMapper;
-    
-    @Autowired
-    private OrderTicketUserService orderTicketUserService;
     
     @Autowired
     private OrderTicketUserRecordService orderTicketUserRecordService;
@@ -165,56 +163,148 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
 
     @Transactional(rollbackFor = Exception.class)
     public String create(OrderCreateDto orderCreateDto) {
-        OrderCreateDomain orderCreateDomain = new OrderCreateDomain();
-        BeanUtils.copyProperties(orderCreateDto, orderCreateDomain);
-        return doCreate(orderCreateDomain);
+        return doCreate(buildOrderCreateDomain(orderCreateDto));
     }
     
     @Transactional(rollbackFor = Exception.class)
     public String createByMq(OrderCreateMq orderCreateMq) {
+        return doCreate(buildOrderCreateDomain(orderCreateMq));
+    }
+
+    private OrderCreateDomain buildOrderCreateDomain(OrderCreateDto orderCreateDto) {
         OrderCreateDomain orderCreateDomain = new OrderCreateDomain();
-        BeanUtils.copyProperties(orderCreateMq, orderCreateDomain);
-        return doCreate(orderCreateDomain);
+        orderCreateDomain.setOrderNumber(orderCreateDto.getOrderNumber());
+        orderCreateDomain.setProgramId(orderCreateDto.getProgramId());
+        orderCreateDomain.setProgramItemPicture(orderCreateDto.getProgramItemPicture());
+        orderCreateDomain.setUserId(orderCreateDto.getUserId());
+        orderCreateDomain.setProgramTitle(orderCreateDto.getProgramTitle());
+        orderCreateDomain.setProgramPlace(orderCreateDto.getProgramPlace());
+        orderCreateDomain.setProgramShowTime(orderCreateDto.getProgramShowTime());
+        orderCreateDomain.setProgramPermitChooseSeat(orderCreateDto.getProgramPermitChooseSeat());
+        orderCreateDomain.setDistributionMode(orderCreateDto.getDistributionMode());
+        orderCreateDomain.setTakeTicketMode(orderCreateDto.getTakeTicketMode());
+        orderCreateDomain.setOrderPrice(orderCreateDto.getOrderPrice());
+        orderCreateDomain.setCreateOrderTime(orderCreateDto.getCreateOrderTime());
+        orderCreateDomain.setOrderTicketUserCreateDtoList(orderCreateDto.getOrderTicketUserCreateDtoList());
+        orderCreateDomain.setOrderVersion(orderCreateDto.getOrderVersion());
+        return orderCreateDomain;
+    }
+
+    private OrderCreateDomain buildOrderCreateDomain(OrderCreateMq orderCreateMq) {
+        OrderCreateDomain orderCreateDomain = new OrderCreateDomain();
+        orderCreateDomain.setIdentifierId(orderCreateMq.getIdentifierId());
+        orderCreateDomain.setOrderNumber(orderCreateMq.getOrderNumber());
+        orderCreateDomain.setProgramId(orderCreateMq.getProgramId());
+        orderCreateDomain.setProgramItemPicture(orderCreateMq.getProgramItemPicture());
+        orderCreateDomain.setUserId(orderCreateMq.getUserId());
+        orderCreateDomain.setProgramTitle(orderCreateMq.getProgramTitle());
+        orderCreateDomain.setProgramPlace(orderCreateMq.getProgramPlace());
+        orderCreateDomain.setProgramShowTime(orderCreateMq.getProgramShowTime());
+        orderCreateDomain.setProgramPermitChooseSeat(orderCreateMq.getProgramPermitChooseSeat());
+        orderCreateDomain.setDistributionMode(orderCreateMq.getDistributionMode());
+        orderCreateDomain.setTakeTicketMode(orderCreateMq.getTakeTicketMode());
+        orderCreateDomain.setOrderPrice(orderCreateMq.getOrderPrice());
+        orderCreateDomain.setCreateOrderTime(orderCreateMq.getCreateOrderTime());
+        orderCreateDomain.setOrderTicketUserCreateDtoList(orderCreateMq.getOrderTicketUserCreateDtoList());
+        orderCreateDomain.setOrderVersion(orderCreateMq.getOrderVersion());
+        return orderCreateDomain;
+    }
+
+    private Order buildOrder(OrderCreateDomain orderCreateDomain) {
+        Order order = new Order();
+        order.setIdentifierId(orderCreateDomain.getIdentifierId());
+        order.setOrderNumber(orderCreateDomain.getOrderNumber());
+        order.setProgramId(orderCreateDomain.getProgramId());
+        order.setProgramItemPicture(orderCreateDomain.getProgramItemPicture());
+        order.setUserId(orderCreateDomain.getUserId());
+        order.setProgramTitle(orderCreateDomain.getProgramTitle());
+        order.setProgramPlace(orderCreateDomain.getProgramPlace());
+        order.setProgramShowTime(orderCreateDomain.getProgramShowTime());
+        order.setProgramPermitChooseSeat(orderCreateDomain.getProgramPermitChooseSeat());
+        order.setDistributionMode(orderCreateDomain.getDistributionMode());
+        order.setTakeTicketMode(orderCreateDomain.getTakeTicketMode());
+        order.setOrderPrice(orderCreateDomain.getOrderPrice());
+        order.setCreateOrderTime(orderCreateDomain.getCreateOrderTime());
+        order.setOrderVersion(orderCreateDomain.getOrderVersion());
+        return order;
+    }
+
+    private OrderTicketUser buildOrderTicketUser(OrderTicketUserCreateDto orderTicketUserCreateDto) {
+        OrderTicketUser orderTicketUser = new OrderTicketUser();
+        orderTicketUser.setOrderNumber(orderTicketUserCreateDto.getOrderNumber());
+        orderTicketUser.setProgramId(orderTicketUserCreateDto.getProgramId());
+        orderTicketUser.setUserId(orderTicketUserCreateDto.getUserId());
+        orderTicketUser.setTicketUserId(orderTicketUserCreateDto.getTicketUserId());
+        orderTicketUser.setSeatId(orderTicketUserCreateDto.getSeatId());
+        orderTicketUser.setSeatInfo(orderTicketUserCreateDto.getSeatInfo());
+        orderTicketUser.setTicketCategoryId(orderTicketUserCreateDto.getTicketCategoryId());
+        orderTicketUser.setOrderPrice(orderTicketUserCreateDto.getOrderPrice());
+        orderTicketUser.setCreateOrderTime(orderTicketUserCreateDto.getCreateOrderTime());
+        return orderTicketUser;
+    }
+
+    private OrderTicketUserRecord buildOrderTicketUserRecord(OrderTicketUserCreateDto orderTicketUserCreateDto) {
+        OrderTicketUserRecord orderTicketUserRecord = new OrderTicketUserRecord();
+        orderTicketUserRecord.setOrderNumber(orderTicketUserCreateDto.getOrderNumber());
+        orderTicketUserRecord.setProgramId(orderTicketUserCreateDto.getProgramId());
+        orderTicketUserRecord.setUserId(orderTicketUserCreateDto.getUserId());
+        orderTicketUserRecord.setTicketUserId(orderTicketUserCreateDto.getTicketUserId());
+        orderTicketUserRecord.setSeatId(orderTicketUserCreateDto.getSeatId());
+        orderTicketUserRecord.setSeatInfo(orderTicketUserCreateDto.getSeatInfo());
+        orderTicketUserRecord.setTicketCategoryId(orderTicketUserCreateDto.getTicketCategoryId());
+        orderTicketUserRecord.setOrderPrice(orderTicketUserCreateDto.getOrderPrice());
+        return orderTicketUserRecord;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public String doCreate(OrderCreateDomain orderCreateDomain) {
         LambdaQueryWrapper<Order> orderLambdaQueryWrapper =
-                Wrappers.lambdaQuery(Order.class).eq(Order::getOrderNumber, orderCreateDomain.getOrderNumber());
+                Wrappers.lambdaQuery(Order.class).select(Order::getId).eq(Order::getOrderNumber, orderCreateDomain.getOrderNumber());
         //如果订单存在了，那么直接拒绝
         Order oldOrder = orderMapper.selectOne(orderLambdaQueryWrapper);
         if (Objects.nonNull(oldOrder)) {
             throw new TikectsystemFrameException(BaseCode.ORDER_EXIST);
         }
-        Order order = new Order();
-        BeanUtil.copyProperties(orderCreateDomain,order);
+        Order order = buildOrder(orderCreateDomain);
         order.setId(uidGenerator.getUid());
         order.setDistributionMode("电子票");
         order.setTakeTicketMode("请使用购票人身份证直接入场");
+        List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = orderCreateDomain.getOrderTicketUserCreateDtoList();
+        if (CollectionUtil.isEmpty(orderTicketUserCreateDtoList)) {
+            throw new TikectsystemFrameException(BaseCode.TICKET_USER_COUNT_UNEQUAL_SEAT_COUNT);
+        }
+        Date entityCreateTime = DateUtils.now();
         //购票人订单对象
-        List<OrderTicketUser> orderTicketUserList = new ArrayList<>();
+        List<OrderTicketUser> orderTicketUserList = new ArrayList<>(orderTicketUserCreateDtoList.size());
         //购票人订单记录对象
-        List<OrderTicketUserRecord> orderTicketUserRecordList = new ArrayList<>();
-        for (OrderTicketUserCreateDto orderTicketUserCreateDto : orderCreateDomain.getOrderTicketUserCreateDtoList()) {
-            OrderTicketUser orderTicketUser = new OrderTicketUser();
-            BeanUtil.copyProperties(orderTicketUserCreateDto,orderTicketUser);
+        List<OrderTicketUserRecord> orderTicketUserRecordList = new ArrayList<>(orderTicketUserCreateDtoList.size());
+        for (OrderTicketUserCreateDto orderTicketUserCreateDto : orderTicketUserCreateDtoList) {
+            OrderTicketUser orderTicketUser = buildOrderTicketUser(orderTicketUserCreateDto);
             orderTicketUser.setId(uidGenerator.getUid());
+            orderTicketUser.setCreateTime(entityCreateTime);
+            orderTicketUser.setEditTime(entityCreateTime);
             orderTicketUserList.add(orderTicketUser);
 
-            OrderTicketUserRecord orderTicketUserRecord = new OrderTicketUserRecord();
-            BeanUtil.copyProperties(orderTicketUserCreateDto,orderTicketUserRecord);
+            OrderTicketUserRecord orderTicketUserRecord = buildOrderTicketUserRecord(orderTicketUserCreateDto);
+            orderTicketUserRecord.setId(uidGenerator.getUid());
             orderTicketUserRecord.setIdentifierId(orderCreateDomain.getIdentifierId());
             orderTicketUserRecord.setTicketUserOrderId(orderTicketUser.getId());
             orderTicketUserRecord.setRecordTypeCode(RecordType.REDUCE.getCode());
             orderTicketUserRecord.setRecordTypeValue(RecordType.REDUCE.getValue());
+            orderTicketUserRecord.setCreateTime(entityCreateTime);
+            orderTicketUserRecord.setEditTime(entityCreateTime);
             orderTicketUserRecordList.add(orderTicketUserRecord);
         }
         //插入主订单
         orderMapper.insert(order);
         //插入购票人订单
-        orderTicketUserService.saveBatch(orderTicketUserList);
+        int insertOrderTicketUserCount = orderTicketUserMapper.batchInsert(orderTicketUserList);
         //插入购票人订单记录
-        orderTicketUserRecordService.saveBatch(orderTicketUserRecordList);
+        int insertOrderTicketUserRecordCount = orderTicketUserRecordMapper.batchInsert(orderTicketUserRecordList);
+        if (insertOrderTicketUserCount < orderTicketUserList.size() ||
+                insertOrderTicketUserRecordCount < orderTicketUserRecordList.size()) {
+            throw new TikectsystemFrameException(BaseCode.SYSTEM_ERROR);
+        }
         //插入订单节目
         OrderProgram orderProgram = new OrderProgram();
         orderProgram.setId(uidGenerator.getUid());
@@ -225,7 +315,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         //用户下此节目的订单数量加1操作
         redisCache.incrBy(RedisKeyBuild.createRedisKey(
                 RedisKeyManage.ACCOUNT_ORDER_COUNT,orderCreateDomain.getUserId(),
-                orderCreateDomain.getProgramId()),orderCreateDomain.getOrderTicketUserCreateDtoList().size());
+                orderCreateDomain.getProgramId()),orderTicketUserCreateDtoList.size());
         return String.valueOf(order.getOrderNumber());
     }
     
@@ -763,27 +853,30 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     @RepeatExecuteLimit(name = CREATE_PROGRAM_ORDER_MQ,keys = {"#orderCreateMq.orderNumber"})
     @Transactional(rollbackFor = Exception.class)
     public String createMq(OrderCreateMq orderCreateMq){
-        List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = orderCreateMq.getOrderTicketUserCreateDtoList();
-        //使用 Stream API 按 ticketCategoryId 分组并计数
-        Map<Long, Long> countMap = orderTicketUserCreateDtoList.stream()
-                .collect(Collectors.groupingBy(OrderTicketUserCreateDto::getTicketCategoryId, Collectors.counting()));
-        
-        //将统计结果转换为列表，存入 TicketCountDto 对象中
-        List<TicketCategoryCountDto> ticketCountList = countMap.entrySet().stream()
-                .map(entry -> new TicketCategoryCountDto(entry.getKey(), entry.getValue()))
-                .toList();
-        //修改节目服务中的座位状态和扣减库存
-        ReduceRemainNumberDto reduceRemainNumberDto = new ReduceRemainNumberDto();
-        reduceRemainNumberDto.setProgramId(orderCreateMq.getProgramId());
-        reduceRemainNumberDto.setSellStatus(SellStatus.LOCK.getCode());
-        reduceRemainNumberDto.setSeatIdList(orderTicketUserCreateDtoList.stream().map(OrderTicketUserCreateDto::getSeatId).collect(Collectors.toList()));
-        reduceRemainNumberDto.setTicketCategoryCountDtoList(ticketCountList);
-        ApiResponse<Boolean> programApiResponse = programClient.operateSeatLockAndTicketCategoryRemainNumber(reduceRemainNumberDto);
-        if (programApiResponse == null || !Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
-            //将因为修改节目服务余票和座位失败，导致丢弃的订单放入redis中
-            redisCache.leftPushForList(RedisKeyBuild.createRedisKey(RedisKeyManage.DISCARD_ORDER,
-                    orderCreateMq.getProgramId()),new DiscardOrder(orderCreateMq, DiscardOrderReason.MODIFY_PROGRAM_REMAIN_NUMBER_SEAT_FAIL.getCode()));
-            throw new TikectsystemFrameException(programApiResponse);
+        if (!Objects.equals(orderCreateMq.getOrderVersion(), ProgramOrderVersion.V4_VERSION.getValue())) {
+            List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = orderCreateMq.getOrderTicketUserCreateDtoList();
+            List<Long> seatIdList = new ArrayList<>(orderTicketUserCreateDtoList.size());
+            Map<Long, Long> countMap = new HashMap<>(orderTicketUserCreateDtoList.size());
+            for (OrderTicketUserCreateDto orderTicketUserCreateDto : orderTicketUserCreateDtoList) {
+                seatIdList.add(orderTicketUserCreateDto.getSeatId());
+                countMap.merge(orderTicketUserCreateDto.getTicketCategoryId(), 1L, Long::sum);
+            }
+            List<TicketCategoryCountDto> ticketCountList = new ArrayList<>(countMap.size());
+            countMap.forEach((ticketCategoryId, ticketCount) ->
+                    ticketCountList.add(new TicketCategoryCountDto(ticketCategoryId, ticketCount)));
+            //修改节目服务中的座位状态和扣减库存
+            ReduceRemainNumberDto reduceRemainNumberDto = new ReduceRemainNumberDto();
+            reduceRemainNumberDto.setProgramId(orderCreateMq.getProgramId());
+            reduceRemainNumberDto.setSellStatus(SellStatus.LOCK.getCode());
+            reduceRemainNumberDto.setSeatIdList(seatIdList);
+            reduceRemainNumberDto.setTicketCategoryCountDtoList(ticketCountList);
+            ApiResponse<Boolean> programApiResponse = programClient.operateSeatLockAndTicketCategoryRemainNumber(reduceRemainNumberDto);
+            if (programApiResponse == null || !Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+                //将因为修改节目服务余票和座位失败，导致丢弃的订单放入redis中
+                redisCache.leftPushForList(RedisKeyBuild.createRedisKey(RedisKeyManage.DISCARD_ORDER,
+                        orderCreateMq.getProgramId()),new DiscardOrder(orderCreateMq, DiscardOrderReason.MODIFY_PROGRAM_REMAIN_NUMBER_SEAT_FAIL.getCode()));
+                throw new TikectsystemFrameException(programApiResponse);
+            }
         }
         //真正地创建订单
         String orderNumber = createByMq(orderCreateMq);

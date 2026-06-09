@@ -2,7 +2,6 @@ package com.tikectsystem.handler.impl;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.tikectsystem.context.DelayQueueContext;
 import com.tikectsystem.entity.MessageProducerRecord;
 import com.tikectsystem.enums.MessageSendStatus;
 import com.tikectsystem.enums.MessageType;
@@ -12,11 +11,11 @@ import com.tikectsystem.mapper.MessageProducerRecordMapper;
 import com.tikectsystem.util.DateUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import static com.tikectsystem.constant.ProgramOrderConstant.DELAY_ORDER_CANCEL_TIME;
 import static com.tikectsystem.constant.ProgramOrderConstant.DELAY_ORDER_CANCEL_TIME_UNIT;
@@ -34,7 +33,7 @@ public class DelayOrderCancelExceptionMessageHandler implements ExceptionMessage
     private MessageProducerRecordMapper messageProducerRecordMapper;
     
     @Autowired
-    private DelayQueueContext delayQueueContext;
+    private KafkaTemplate<String, String> kafkaTemplate;
     
     @Override
     public List<MessageProducerRecord> noReconciliationMessageProducerRecordList() {
@@ -47,6 +46,7 @@ public class DelayOrderCancelExceptionMessageHandler implements ExceptionMessage
         }
         //查询出所有未对账成功，并且发送时间小于 当前时间-延迟时间-10秒 的消息记录
         Wrapper<MessageProducerRecord> messageRecordWrapper = Wrappers.lambdaQuery(MessageProducerRecord.class)
+                .eq(MessageProducerRecord::getMessageType, MessageType.DELAY_ORDER_CANCEL.getCode())
                 .eq(MessageProducerRecord::getReconciliationStatus, ReconciliationStatus.RECONCILIATION_NO.getCode())
                 .lt(MessageProducerRecord::getSendTime, DateUtils.addSecond(date, -10));
         return messageProducerRecordMapper.selectList(messageRecordWrapper);
@@ -55,24 +55,41 @@ public class DelayOrderCancelExceptionMessageHandler implements ExceptionMessage
     @Override
     public Boolean handle(MessageProducerRecord messageProducerRecord) {
         String messageContent = messageProducerRecord.getMessageContent();
-        MessageProducerRecord udpateMessageProducerRecord = new MessageProducerRecord();
-        udpateMessageProducerRecord.setId(messageProducerRecord.getId());
+        MessageProducerRecord updateMessageProducerRecord = new MessageProducerRecord();
+        updateMessageProducerRecord.setId(messageProducerRecord.getId());
         //因为是处理异常消息，所以这里直接设置为未对账
-        udpateMessageProducerRecord.setReconciliationStatus(ReconciliationStatus.RECONCILIATION_NO.getCode());
+        updateMessageProducerRecord.setReconciliationStatus(ReconciliationStatus.RECONCILIATION_NO.getCode());
+        updateMessageProducerRecord.setSendTime(DateUtils.now());
         try {
-            log.info("延迟订单取消消息进行发送 消息体 : {}",messageContent);
-            //这里是处理异常，所以延迟订单关闭就要立即消费
-            delayQueueContext.sendMessage(messageProducerRecord.getMessageTopic(), messageContent, 1, TimeUnit.SECONDS);
-            //发送成功，更新发送成功状态
-            udpateMessageProducerRecord.setMessageSendStatus(MessageSendStatus.SEND_SUCCESS.getCode());
+            log.info("延迟订单取消异常消息发送到Kafka topic : {}, 消息体 : {}",
+                    messageProducerRecord.getMessageTopic(), messageContent);
+            kafkaTemplate.send(messageProducerRecord.getMessageTopic(),
+                    String.valueOf(messageProducerRecord.getMessageId()), messageContent).whenComplete((sendResult, ex) -> {
+                if (ex == null) {
+                    updateMessageProducerRecord.setMessageSendStatus(MessageSendStatus.SEND_SUCCESS.getCode());
+                }else {
+                    log.error("send delay order cancel kafka message error message : {}",messageContent,ex);
+                    updateMessageProducerRecord.setMessageSendStatus(MessageSendStatus.SEND_FAIL.getCode());
+                    updateMessageProducerRecord.setMessageSendException(ex.getMessage());
+                }
+                updateMessageProducerRecord(updateMessageProducerRecord, messageContent);
+            });
         }catch (Exception e) {
-            log.error("send message error message : {}",messageContent,e);
+            log.error("send delay order cancel kafka message error message : {}",messageContent,e);
             //发送失败，更新发送失败状态
-            udpateMessageProducerRecord.setMessageSendStatus(MessageSendStatus.SEND_FAIL.getCode());
-            udpateMessageProducerRecord.setMessageSendException(e.getMessage());
+            updateMessageProducerRecord.setMessageSendStatus(MessageSendStatus.SEND_FAIL.getCode());
+            updateMessageProducerRecord.setMessageSendException(e.getMessage());
+            updateMessageProducerRecord(updateMessageProducerRecord, messageContent);
         }
-        messageProducerRecordMapper.updateById(udpateMessageProducerRecord);
         return true;
+    }
+
+    private void updateMessageProducerRecord(MessageProducerRecord updateMessageProducerRecord, String messageContent) {
+        try {
+            messageProducerRecordMapper.updateById(updateMessageProducerRecord);
+        } catch (Exception e) {
+            log.error("更新延迟订单取消消息发送记录失败 message : {}", messageContent, e);
+        }
     }
     
     @Override

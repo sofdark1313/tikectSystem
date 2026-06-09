@@ -278,7 +278,7 @@ public class BlockPuzzleCaptchaServiceImpl extends AbstractCaptchaService {
             y = random.nextInt(originalHeight - jigsawHeight) + 5;
         }
         String key = null;
-        if (captchaAesStatus) {
+        if (Boolean.TRUE.equals(captchaAesStatus)) {
             key = AesUtil.getKey();
         }
         return new PointVO(x, y, key);

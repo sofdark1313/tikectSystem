@@ -39,7 +39,6 @@ import com.tikectsystem.vo.ProgramVo;
 import com.tikectsystem.vo.SeatVo;
 import com.tikectsystem.vo.TicketCategoryVo;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -47,11 +46,13 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -106,12 +107,17 @@ public class ProgramOrderService {
         List<TicketCategoryVo> ticketCategoryVoList =
                 ticketCategoryService.selectTicketCategoryListByProgramIdMultipleCache(programOrderCreateDto.getProgramId(),
                         showTime);
-        Map<Long, TicketCategoryVo> ticketCategoryVoMap =
-                ticketCategoryVoList.stream()
-                        .collect(Collectors.toMap(TicketCategoryVo::getId, ticketCategoryVo -> ticketCategoryVo));
+        Map<Long, TicketCategoryVo> ticketCategoryVoMap = new HashMap<>(ticketCategoryVoList.size());
+        for (TicketCategoryVo ticketCategoryVo : ticketCategoryVoList) {
+            ticketCategoryVoMap.put(ticketCategoryVo.getId(), ticketCategoryVo);
+        }
         List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
         if (CollectionUtil.isNotEmpty(seatDtoList)) {
+            Set<Long> ticketCategoryIdSet = new HashSet<>(seatDtoList.size());
             for (SeatDto seatDto : seatDtoList) {
+                if (!ticketCategoryIdSet.add(seatDto.getTicketCategoryId())) {
+                    continue;
+                }
                 TicketCategoryVo ticketCategoryVo = ticketCategoryVoMap.get(seatDto.getTicketCategoryId());
                 if (Objects.nonNull(ticketCategoryVo)) {
                     getTicketCategoryVoList.add(ticketCategoryVo);
@@ -135,6 +141,7 @@ public class ProgramOrderService {
                 programShowTimeService.selectProgramShowTimeByProgramIdMultipleCache(programOrderCreateDto.getProgramId());
         List<TicketCategoryVo> getTicketCategoryList =
                 getTicketCategoryList(programOrderCreateDto, programShowTime.getShowTime());
+        Long cacheExpireSeconds = DateUtils.countBetweenSecond(DateUtils.now(), programShowTime.getShowTime());
         BigDecimal parameterOrderPrice = new BigDecimal("0");
         BigDecimal databaseOrderPrice = new BigDecimal("0");
         List<SeatVo> purchaseSeatList = new ArrayList<>();
@@ -144,7 +151,7 @@ public class ProgramOrderService {
         for (TicketCategoryVo ticketCategory : getTicketCategoryList) {
             List<SeatVo> allSeatVoList =
                     seatService.selectSeatResolution(programOrderCreateDto.getProgramId(), ticketCategory.getId(),
-                            DateUtils.countBetweenSecond(DateUtils.now(), programShowTime.getShowTime()), TimeUnit.SECONDS);
+                            cacheExpireSeconds, TimeUnit.SECONDS);
             seatVoList.addAll(allSeatVoList.stream().
                     filter(seatVo -> Objects.equals(seatVo.getSellStatus(),SellStatus.NO_SOLD.getCode())).toList());
             ticketCategoryRemainNumber.putAll(ticketCategoryService.getRedisRemainNumberResolution(
@@ -197,14 +204,20 @@ public class ProgramOrderService {
 
     public String createNew(ProgramOrderCreateDto programOrderCreateDto, Integer orderVersion) {
         CreateOrderTemporaryData createOrderTemporaryData = createOrderOperateProgramCacheResolution(programOrderCreateDto);
+        return createByTemporaryData(programOrderCreateDto, createOrderTemporaryData, orderVersion);
+    }
+
+    public String createByTemporaryData(ProgramOrderCreateDto programOrderCreateDto,
+                                        CreateOrderTemporaryData createOrderTemporaryData,
+                                        Integer orderVersion) {
         if (createOrderTemporaryData == null || CollectionUtil.isEmpty(createOrderTemporaryData.getPurchaseSeatList())) {
             throw new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST);
         }
-        List<SeatVo> purchaseSeatList = createOrderTemporaryData.getPurchaseSeatList().stream().map(purchaseSeat -> {
-            SeatVo seatVo = new SeatVo();
-            BeanUtils.copyProperties(purchaseSeat, seatVo);
-            return seatVo;
-        }).collect(Collectors.toList());
+        List<PurchaseSeat> purchaseSeatTemporaryList = createOrderTemporaryData.getPurchaseSeatList();
+        List<SeatVo> purchaseSeatList = new ArrayList<>(purchaseSeatTemporaryList.size());
+        for (PurchaseSeat purchaseSeat : purchaseSeatTemporaryList) {
+            purchaseSeatList.add(buildSeatVo(purchaseSeat));
+        }
         return doCreate(programOrderCreateDto, purchaseSeatList, orderVersion);
     }
 
@@ -212,25 +225,40 @@ public class ProgramOrderService {
         //操作redis
         CreateOrderTemporaryData createOrderTemporaryData = createOrderOperateProgramCacheResolution(programOrderCreateDto);
         //发送kafka
+        return createByTemporaryDataAsync(programOrderCreateDto, createOrderTemporaryData, orderVersion);
+    }
+
+    public String createByTemporaryDataAsync(ProgramOrderCreateDto programOrderCreateDto,
+                                             CreateOrderTemporaryData createOrderTemporaryData,
+                                             Integer orderVersion) {
         return doCreateV2(programOrderCreateDto, createOrderTemporaryData, orderVersion);
     }
 
     public CreateOrderTemporaryData createOrderOperateProgramCacheResolution(ProgramOrderCreateDto programOrderCreateDto) {
+        prepareCreateOrderProgramCache(programOrderCreateDto);
+        return createOrderOperateProgramCache(programOrderCreateDto);
+    }
+
+    public void prepareCreateOrderProgramCache(ProgramOrderCreateDto programOrderCreateDto) {
         //从多级缓存中查找节目演出时间ProgramShowTime
         ProgramShowTime programShowTime =
                 programShowTimeService.selectProgramShowTimeByProgramIdMultipleCache(programOrderCreateDto.getProgramId());
         //查询对应的票档类型
         List<TicketCategoryVo> getTicketCategoryList =
                 getTicketCategoryList(programOrderCreateDto, programShowTime.getShowTime());
+        Long cacheExpireSeconds = DateUtils.countBetweenSecond(DateUtils.now(), programShowTime.getShowTime());
         //遍历得到的票档
         for (TicketCategoryVo ticketCategory : getTicketCategoryList) {
             //从缓存中查询座位，如果缓存不存在，则从数据库查询后再放入缓存
             seatService.selectSeatResolution(programOrderCreateDto.getProgramId(), ticketCategory.getId(),
-                    DateUtils.countBetweenSecond(DateUtils.now(), programShowTime.getShowTime()), TimeUnit.SECONDS);
+                    cacheExpireSeconds, TimeUnit.SECONDS);
             //从缓存中查询余票数量，如果缓存不存在，则从数据库查询后再放入缓存
             ticketCategoryService.getRedisRemainNumberResolution(
                     programOrderCreateDto.getProgramId(), ticketCategory.getId());
         }
+    }
+
+    public CreateOrderTemporaryData createOrderOperateProgramCache(ProgramOrderCreateDto programOrderCreateDto) {
         Long programId = programOrderCreateDto.getProgramId();
         List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
         List<String> keys = new ArrayList<>();
@@ -241,8 +269,10 @@ public class ProgramOrderService {
         JSONArray addSeatDatajsonArray = new JSONArray();
         if (CollectionUtil.isNotEmpty(seatDtoList)) {
             keys.add("1");
-            Map<Long, List<SeatDto>> seatTicketCategoryDtoCount = seatDtoList.stream()
-                    .collect(Collectors.groupingBy(SeatDto::getTicketCategoryId));
+            Map<Long, List<SeatDto>> seatTicketCategoryDtoCount = new HashMap<>(seatDtoList.size());
+            for (SeatDto seatDto : seatDtoList) {
+                seatTicketCategoryDtoCount.computeIfAbsent(seatDto.getTicketCategoryId(), key -> new ArrayList<>()).add(seatDto);
+            }
             for (Entry<Long, List<SeatDto>> entry : seatTicketCategoryDtoCount.entrySet()) {
                 Long ticketCategoryId = entry.getKey();
                 int ticketCount = entry.getValue().size();
@@ -333,9 +363,7 @@ public class ProgramOrderService {
         }
         OrderCreateDto orderCreateDto = buildCreateOrderParamV2(programOrderCreateDto.getProgramId(),
                 programOrderCreateDto.getUserId(), createOrderTemporaryData.getPurchaseSeatList(), orderVersion);
-        OrderCreateMq orderCreateMq = new OrderCreateMq();
-        BeanUtils.copyProperties(orderCreateDto, orderCreateMq);
-        orderCreateMq.setIdentifierId(createOrderTemporaryData.getIdentifierId());
+        OrderCreateMq orderCreateMq = buildOrderCreateMq(orderCreateDto, createOrderTemporaryData.getIdentifierId());
         //插入节目记录任务
         BusinessThreadPool.execute(() -> createProgramRecordTask(orderCreateMq.getProgramId()));
         //创建订单
@@ -370,10 +398,13 @@ public class ProgramOrderService {
         orderCreateDto.setProgramPlace(programVo.getPlace());
         orderCreateDto.setProgramShowTime(programVo.getShowTime());
         orderCreateDto.setProgramPermitChooseSeat(programVo.getPermitChooseSeat());
-        BigDecimal databaseOrderPrice =
-                purchaseSeatList.stream().map(SeatVo::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal databaseOrderPrice = BigDecimal.ZERO;
+        for (SeatVo seatVo : purchaseSeatList) {
+            databaseOrderPrice = databaseOrderPrice.add(seatVo.getPrice());
+        }
+        Date createOrderTime = DateUtils.now();
         orderCreateDto.setOrderPrice(databaseOrderPrice);
-        orderCreateDto.setCreateOrderTime(DateUtils.now());
+        orderCreateDto.setCreateOrderTime(createOrderTime);
         orderCreateDto.setOrderVersion(orderVersion);
 
         List<Long> ticketUserIdList = programOrderCreateDto.getTicketUserIdList();
@@ -381,7 +412,7 @@ public class ProgramOrderService {
                 ticketUserIdList.size() != purchaseSeatList.size()) {
             throw new TikectsystemFrameException(BaseCode.TICKET_USER_COUNT_UNEQUAL_SEAT_COUNT);
         }
-        List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = new ArrayList<>();
+        List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = new ArrayList<>(purchaseSeatList.size());
         for (int i = 0; i < ticketUserIdList.size(); i++) {
             Long ticketUserId = ticketUserIdList.get(i);
             OrderTicketUserCreateDto orderTicketUserCreateDto = new OrderTicketUserCreateDto();
@@ -389,14 +420,15 @@ public class ProgramOrderService {
             orderTicketUserCreateDto.setProgramId(programOrderCreateDto.getProgramId());
             orderTicketUserCreateDto.setUserId(programOrderCreateDto.getUserId());
             orderTicketUserCreateDto.setTicketUserId(ticketUserId);
-            SeatVo seatVo =
-                    Optional.ofNullable(purchaseSeatList.get(i))
-                            .orElseThrow(() -> new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST));
+            SeatVo seatVo = purchaseSeatList.get(i);
+            if (seatVo == null) {
+                throw new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST);
+            }
             orderTicketUserCreateDto.setSeatId(seatVo.getId());
             orderTicketUserCreateDto.setSeatInfo(seatVo.getRowCode() + "排" + seatVo.getColCode() + "列");
             orderTicketUserCreateDto.setTicketCategoryId(seatVo.getTicketCategoryId());
             orderTicketUserCreateDto.setOrderPrice(seatVo.getPrice());
-            orderTicketUserCreateDto.setCreateOrderTime(DateUtils.now());
+            orderTicketUserCreateDto.setCreateOrderTime(createOrderTime);
             orderTicketUserCreateDtoList.add(orderTicketUserCreateDto);
         }
 
@@ -419,13 +451,16 @@ public class ProgramOrderService {
         orderCreateDto.setProgramPlace(programVo.getPlace());
         orderCreateDto.setProgramShowTime(programVo.getShowTime());
         orderCreateDto.setProgramPermitChooseSeat(programVo.getPermitChooseSeat());
-        BigDecimal databaseOrderPrice =
-                purchaseSeatList.stream().map(PurchaseSeat::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal databaseOrderPrice = BigDecimal.ZERO;
+        for (PurchaseSeat purchaseSeat : purchaseSeatList) {
+            databaseOrderPrice = databaseOrderPrice.add(purchaseSeat.getPrice());
+        }
+        Date createOrderTime = DateUtils.now();
         orderCreateDto.setOrderPrice(databaseOrderPrice);
-        orderCreateDto.setCreateOrderTime(DateUtils.now());
+        orderCreateDto.setCreateOrderTime(createOrderTime);
         orderCreateDto.setOrderVersion(orderVersion);
 
-        List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = new ArrayList<>();
+        List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = new ArrayList<>(purchaseSeatList.size());
         for (PurchaseSeat purchaseSeat : purchaseSeatList) {
             OrderTicketUserCreateDto orderTicketUserCreateDto = new OrderTicketUserCreateDto();
             orderTicketUserCreateDto.setOrderNumber(orderCreateDto.getOrderNumber());
@@ -436,7 +471,7 @@ public class ProgramOrderService {
             orderTicketUserCreateDto.setSeatInfo(purchaseSeat.getRowCode() + "排" + purchaseSeat.getColCode() + "列");
             orderTicketUserCreateDto.setTicketCategoryId(purchaseSeat.getTicketCategoryId());
             orderTicketUserCreateDto.setOrderPrice(purchaseSeat.getPrice());
-            orderTicketUserCreateDto.setCreateOrderTime(DateUtils.now());
+            orderTicketUserCreateDto.setCreateOrderTime(createOrderTime);
             orderTicketUserCreateDtoList.add(orderTicketUserCreateDto);
         }
         orderCreateDto.setOrderTicketUserCreateDtoList(orderTicketUserCreateDtoList);
@@ -465,20 +500,18 @@ public class ProgramOrderService {
         CountDownLatch latch = new CountDownLatch(1);
         createOrderMqDomain.orderNumber = String.valueOf(orderCreateMq.getOrderNumber());
         createOrderSend.sendMessage(JSON.toJSONString(orderCreateMq), sendResult -> {
-            if (sendResult == null || sendResult.getRecordMetadata() == null) {
-                log.info("create order kafka send success, topic : {}", (Object)null);
-                latch.countDown();
-                return;
+            if (log.isDebugEnabled()) {
+                String topic = sendResult == null || sendResult.getRecordMetadata() == null ? null :
+                        sendResult.getRecordMetadata().topic();
+                log.debug("create order kafka send success, topic : {}", topic);
             }
-            log.info("创建订单kafka发送消息成功 topic : {}", sendResult.getRecordMetadata().topic());
             latch.countDown();
         }, ex -> {
             log.error("创建订单kafka发送消息失败 error", ex);
-            List<SeatVo> purchaseSeatVoList = purchaseSeatList.stream().map(purchaseSeat -> {
-                SeatVo seatVo = new SeatVo();
-                BeanUtils.copyProperties(purchaseSeat, seatVo);
-                return seatVo;
-            }).collect(Collectors.toList());
+            List<SeatVo> purchaseSeatVoList = new ArrayList<>(purchaseSeatList.size());
+            for (PurchaseSeat purchaseSeat : purchaseSeatList) {
+                purchaseSeatVoList.add(buildSeatVo(purchaseSeat));
+            }
             updateProgramCacheDataResolution(orderCreateMq.getProgramId(), purchaseSeatVoList, OrderStatus.CANCEL);
             createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(ex);
             latch.countDown();
@@ -494,6 +527,40 @@ public class ProgramOrderService {
             throw createOrderMqDomain.tikectsystemFrameException;
         }
         return createOrderMqDomain.orderNumber;
+    }
+
+    private OrderCreateMq buildOrderCreateMq(OrderCreateDto orderCreateDto, Long identifierId) {
+        OrderCreateMq orderCreateMq = new OrderCreateMq();
+        orderCreateMq.setIdentifierId(identifierId);
+        orderCreateMq.setOrderNumber(orderCreateDto.getOrderNumber());
+        orderCreateMq.setProgramId(orderCreateDto.getProgramId());
+        orderCreateMq.setProgramItemPicture(orderCreateDto.getProgramItemPicture());
+        orderCreateMq.setUserId(orderCreateDto.getUserId());
+        orderCreateMq.setProgramTitle(orderCreateDto.getProgramTitle());
+        orderCreateMq.setProgramPlace(orderCreateDto.getProgramPlace());
+        orderCreateMq.setProgramShowTime(orderCreateDto.getProgramShowTime());
+        orderCreateMq.setProgramPermitChooseSeat(orderCreateDto.getProgramPermitChooseSeat());
+        orderCreateMq.setDistributionMode(orderCreateDto.getDistributionMode());
+        orderCreateMq.setTakeTicketMode(orderCreateDto.getTakeTicketMode());
+        orderCreateMq.setOrderPrice(orderCreateDto.getOrderPrice());
+        orderCreateMq.setCreateOrderTime(orderCreateDto.getCreateOrderTime());
+        orderCreateMq.setOrderTicketUserCreateDtoList(orderCreateDto.getOrderTicketUserCreateDtoList());
+        orderCreateMq.setOrderVersion(orderCreateDto.getOrderVersion());
+        return orderCreateMq;
+    }
+
+    private SeatVo buildSeatVo(PurchaseSeat purchaseSeat) {
+        SeatVo seatVo = new SeatVo();
+        seatVo.setId(purchaseSeat.getId());
+        seatVo.setProgramId(purchaseSeat.getProgramId());
+        seatVo.setTicketCategoryId(purchaseSeat.getTicketCategoryId());
+        seatVo.setRowCode(purchaseSeat.getRowCode());
+        seatVo.setColCode(purchaseSeat.getColCode());
+        seatVo.setSeatType(purchaseSeat.getSeatType());
+        seatVo.setSeatTypeName(purchaseSeat.getSeatTypeName());
+        seatVo.setPrice(purchaseSeat.getPrice());
+        seatVo.setSellStatus(purchaseSeat.getSellStatus());
+        return seatVo;
     }
 
     private void updateProgramCacheDataResolution(Long programId, List<SeatVo> seatVoList, OrderStatus orderStatus) {

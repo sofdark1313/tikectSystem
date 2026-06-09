@@ -12,14 +12,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
 
-/**
- * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
- * @description: 节目订单
- * @author: 阿星不是程序员
- **/
 @Slf4j
 @Component
 public class BaseProgramOrder {
@@ -28,49 +24,35 @@ public class BaseProgramOrder {
     private LocalLockCache localLockCache;
 
     public String localLockCreateOrder(String lockKeyPrefix,ProgramOrderCreateDto programOrderCreateDto,LockTask<String> lockTask){
+        return localLockExecute(lockKeyPrefix, programOrderCreateDto, lockTask);
+    }
+
+    public <T> T localLockExecute(String lockKeyPrefix,ProgramOrderCreateDto programOrderCreateDto,LockTask<T> lockTask){
+        Set<Long> ticketCategoryIdSet = new TreeSet<>();
         List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
-        List<Long> ticketCategoryIdList = new ArrayList<>();
         if (CollectionUtil.isNotEmpty(seatDtoList)) {
-            //按照票档id进行排序，这样为了避免不同请求获取票档的顺序不同加锁而可能产生的死锁问题
-            ticketCategoryIdList =
-                    seatDtoList.stream().map(SeatDto::getTicketCategoryId).distinct().sorted().collect(Collectors.toList());
-        }else {
-            ticketCategoryIdList.add(programOrderCreateDto.getTicketCategoryId());
-        }
-        //本地锁集合
-        List<ReentrantLock> localLockList = new ArrayList<>(ticketCategoryIdList.size());
-        //加锁成功的本地锁集
-        List<ReentrantLock> localLockSuccessList = new ArrayList<>(ticketCategoryIdList.size());
-        //根据统计出的票档id获得本地锁集合
-        for (Long ticketCategoryId : ticketCategoryIdList) {
-            //锁的key为d_program_order_create_v3_lock-programId-ticketCategoryId
-            String lockKey = StrUtil.join("-",lockKeyPrefix,
-                    programOrderCreateDto.getProgramId(),ticketCategoryId);
-            //获得本地锁实例
-            ReentrantLock localLock = localLockCache.getLock(lockKey,false);
-            //添加到本地锁集合
-            localLockList.add(localLock);
-        }
-        //循环本地锁进行加锁
-        for (ReentrantLock reentrantLock : localLockList) {
-            try {
-                reentrantLock.lock();
-            }catch (Throwable t) {
-                //如果加锁出现异常，则终止
-                break;
+            for (SeatDto seatDto : seatDtoList) {
+                ticketCategoryIdSet.add(seatDto.getTicketCategoryId());
             }
-            localLockSuccessList.add(reentrantLock);
+        } else {
+            ticketCategoryIdSet.add(programOrderCreateDto.getTicketCategoryId());
         }
+        List<ReentrantLock> localLockSuccessList = new ArrayList<>(ticketCategoryIdSet.size());
         try {
-            //执行真正的逻辑
+            for (Long ticketCategoryId : ticketCategoryIdSet) {
+                String lockKey = StrUtil.join("-",lockKeyPrefix,
+                        programOrderCreateDto.getProgramId(),ticketCategoryId);
+                ReentrantLock localLock = localLockCache.getLock(lockKey,false);
+                localLock.lock();
+                localLockSuccessList.add(localLock);
+            }
             return lockTask.execute();
-        }finally {
-            //再循环解锁本地锁
+        } finally {
             for (int i = localLockSuccessList.size() - 1; i >= 0; i--) {
                 ReentrantLock reentrantLock = localLockSuccessList.get(i);
                 try {
                     reentrantLock.unlock();
-                }catch (Throwable t) {
+                } catch (Throwable t) {
                     log.error("local lock unlock error",t);
                 }
             }

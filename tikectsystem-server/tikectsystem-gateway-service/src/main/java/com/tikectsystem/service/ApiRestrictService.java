@@ -142,7 +142,7 @@ public class ApiRestrictService {
                                 .filter(StringUtil::isNotEmpty)
                                 .orElse(message);
                     }
-                    log.info("api rule [key : {}], [triggerResult : {}], [triggerCallStat : {}], [apiCount : {}], [threshold : {}]",commonKey,triggerResult,triggerCallStat,apiCount,threshold);
+                    log.debug("api rule [key : {}], [triggerResult : {}], [triggerCallStat : {}], [apiCount : {}], [threshold : {}]",commonKey,triggerResult,triggerCallStat,apiCount,threshold);
                 }
             }catch (Exception e) {
                 log.error("redis Lua eror", e);

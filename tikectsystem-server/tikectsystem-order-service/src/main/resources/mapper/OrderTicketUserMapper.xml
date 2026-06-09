@@ -18,6 +18,20 @@
 
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.tikectsystem.mapper.OrderTicketUserMapper">
+    <insert id="batchInsert">
+        insert into d_order_ticket_user
+            (id, order_number, program_id, user_id, ticket_user_id, seat_id, seat_info, ticket_category_id,
+             order_price, create_order_time, create_time, edit_time)
+        values
+        <foreach collection="orderTicketUserList" item="item" separator=",">
+            (#{item.id,jdbcType=BIGINT}, #{item.orderNumber,jdbcType=BIGINT}, #{item.programId,jdbcType=BIGINT},
+             #{item.userId,jdbcType=BIGINT}, #{item.ticketUserId,jdbcType=BIGINT}, #{item.seatId,jdbcType=BIGINT},
+             #{item.seatInfo,jdbcType=VARCHAR}, #{item.ticketCategoryId,jdbcType=BIGINT},
+             #{item.orderPrice,jdbcType=DECIMAL}, #{item.createOrderTime,jdbcType=TIMESTAMP},
+             #{item.createTime,jdbcType=TIMESTAMP}, #{item.editTime,jdbcType=TIMESTAMP})
+        </foreach>
+    </insert>
+
     <select id="selectOrderTicketUserAggregate" resultType="com.tikectsystem.entity.OrderTicketUserAggregate">
         select
             order_number,count(*) as order_ticket_user_count

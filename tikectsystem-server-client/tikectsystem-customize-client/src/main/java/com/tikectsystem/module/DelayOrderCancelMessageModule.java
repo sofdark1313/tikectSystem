@@ -17,4 +17,9 @@ public class DelayOrderCancelMessageModule {
     private Long programId;
     
     private Long orderNumber;
+
+    /**
+     * 订单应执行过期取消的时间戳，单位毫秒
+     */
+    private Long executeTimestamp;
 }

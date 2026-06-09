@@ -230,7 +230,7 @@ public class ClickWordCaptchaServiceImpl extends AbstractCaptchaService {
         int num = RandomUtils.getRandomInt(1, wordCount);
         Set<String> currentWords = getRandomWords(wordCount);
         String secretKey = null;
-        if (captchaAesStatus) {
+        if (Boolean.TRUE.equals(captchaAesStatus)) {
             secretKey = AesUtil.getKey();
         }
         int i = 0;

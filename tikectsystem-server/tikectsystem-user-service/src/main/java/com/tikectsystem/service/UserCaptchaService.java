@@ -55,7 +55,7 @@ public class UserCaptchaService {
         Boolean result = checkNeedCaptchaOperate.checkNeedCaptchaOperate(keys, data);
         CheckNeedCaptchaDataVo checkNeedCaptchaDataVo = new CheckNeedCaptchaDataVo();
         checkNeedCaptchaDataVo.setCaptchaId(id);
-        checkNeedCaptchaDataVo.setVerifyCaptcha(result);
+        checkNeedCaptchaDataVo.setVerifyCaptcha(Boolean.TRUE.equals(result));
         return checkNeedCaptchaDataVo;
     }
     

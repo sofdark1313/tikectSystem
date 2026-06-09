@@ -8,7 +8,6 @@ import com.tikectsystem.initialize.base.AbstractApplicationCommandLineRunnerHand
 import com.tikectsystem.initialize.impl.composite.CompositeContainer;
 import com.tikectsystem.repeatexecutelimit.annotion.RepeatExecuteLimit;
 import com.tikectsystem.service.ProgramOrderService;
-import com.tikectsystem.service.strategy.BaseProgramOrder;
 import com.tikectsystem.service.strategy.ProgramOrderContext;
 import com.tikectsystem.service.strategy.ProgramOrderStrategy;
 import lombok.extern.slf4j.Slf4j;
@@ -27,9 +26,6 @@ public class ProgramOrderV41Strategy extends AbstractApplicationCommandLineRunne
     
     @Autowired
     private ProgramOrderService programOrderService;
-    
-    @Autowired
-    private BaseProgramOrder baseProgramOrder;
     
     @Autowired
     private CompositeContainer compositeContainer;

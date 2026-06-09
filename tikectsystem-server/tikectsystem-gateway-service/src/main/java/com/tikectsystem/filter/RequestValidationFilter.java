@@ -178,7 +178,7 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
      * 此方法是根据源码进行修改为了能读取请求体并修改，不是重点，可忽略
      * */
     private Mono<Void> readBody(ServerWebExchange exchange, GatewayFilterChain chain, Map<String,String> headMap){
-        log.info("current thread readBody : {}",Thread.currentThread().getName());
+        log.debug("current thread readBody : {}",Thread.currentThread().getName());
         RequestTemporaryWrapper requestTemporaryWrapper = new RequestTemporaryWrapper();
 
         ServerRequest serverRequest = ServerRequest.create(exchange, serverCodecConfigurer.getReaders());
@@ -217,7 +217,7 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
      * 具体进行参数验证的逻辑
      * */
     private Map<String,String> doExecute(String originalBody,ServerWebExchange exchange){
-        log.info("current thread verify: {}",Thread.currentThread().getName());
+        log.debug("current thread verify: {}",Thread.currentThread().getName());
         ServerHttpRequest request = exchange.getRequest();
         //得到请求体
         String requestBody = originalBody;
@@ -317,7 +317,7 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
         return new ServerHttpRequestDecorator(exchange.getRequest()){
             @Override
             public HttpHeaders getHeaders() {
-                log.info("current thread getHeaders: {}",Thread.currentThread().getName());
+                log.debug("current thread getHeaders: {}",Thread.currentThread().getName());
                 long contentLength = headers.getContentLength();
                 HttpHeaders newHeaders = new HttpHeaders();
                 newHeaders.putAll(headers);

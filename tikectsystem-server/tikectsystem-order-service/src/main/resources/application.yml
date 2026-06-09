@@ -116,6 +116,13 @@ delay:
     corePoolSize: 20                    # 核心线程数(订单服务负载更高)
     maximumPoolSize: 40                 # 最大线程数
     isolationRegionCount: 8             # 隔离区域数量(提升并发)
+  order:
+    cancel:
+      kafka:
+        group-id: delay_order_cancel_data
+        concurrency: 4
+        max-poll-records: 500
+        max-pending-task-count: 100000
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -160,4 +167,4 @@ seata:
       order-service: order-service-map
     grouplist:
       # 映射值作为组k，交给seata服务处理
-      order-service-map: 127.0.0.1:8091    
+      order-service-map: 127.0.0.1:8091

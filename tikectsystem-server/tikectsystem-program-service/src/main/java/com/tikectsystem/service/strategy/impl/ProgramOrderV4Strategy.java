@@ -8,6 +8,7 @@ import com.tikectsystem.initialize.base.AbstractApplicationCommandLineRunnerHand
 import com.tikectsystem.initialize.impl.composite.CompositeContainer;
 import com.tikectsystem.repeatexecutelimit.annotion.RepeatExecuteLimit;
 import com.tikectsystem.service.ProgramOrderService;
+import com.tikectsystem.service.domain.CreateOrderTemporaryData;
 import com.tikectsystem.service.strategy.BaseProgramOrder;
 import com.tikectsystem.service.strategy.ProgramOrderContext;
 import com.tikectsystem.service.strategy.ProgramOrderStrategy;
@@ -43,8 +44,11 @@ public class ProgramOrderV4Strategy extends AbstractApplicationCommandLineRunner
     @Override
     public String createOrder(ProgramOrderCreateDto programOrderCreateDto) {
         compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
-        return baseProgramOrder.localLockCreateOrder(PROGRAM_ORDER_CREATE_V4,programOrderCreateDto,
-                () -> programOrderService.createNewAsync(programOrderCreateDto,ProgramOrderVersion.V4_VERSION.getValue()));
+        programOrderService.prepareCreateOrderProgramCache(programOrderCreateDto);
+        CreateOrderTemporaryData createOrderTemporaryData = baseProgramOrder.localLockExecute(PROGRAM_ORDER_CREATE_V4,
+                programOrderCreateDto, () -> programOrderService.createOrderOperateProgramCache(programOrderCreateDto));
+        return programOrderService.createByTemporaryDataAsync(programOrderCreateDto, createOrderTemporaryData,
+                ProgramOrderVersion.V4_VERSION.getValue());
     }
     
     @Override

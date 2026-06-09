@@ -18,6 +18,21 @@
 
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.tikectsystem.mapper.OrderTicketUserRecordMapper">
+    <insert id="batchInsert">
+        insert into d_order_ticket_user_record
+            (id, order_number, identifier_id, ticket_user_order_id, program_id, user_id, ticket_user_id, seat_id,
+             seat_info, ticket_category_id, order_price, record_type_code, record_type_value, create_time, edit_time)
+        values
+        <foreach collection="orderTicketUserRecordList" item="item" separator=",">
+            (#{item.id,jdbcType=BIGINT}, #{item.orderNumber,jdbcType=BIGINT}, #{item.identifierId,jdbcType=BIGINT},
+             #{item.ticketUserOrderId,jdbcType=BIGINT}, #{item.programId,jdbcType=BIGINT},
+             #{item.userId,jdbcType=BIGINT}, #{item.ticketUserId,jdbcType=BIGINT}, #{item.seatId,jdbcType=BIGINT},
+             #{item.seatInfo,jdbcType=VARCHAR}, #{item.ticketCategoryId,jdbcType=BIGINT},
+             #{item.orderPrice,jdbcType=DECIMAL}, #{item.recordTypeCode,jdbcType=INTEGER},
+             #{item.recordTypeValue,jdbcType=VARCHAR}, #{item.createTime,jdbcType=TIMESTAMP},
+             #{item.editTime,jdbcType=TIMESTAMP})
+        </foreach>
+    </insert>
 
     <delete id="relDelOrderTicketUserRecord">
         delete

@@ -5,7 +5,6 @@ import com.baidu.fsg.uid.UidGenerator;
 import com.tikectsystem.BusinessThreadPool;
 import com.tikectsystem.client.ApiDataClient;
 import com.tikectsystem.common.ApiResponse;
-import com.tikectsystem.context.DelayQueueContext;
 import com.tikectsystem.core.SpringUtil;
 import com.tikectsystem.dto.DelayOrderCancelDto;
 import com.tikectsystem.dto.InsertMessageProducerRecordDto;
@@ -15,9 +14,11 @@ import com.tikectsystem.enums.MessageSendStatus;
 import com.tikectsystem.enums.MessageType;
 import com.tikectsystem.module.DelayOrderCancelMessageModule;
 import com.tikectsystem.vo.MessageProducerRecordVo;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import static com.tikectsystem.constant.ProgramOrderConstant.DELAY_ORDER_CANCEL_TIME;
@@ -37,15 +38,21 @@ public class DelayOrderCancelSend {
     private UidGenerator uidGenerator;
     
     @Autowired
-    private DelayQueueContext delayQueueContext;
-    
+    private KafkaTemplate<String, String> kafkaTemplate;
     
     @Autowired
     private ApiDataClient apiDataClient;
     
     @Value("${delay.order.cancel:false}")
     private Boolean delayOrderCancel;
-    
+
+    private String topicName;
+
+    @PostConstruct
+    public void init() {
+        topicName = SpringUtil.getPrefixDistinctionName() + "-" + DELAY_ORDER_CANCEL_TOPIC;
+    }
+
     public void sendMessage(DelayOrderCancelDto delayOrderCancelDto){
         if (!Boolean.TRUE.equals(delayOrderCancel)){
             return;
@@ -55,7 +62,13 @@ public class DelayOrderCancelSend {
             log.error("延迟订单取消消息参数为空 delayOrderCancelDto : {}", JSON.toJSONString(delayOrderCancelDto));
             return;
         }
-        BusinessThreadPool.execute(() -> doSendMessage(delayOrderCancelDto));
+        try {
+            BusinessThreadPool.execute(() -> doSendMessage(delayOrderCancelDto));
+        } catch (Exception e) {
+            log.error("延迟订单取消消息异步任务提交失败，降级为同步发送 delayOrderCancelDto : {}",
+                    JSON.toJSONString(delayOrderCancelDto), e);
+            doSendMessage(delayOrderCancelDto);
+        }
     }
 
     private void doSendMessage(DelayOrderCancelDto delayOrderCancelDto) {
@@ -68,6 +81,8 @@ public class DelayOrderCancelSend {
             delayOrderCancelMessageModule.setMessageId(messageId);
             delayOrderCancelMessageModule.setProgramId(delayOrderCancelDto.getProgramId());
             delayOrderCancelMessageModule.setOrderNumber(delayOrderCancelDto.getOrderNumber());
+            delayOrderCancelMessageModule.setExecuteTimestamp(System.currentTimeMillis() +
+                    DELAY_ORDER_CANCEL_TIME_UNIT.toMillis(DELAY_ORDER_CANCEL_TIME));
 
             String messageContent = JSON.toJSONString(delayOrderCancelMessageModule);
             InsertMessageProducerRecordDto insertMessageProducerRecordDto = new InsertMessageProducerRecordDto();
@@ -75,7 +90,7 @@ public class DelayOrderCancelSend {
             insertMessageProducerRecordDto.setMessageTraceId(messageTraceId);
             insertMessageProducerRecordDto.setMessageBusinessesId(delayOrderCancelMessageModule.getProgramId());
             insertMessageProducerRecordDto.setMessageId(messageId);
-            insertMessageProducerRecordDto.setMessageTopic(SpringUtil.getPrefixDistinctionName() + "-" + DELAY_ORDER_CANCEL_TOPIC);
+            insertMessageProducerRecordDto.setMessageTopic(topicName);
             insertMessageProducerRecordDto.setMessageContent(messageContent);
             ApiResponse<MessageProducerRecordVo> insertMessageProducerRecordApiResponse = apiDataClient.insertMessageProducerRecord(insertMessageProducerRecordDto);
             if (insertMessageProducerRecordApiResponse == null ||
@@ -93,18 +108,34 @@ public class DelayOrderCancelSend {
             updateMessageProducerRecordDto.setId(messageProducerRecordVo.getId());
 
             try {
-                log.info("延迟订单取消消息进行发送 消息体 : {}",messageContent);
-                delayQueueContext.sendMessage(SpringUtil.getPrefixDistinctionName() + "-" + DELAY_ORDER_CANCEL_TOPIC,
-                        messageContent, DELAY_ORDER_CANCEL_TIME, DELAY_ORDER_CANCEL_TIME_UNIT);
-                updateMessageProducerRecordDto.setMessageSendStatus(MessageSendStatus.SEND_SUCCESS.getCode());
+                log.debug("延迟订单取消消息发送到Kafka topic : {}, 消息体 : {}",topicName,messageContent);
+                kafkaTemplate.send(topicName, String.valueOf(delayOrderCancelMessageModule.getOrderNumber()), messageContent)
+                        .whenComplete((sendResult, ex) -> {
+                            if (ex == null) {
+                                updateMessageProducerRecordDto.setMessageSendStatus(MessageSendStatus.SEND_SUCCESS.getCode());
+                            }else {
+                                log.error("send delay order cancel kafka message error message : {}",messageContent,ex);
+                                updateMessageProducerRecordDto.setMessageSendStatus(MessageSendStatus.SEND_FAIL.getCode());
+                                updateMessageProducerRecordDto.setMessageSendException(ex.getMessage());
+                            }
+                            updateMessageProducerRecord(updateMessageProducerRecordDto, messageContent);
+                        });
             }catch (Exception e) {
-                log.error("send message error message : {}",messageContent,e);
+                log.error("send delay order cancel kafka message error message : {}",messageContent,e);
                 updateMessageProducerRecordDto.setMessageSendStatus(MessageSendStatus.SEND_FAIL.getCode());
                 updateMessageProducerRecordDto.setMessageSendException(e.getMessage());
+                updateMessageProducerRecord(updateMessageProducerRecordDto, messageContent);
             }
-            apiDataClient.updateMessageProducerRecord(updateMessageProducerRecordDto);
         }catch (Exception e) {
             log.error("延迟订单取消消息异步发送任务执行失败 delayOrderCancelDto : {}", JSON.toJSONString(delayOrderCancelDto),e);
+        }
+    }
+
+    private void updateMessageProducerRecord(UpdateMessageProducerRecordDto updateMessageProducerRecordDto, String messageContent) {
+        try {
+            apiDataClient.updateMessageProducerRecord(updateMessageProducerRecordDto);
+        } catch (Exception e) {
+            log.error("更新延迟订单取消消息发送记录失败 message : {}", messageContent, e);
         }
     }
 }
