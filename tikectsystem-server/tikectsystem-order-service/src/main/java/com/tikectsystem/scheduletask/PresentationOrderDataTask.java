@@ -3,7 +3,6 @@ package com.tikectsystem.scheduletask;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.http.HttpRequest;
 import com.alibaba.fastjson.JSON;
-import com.tikectsystem.BusinessThreadPool;
 import com.tikectsystem.core.RedisKeyManage;
 import com.tikectsystem.domain.DiscardOrder;
 import com.tikectsystem.domain.OrderCreateMq;
@@ -55,10 +54,13 @@ public class PresentationOrderDataTask {
     
     @Autowired
     private RedisCache redisCache;
+
+    @Autowired
+    private OrderBackgroundTaskExecutor orderBackgroundTaskExecutor;
     
     @Scheduled(cron = "0 30 23 * * ?")
     public void executeTask(){
-        BusinessThreadPool.execute( () -> {
+        orderBackgroundTaskExecutor.execute( () -> {
             try {
                 log.info("订单服务定时任务重置执行");
                 //真实删除所有的订单和购票人订单，购票人订单记录(大麦普通版本没有这步)

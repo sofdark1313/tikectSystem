@@ -1,7 +1,6 @@
 package com.tikectsystem.service.delayconsumer;
 
 import com.alibaba.fastjson.JSON;
-import com.tikectsystem.BusinessThreadPool;
 import com.tikectsystem.client.ApiDataClient;
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.core.SpringUtil;
@@ -18,7 +17,6 @@ import com.tikectsystem.service.OrderService;
 import com.tikectsystem.util.DateUtils;
 import com.tikectsystem.util.StringUtil;
 import com.tikectsystem.vo.MessageConsumerRecordVo;
-import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,13 +24,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.tikectsystem.constant.Constant.SPRING_INJECT_PREFIX_DISTINCTION_NAME;
+import static com.tikectsystem.constant.Constant.TRACE_ID;
 import static com.tikectsystem.service.constant.OrderConstant.DELAY_ORDER_CANCEL_TOPIC;
 
 /**
@@ -50,20 +49,13 @@ public class DelayOrderCancelConsumer {
     @Autowired
     private ApiDataClient apiDataClient;
     
+    @Autowired
+    private DelayOrderCancelTaskExecutor delayOrderCancelTaskExecutor;
+
     @Value("${delay.order.cancel.kafka.max-pending-task-count:100000}")
     private Integer maxPendingDelayTaskCount;
 
-    private final AtomicInteger delayOrderCancelThreadIndex = new AtomicInteger(1);
-
     private final AtomicInteger pendingDelayOrderCancelCount = new AtomicInteger(0);
-
-    private final ScheduledExecutorService delayOrderCancelScheduler = Executors.newScheduledThreadPool(
-            Math.max(2, Runtime.getRuntime().availableProcessors()),
-            runnable -> {
-                Thread thread = new Thread(runnable, "delay-order-cancel-kafka-" + delayOrderCancelThreadIndex.getAndIncrement());
-                thread.setDaemon(true);
-                return thread;
-            });
 
     @KafkaListener(topics = {SPRING_INJECT_PREFIX_DISTINCTION_NAME+"-"+DELAY_ORDER_CANCEL_TOPIC},
             containerFactory = "delayOrderCancelKafkaListenerContainerFactory")
@@ -86,60 +78,65 @@ public class DelayOrderCancelConsumer {
         }
         Long executeTimestamp = delayOrderCancelMessageModule.getExecuteTimestamp();
         long delayMillis = executeTimestamp == null ? 0L : executeTimestamp - System.currentTimeMillis();
+        Map<String, String> traceContext = buildTraceContext(delayOrderCancelMessageModule);
         if (delayMillis <= 0) {
-            asyncExecute(value);
+            asyncExecute(value, traceContext);
             return;
         }
         try {
             log.debug("延迟订单取消Kafka消息等待执行 orderNumber : {}, delayMillis : {}",
                     delayOrderCancelMessageModule.getOrderNumber(), delayMillis);
-            scheduleDelayExecute(value, delayOrderCancelMessageModule.getOrderNumber(), delayMillis);
+            scheduleDelayExecute(value, delayOrderCancelMessageModule, delayMillis, traceContext);
         } catch (Exception e) {
             log.error("延迟订单取消Kafka消息调度失败 value : {}", value, e);
         }
     }
 
-    private void scheduleDelayExecute(String content, Long orderNumber, long delayMillis) {
+    private void scheduleDelayExecute(String content, DelayOrderCancelMessageModule messageModule, long delayMillis,
+                                      Map<String, String> traceContext) {
         int pendingCount = pendingDelayOrderCancelCount.incrementAndGet();
         if (pendingCount > Math.max(1, maxPendingDelayTaskCount)) {
             pendingDelayOrderCancelCount.decrementAndGet();
             log.warn("延迟订单取消本地等待任务过多，交由消息对账补偿重投 orderNumber : {}, pendingCount : {}",
-                    orderNumber, pendingCount);
+                    messageModule.getOrderNumber(), pendingCount);
             return;
         }
         try {
-            delayOrderCancelScheduler.schedule(() -> {
+            delayOrderCancelTaskExecutor.schedule(() -> {
                 try {
-                    asyncExecute(content);
+                    asyncExecute(content, traceContext);
                 } finally {
                     pendingDelayOrderCancelCount.decrementAndGet();
                 }
-            }, delayMillis, TimeUnit.MILLISECONDS);
+            }, delayMillis, TimeUnit.MILLISECONDS, traceContext, traceContext);
         } catch (Exception e) {
             pendingDelayOrderCancelCount.decrementAndGet();
             throw e;
         }
     }
 
-    private void asyncExecute(String content) {
+    private void asyncExecute(String content, Map<String, String> traceContext) {
         try {
-            BusinessThreadPool.execute(() -> {
+            delayOrderCancelTaskExecutor.execute(() -> {
                 try {
                     execute(content);
                 } catch (Exception e) {
                     log.error("延迟订单取消任务执行失败 content : {}", content, e);
                 }
-            });
+            }, traceContext, traceContext);
         } catch (Exception e) {
             log.error("延迟订单取消任务提交失败 content : {}", content, e);
         }
     }
 
-    @PreDestroy
-    public void destroy() {
-        delayOrderCancelScheduler.shutdown();
+    private Map<String, String> buildTraceContext(DelayOrderCancelMessageModule messageModule) {
+        Map<String, String> context = new HashMap<>(4);
+        if (messageModule != null && messageModule.getMessageTraceId() != null) {
+            context.put(TRACE_ID, String.valueOf(messageModule.getMessageTraceId()));
+        }
+        return context;
     }
-    
+
     public void execute(String content) {
         log.debug("延迟订单取消消息进行消费 content : {}", content);
         if (StringUtil.isEmpty(content)) {

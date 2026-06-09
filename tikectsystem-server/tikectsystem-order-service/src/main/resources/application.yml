@@ -111,6 +111,11 @@ jasypt:
   encryptor:
     password: bgtjkjl!%^sdc
     algorithm: PBEWithMD5AndDES
+order:
+  background-task:
+    core-pool-size: 2
+    maximum-pool-size: 8
+    queue-capacity: 200
 delay:
   queue:
     corePoolSize: 20                    # 核心线程数(订单服务负载更高)
@@ -123,6 +128,11 @@ delay:
         concurrency: 4
         max-poll-records: 500
         max-pending-task-count: 100000
+      executor:
+        schedule-pool-size: 8
+        worker-core-pool-size: 16
+        worker-maximum-pool-size: 64
+        worker-queue-capacity: 5000
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

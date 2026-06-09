@@ -131,6 +131,16 @@ elasticsearch:
   ip: 127.0.0.1:9200
   userName: elastic
   passWord: elastic
+program:
+  order:
+    record-task:
+      core-pool-size: 4
+      maximum-pool-size: 16
+      queue-capacity: 2000
+  preload-task:
+    core-pool-size: 4
+    maximum-pool-size: 12
+    queue-capacity: 1000
 delay:
   queue:
     corePoolSize: 8                     # 核心线程数(提升并发处理能力)
@@ -139,6 +149,10 @@ delay:
   # 执行延迟订单取消开关  
   order:
     cancel: true
+    cancel-send:
+      core-pool-size: 4
+      maximum-pool-size: 16
+      queue-capacity: 2000
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

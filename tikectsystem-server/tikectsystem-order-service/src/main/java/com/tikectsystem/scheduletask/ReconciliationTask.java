@@ -2,7 +2,6 @@ package com.tikectsystem.scheduletask;
 
 import cn.hutool.core.collection.CollectionUtil;
 import com.alibaba.fastjson2.JSON;
-import com.tikectsystem.BusinessThreadPool;
 import com.tikectsystem.client.ProgramClient;
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.dto.ProgramRecordTaskListDto;
@@ -38,9 +37,12 @@ public class ReconciliationTask {
     @Autowired
     private ProgramClient programClient;
 
+    @Autowired
+    private OrderBackgroundTaskExecutor orderBackgroundTaskExecutor;
+
     @Scheduled(cron = "0 0/3 * * * ? ")
     public void reconciliationTask(){
-        BusinessThreadPool.execute( () -> {
+        orderBackgroundTaskExecutor.execute( () -> {
             try {
                 log.info("对账任务执行");
                 ProgramRecordTaskListDto programRecordTaskListDto = new ProgramRecordTaskListDto();

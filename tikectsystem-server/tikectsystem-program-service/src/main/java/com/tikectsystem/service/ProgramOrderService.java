@@ -5,7 +5,6 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baidu.fsg.uid.UidGenerator;
-import com.tikectsystem.BusinessThreadPool;
 import com.tikectsystem.client.OrderClient;
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.core.RedisKeyManage;
@@ -27,6 +26,7 @@ import com.tikectsystem.mapper.ProgramRecordTaskMapper;
 import com.tikectsystem.redis.RedisKeyBuild;
 import com.tikectsystem.service.delaysend.DelayOrderCancelSend;
 import com.tikectsystem.service.domain.CreateOrderTemporaryData;
+import com.tikectsystem.service.executor.ProgramRecordTaskExecutor;
 import com.tikectsystem.service.kafka.CreateOrderMqDomain;
 import com.tikectsystem.service.kafka.CreateOrderSend;
 import com.tikectsystem.service.lua.ProgramCacheCreateOrderData;
@@ -101,6 +101,9 @@ public class ProgramOrderService {
 
     @Autowired
     private ProgramRecordTaskMapper programRecordTaskMapper;
+
+    @Autowired
+    private ProgramRecordTaskExecutor programRecordTaskExecutor;
 
     public List<TicketCategoryVo> getTicketCategoryList(ProgramOrderCreateDto programOrderCreateDto, Date showTime) {
         List<TicketCategoryVo> getTicketCategoryVoList = new ArrayList<>();
@@ -365,7 +368,7 @@ public class ProgramOrderService {
                 programOrderCreateDto.getUserId(), createOrderTemporaryData.getPurchaseSeatList(), orderVersion);
         OrderCreateMq orderCreateMq = buildOrderCreateMq(orderCreateDto, createOrderTemporaryData.getIdentifierId());
         //插入节目记录任务
-        BusinessThreadPool.execute(() -> createProgramRecordTask(orderCreateMq.getProgramId()));
+        programRecordTaskExecutor.execute(() -> createProgramRecordTask(orderCreateMq.getProgramId()));
         //创建订单
         String orderNumber = createOrderByMq(orderCreateMq, createOrderTemporaryData.getPurchaseSeatList());
         DelayOrderCancelDto delayOrderCancelDto = new DelayOrderCancelDto();

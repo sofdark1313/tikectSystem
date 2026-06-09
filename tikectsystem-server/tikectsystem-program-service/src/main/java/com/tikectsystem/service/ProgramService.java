@@ -9,7 +9,6 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.tikectsystem.BusinessThreadPool;
 import com.tikectsystem.RedisStreamPushHandler;
 import com.tikectsystem.client.BaseDataClient;
 import com.tikectsystem.client.OrderClient;
@@ -65,6 +64,7 @@ import com.tikectsystem.service.cache.local.LocalCacheProgramShowTime;
 import com.tikectsystem.service.cache.local.LocalCacheTicketCategory;
 import com.tikectsystem.service.constant.ProgramTimeType;
 import com.tikectsystem.service.es.ProgramEs;
+import com.tikectsystem.service.executor.ProgramPreloadTaskExecutor;
 import com.tikectsystem.service.lua.ProgramDelCacheData;
 import com.tikectsystem.service.tool.TokenExpireManager;
 import com.tikectsystem.servicelock.LockType;
@@ -204,6 +204,9 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
     
     @Autowired
     private SeatService seatService;
+
+    @Autowired
+    private ProgramPreloadTaskExecutor programPreloadTaskExecutor;
     
     /**
      * 添加节目
@@ -844,7 +847,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         if (!userLogin) {
             return;
         }
-        BusinessThreadPool.execute(() -> {
+        programPreloadTaskExecutor.execute(() -> {
             try {
                 if (!redisCache.hasKey(RedisKeyBuild.createRedisKey(RedisKeyManage.TICKET_USER_LIST,userId))) {
                     TicketUserListDto ticketUserListDto = new TicketUserListDto();
@@ -876,7 +879,7 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         if (!userLogin) {
             return;
         }
-        BusinessThreadPool.execute(() -> {
+        programPreloadTaskExecutor.execute(() -> {
             try {
                 if (!redisCache.hasKey(RedisKeyBuild.createRedisKey(RedisKeyManage.ACCOUNT_ORDER_COUNT,userId,programId))) {
                     AccountOrderCountDto accountOrderCountDto = new AccountOrderCountDto();

@@ -2,7 +2,6 @@ package com.tikectsystem.service.delaysend;
 
 import com.alibaba.fastjson2.JSON;
 import com.baidu.fsg.uid.UidGenerator;
-import com.tikectsystem.BusinessThreadPool;
 import com.tikectsystem.client.ApiDataClient;
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.core.SpringUtil;
@@ -42,6 +41,9 @@ public class DelayOrderCancelSend {
     
     @Autowired
     private ApiDataClient apiDataClient;
+
+    @Autowired
+    private DelayOrderCancelSendExecutor delayOrderCancelSendExecutor;
     
     @Value("${delay.order.cancel:false}")
     private Boolean delayOrderCancel;
@@ -63,7 +65,7 @@ public class DelayOrderCancelSend {
             return;
         }
         try {
-            BusinessThreadPool.execute(() -> doSendMessage(delayOrderCancelDto));
+            delayOrderCancelSendExecutor.execute(() -> doSendMessage(delayOrderCancelDto));
         } catch (Exception e) {
             log.error("延迟订单取消消息异步任务提交失败，降级为同步发送 delayOrderCancelDto : {}",
                     JSON.toJSONString(delayOrderCancelDto), e);
