@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>帮助</title>
   <style>
+    :root {
+      --app-bg: #f3f7f8;
+      --app-surface: #ffffff;
+      --app-border: #dfe8e8;
+      --app-primary: #0f766e;
+      --app-accent: #ff6b4a;
+      --app-text: #172426;
+      --app-text-muted: #657477;
+      --app-shadow: 0 14px 34px rgba(18, 60, 70, .10);
+    }
+
     * {
       box-sizing: border-box;
     }
@@ -13,8 +24,8 @@
       margin: 0;
       min-height: 100vh;
       font-family: Arial, "Microsoft YaHei", sans-serif;
-      color: #222;
-      background: #f5f6f8;
+      color: var(--app-text);
+      background: radial-gradient(circle at top, #e4f4f2 0, var(--app-bg) 42%, var(--app-bg) 100%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -23,12 +34,12 @@
 
     main {
       width: min(720px, 100%);
-      background: #fff;
-      border: 1px solid #e8e8e8;
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
       border-radius: 8px;
       padding: 32px;
       text-align: center;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+      box-shadow: var(--app-shadow);
     }
 
     h1 {
@@ -39,27 +50,27 @@
 
     p {
       margin: 0 0 24px;
-      color: #666;
+      color: var(--app-text-muted);
       font-size: 16px;
       line-height: 1.8;
     }
 
     img {
       width: min(420px, 100%);
-      border-radius: 6px;
+      border-radius: 8px;
       display: block;
       margin: 0 auto 24px;
     }
 
     a {
       color: #fff;
-      background: #ff3769;
+      background: var(--app-primary);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       height: 40px;
       padding: 0 22px;
-      border-radius: 4px;
+      border-radius: 8px;
       text-decoration: none;
       font-size: 15px;
     }

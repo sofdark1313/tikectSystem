@@ -438,7 +438,7 @@ onBeforeUnmount(() => {
         width: 100%;
         padding-top: 31px;
         height: 318px;
-        background: rgba(255, 55, 29, 0.85);
+        background: var(--app-primary);
 
         .title {
           position: relative;
@@ -486,7 +486,7 @@ onBeforeUnmount(() => {
           flex-shrink: 0;
           flex-grow: 0;
           margin-right: 43px;
-          background-color: rgba(255, 55, 29, 0.85);
+          background-color: var(--app-primary);
           place-self: center flex-end;
           margin-left: 43px;
           width: 100%;
@@ -680,7 +680,7 @@ onBeforeUnmount(() => {
             place-self: flex-start center;
             width: fit-content;
             -webkit-box-flex: 1;
-            color: rgba(255, 55, 29, 0.85);
+            color: var(--app-primary);
             margin-top: 6px;
             height: auto;
             -webkit-box-pack: start;
@@ -701,9 +701,9 @@ onBeforeUnmount(() => {
             flex-grow: 0;
             overflow: hidden;
             margin-right: 43px;
-            background-color: rgba(255, 55, 29, 0.85);
+            background-color: var(--app-primary);
             place-self: center flex-end;
-            box-shadow: rgba(255, 55, 29, 0.85) 0px 0px 0px 1px inset;
+            box-shadow: var(--app-primary) 0px 0px 0px 1px inset;
             width: 110px;
             height: 55px;
             border-radius: 28px;
@@ -997,7 +997,7 @@ onBeforeUnmount(() => {
             font-size: 41px;
             place-self: center flex-start;
             width: fit-content;
-            color: rgba(255, 55, 29, 0.85);
+            color: var(--app-primary);
             height: auto;
             -webkit-box-pack: start;
             justify-content: flex-start;
@@ -1038,7 +1038,7 @@ onBeforeUnmount(() => {
             overflow: hidden;
             max-width: none;
             border-radius: 20px;
-            background: rgba(255, 55, 29, 0.85);
+            background: var(--app-primary);
             border: none;
 
           }
@@ -1057,7 +1057,7 @@ onBeforeUnmount(() => {
   .btn1{
     width: 300px;
     height: 50px;
-    background: rgb(255, 55, 29);
+    background: var(--app-primary);
     color: #FFFFFF;
     display: block;
     margin: 0 auto;
@@ -1081,8 +1081,8 @@ onBeforeUnmount(() => {
   padding-top: 100px ;
 }
 :deep(.el-radio__input.is-checked .el-radio__inner) {
-  border-color: rgba(255, 55, 29, 0.85);
-  background: rgba(255, 55, 29, 0.85);
+  border-color: var(--app-primary);
+  background: var(--app-primary);
 }
 :deep(.el-checkbox.el-checkbox--large .el-checkbox__inner) {
   width: 4.3vmin;
@@ -1090,8 +1090,8 @@ onBeforeUnmount(() => {
   color: #dddddd;
 }
 :deep(.el-checkbox__input.is-checked .el-checkbox__inner ){
-  background-color: rgba(255, 55, 29, 0.85);
-  border-color: rgba(255, 55, 29, 0.85);
+  background-color: var(--app-primary);
+  border-color: var(--app-primary);
   font-size:4.3vmin ;
 }
 :deep(.el-checkbox__inner::after){

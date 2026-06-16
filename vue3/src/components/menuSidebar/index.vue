@@ -99,7 +99,7 @@ const props = defineProps({
 
 :deep(.el-sub-menu .el-menu-item:hover),
 :deep(.el-sub-menu .el-menu-item.is-active) {
-  border-left: 2px solid rgba(255, 55, 29, 0.85);
+  border-left: 2px solid var(--app-primary);
   background: #fafafa url(//assets.tikectsystem.cn/tikectsystem_v2/passport/images/i.png) no-repeat scroll 183px 13px;
   height: 32px;
   margin-left: -1px;
@@ -131,7 +131,7 @@ const props = defineProps({
 }
 
 .mb-2 {
-  background: rgba(255, 55, 29, 0.85) no-repeat;
+  background: var(--app-primary) no-repeat;
   width: 205px;
   height: 33px;
   position: relative;

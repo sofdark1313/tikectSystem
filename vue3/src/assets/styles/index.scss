@@ -1,5 +1,23 @@
 @import './reset.scss';
 
+:root {
+  --app-bg: #f3f7f8;
+  --app-surface: #ffffff;
+  --app-surface-soft: #f8fbfb;
+  --app-border: #dfe8e8;
+  --app-border-strong: #cbdada;
+  --app-primary: #0f766e;
+  --app-primary-dark: #123c46;
+  --app-primary-soft: #e4f4f2;
+  --app-accent: #ff6b4a;
+  --app-accent-soft: #fff0eb;
+  --app-text: #172426;
+  --app-text-muted: #657477;
+  --app-shadow: 0 14px 34px rgba(18, 60, 70, .10);
+  --app-shadow-hover: 0 20px 42px rgba(18, 60, 70, .16);
+  --app-radius: 8px;
+}
+
 
 
 body {
@@ -8,7 +26,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Arial, sans-serif;
+  font-family: Inter, Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Arial, sans-serif;
+  color: var(--app-text);
+  background: var(--app-bg);
 }
 
 label {
@@ -22,6 +42,7 @@ html {
 
 #app {
   height: 100%;
+  background: var(--app-bg);
 }
 
 *,
@@ -179,9 +200,38 @@ aside {
   }
 }
 .el-loading-spinner .path{
-  stroke: rgb(255, 55, 29) !important;
+  stroke: var(--app-primary) !important;
 }
 .el-loading-text{
-  color: rgb(255, 55, 29) !important;
+  color: var(--app-primary) !important;
   font-size: 30px !important;
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--app-primary);
+  --el-button-border-color: var(--app-primary);
+  --el-button-hover-bg-color: #129083;
+  --el-button-hover-border-color: #129083;
+  --el-button-active-bg-color: var(--app-primary-dark);
+  --el-button-active-border-color: var(--app-primary-dark);
+}
+
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select .el-input__wrapper {
+  border-radius: var(--app-radius) !important;
+}
+
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px var(--app-primary) inset !important;
+}
+
+.el-pagination.is-background .el-pager li.is-active {
+  background-color: var(--app-primary) !important;
+}
+
+::selection {
+  color: #fff;
+  background: var(--app-primary);
 }

@@ -186,7 +186,7 @@ const submit =()=>{
         font-size: 4.27vmin;
         color: rgb(255, 255, 255);
         border-radius: 170.667px 170.667px 170.667px 0px;
-        background-image: linear-gradient(-270deg, rgb(255, 40, 105) 0%, rgb(255, 50, 153) 100%);
+        background-image: linear-gradient(-270deg, var(--app-accent) 0%, var(--app-primary) 100%);
 
       }
     }

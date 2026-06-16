@@ -2,7 +2,7 @@
 <div class="app-container" v-show="orderNumber !== '' && orderNumber !== null">
   <Header></Header>
   <div class="main">
-    <el-icon :size="50" class="iconCircle"><CircleCheck   color="rgb(255, 40, 105)" /></el-icon>
+    <el-icon :size="50" class="iconCircle"><CircleCheck color="var(--app-primary)" /></el-icon>
     <span class="paySuccess">支付成功</span>
    <div class="btn">
      <el-button  class="continueQuery" @click="continueQuery"    >继续逛逛</el-button>
@@ -47,15 +47,21 @@ onMounted(()=>{
   width: 1200px;
   margin: 0 auto;
   overflow: auto;
+  min-height: 100vh;
+  background: var(--app-bg);
 
   .main{
     height: 500px;
     width: 100%;
-    //background: red
+    background: var(--app-surface);
     margin: 0 auto;
     padding-top: 100px;
     text-align: center;
     position: relative;
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    box-shadow: var(--app-shadow);
+    margin-top: 24px;
     .iconCircle{
       position: absolute;
       margin-left: -60px;
@@ -64,6 +70,7 @@ onMounted(()=>{
     .paySuccess{
         font-size: 30px;
        font-weight: bolder;
+      color: var(--app-text);
 
     }
     .btn{
@@ -74,9 +81,9 @@ onMounted(()=>{
         height: 30px;
         border-radius: 50px;
         &:hover{
-          color: rgba(255, 55, 29, 0.85);
-          border-color:  rgba(255, 55, 29, 0.85);
-          background: #ffffff;
+          color: var(--app-primary);
+          border-color:  var(--app-primary);
+          background: var(--app-primary-soft);
         }
       }
       .orderQuery{
@@ -84,9 +91,9 @@ onMounted(()=>{
         height: 30px;
         border-radius: 50px;
         &:hover{
-          color: rgba(255, 55, 29, 0.85);
-          border-color:  rgba(255, 55, 29, 0.85);
-          background: #ffffff;
+          color: var(--app-primary);
+          border-color:  var(--app-primary);
+          background: var(--app-primary-soft);
         }
       }
     }

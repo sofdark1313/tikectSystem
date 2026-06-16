@@ -50,10 +50,10 @@ const footerList = ref(
 
 <style scoped lang="scss">
 .footer {
-  background-color: #f8f8f8;
+  background: linear-gradient(180deg, #f7fbfb 0%, #edf4f4 100%);
   width: 100%;
-  //height: 298px;
   height: 150px;
+  border-top: 1px solid var(--app-border);
   //position: fixed;
 
   .footer-sec {
@@ -69,9 +69,13 @@ const footerList = ref(
       zoom: 1;
       list-style: none;
       font-size: 13px;
-      color: #111;
+      color: var(--app-text-muted);
 
       li {
+        transition: color .2s ease;
+        &:hover {
+          color: var(--app-primary);
+        }
         &:last-child {
           .line {
             display: none !important;
@@ -136,7 +140,7 @@ const footerList = ref(
         height: 30px;
         line-height: 1;
         text-align: center;
-        background-color: rgba(255, 55, 29, 0.85);
+        background-color: var(--app-primary);
         color: #fff;
         font-size: 14px;
         border-radius: 20px;
@@ -167,6 +171,7 @@ const footerList = ref(
         height: 20px;
         text-align: center;
         font-size: 14px;
+        color: var(--app-text-muted);
       }
     }
   }
@@ -174,10 +179,9 @@ const footerList = ref(
 }
 
 .btn {
-  background-color: rgba(255, 55, 29, 0.85);
-  background-image: -webkit-gradient(linear, left top, right top, from(#ff4aae), to(rgba(255, 55, 29, 0.85)));
-  background-image: linear-gradient(90deg, #ff4aae, rgba(255, 55, 29, 0.85));
-  border-color: rgba(255, 55, 29, 0.85);
+  background-color: var(--app-primary);
+  background-image: linear-gradient(90deg, var(--app-primary), var(--app-accent));
+  border-color: var(--app-primary);
   border-radius: 3px;
   font-size: 20px;
   height: 42px;

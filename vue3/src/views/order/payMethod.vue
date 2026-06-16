@@ -128,15 +128,17 @@ function getOrderDetail() {
 <style scoped lang="scss">
 .app-container {
   min-height: 100vh;
-  background: #f6f7fb;
+  background: radial-gradient(circle at top, #eaf6f4 0, var(--app-bg) 36%, var(--app-bg) 100%);
   .pay-header {
     display: flex;
     justify-content: center;
     align-items: center;
     height: 92px;
     padding: 0 55px;
-    background-color: #fff;
+    background-color: rgba(255,255,255,.94);
     position: relative;
+    border-bottom: 1px solid var(--app-border);
+    box-shadow: 0 10px 28px rgba(18, 60, 70, .08);
 
     .back {
       width: 40px;
@@ -170,11 +172,12 @@ function getOrderDetail() {
     width: 720px;
     margin: 120px auto 0;
     .order-summary{
-      background: #fff;
-      border: 1px solid #ebeef5;
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
       border-radius: 8px;
       padding: 28px 34px;
       margin-bottom: 32px;
+      box-shadow: var(--app-shadow);
       .summary-row{
         display: flex;
         justify-content: space-between;
@@ -192,7 +195,7 @@ function getOrderDetail() {
       }
       .amount{
         strong{
-          color: rgb(255, 40, 105);
+          color: var(--app-accent);
           font-size: 28px;
         }
       }
@@ -201,6 +204,8 @@ function getOrderDetail() {
       width: 100%;
       height: 72px;
       font-size: 26px;
+      border-radius: 8px;
+      box-shadow: 0 14px 28px rgba(15, 118, 110, .22);
     }
   }
 }

@@ -528,14 +528,16 @@ function removeTag(str, tag) {
 .app-container {
   width: 1200px;
   margin: 0 auto;
+  padding: 20px 0 36px;
 
   .goods {
     line-height: 50px;
-    color: #666;
+    color: var(--app-text-muted);
     font-size: 14px;
 
     span {
-      color: rgba(255, 55, 29, 0.85);
+      color: var(--app-accent);
+      font-weight: 700;
     }
   }
 
@@ -550,8 +552,11 @@ function removeTag(str, tag) {
 
         .box-type {
           padding: 0 24px;
-          border: 1px solid #e9e9e9;
+          border: 1px solid var(--app-border);
           min-height: 300px;
+          background: var(--app-surface);
+          border-radius: 8px;
+          box-shadow: 0 10px 24px rgba(18, 60, 70, .06);
 
           div.city {
             display: inline-block;
@@ -572,8 +577,15 @@ function removeTag(str, tag) {
                 padding: 0 8px;
                 margin-right: 20px;
                 color: #333;
+                border-radius: 999px;
                 white-space: nowrap;
                 cursor: pointer;
+                transition: color .2s ease, background .2s ease;
+
+                &:hover {
+                  color: var(--app-primary);
+                  background: var(--app-primary-soft);
+                }
               }
 
               .liDate {
@@ -607,9 +619,14 @@ function removeTag(str, tag) {
                 list-style-type: none;
                 position: relative;
                 padding: 25px 0 18px;
-                border-bottom: 1px dotted #cecece;
+                border-bottom: 1px solid var(--app-border);
                 margin: 0 10px;
                 height: 250px;
+                transition: background .2s ease;
+
+                &:hover {
+                  background: var(--app-surface-soft);
+                }
 
                 .link {
                   position: relative;
@@ -619,10 +636,17 @@ function removeTag(str, tag) {
                   overflow: hidden;
                   margin-right: 20px;
                   float: left;
+                  border-radius: 8px;
+                  box-shadow: 0 10px 22px rgba(18, 60, 70, .10);
 
                   img {
                     width: 100%;
                     height: 100%;
+                    object-fit: cover;
+                    transition: transform .25s ease;
+                    &:hover {
+                      transform: scale(1.04);
+                    }
                   }
 
                 }
@@ -642,10 +666,14 @@ function removeTag(str, tag) {
                     }
 
                     .link-detial {
-                      color: #333;
+                      color: var(--app-text);
                       text-decoration: none;
                       outline: 0;
+                      font-weight: 700;
 
+                      &:hover {
+                        color: var(--app-primary);
+                      }
 
                     }
                   }
@@ -668,7 +696,8 @@ function removeTag(str, tag) {
                     overflow: hidden;
 
                     .price {
-                      color: rgba(255, 55, 29, 0.85);
+                      color: var(--app-primary);
+                      color: var(--app-accent);
                       font-weight: 700;
                       font-size: 16px;
                       margin-right: 20px;
@@ -694,6 +723,10 @@ function removeTag(str, tag) {
     .box-main-right {
       width: 258px;
       border: 1px solid #eaeaea;
+      border-color: var(--app-border);
+      border-radius: 8px;
+      background: var(--app-surface);
+      box-shadow: 0 10px 24px rgba(18, 60, 70, .06);
       margin-left: 10px;
       max-height: 514px;
       float: right;
@@ -702,10 +735,11 @@ function removeTag(str, tag) {
         height: 37px;
         line-height: 37px;
         background-color: #f5f5f5;
-        border-bottom: 1px solid #eaeaea;
+        border-bottom: 1px solid var(--app-border);
         font-size: 14px;
         font-family: Microsoft YaHei;
-        color: #000;
+        color: var(--app-text);
+        font-weight: 700;
         padding: 0 15px;
       }
 
@@ -716,6 +750,7 @@ function removeTag(str, tag) {
         .search__item {
           display: flex;
           background-color: #fff;
+          background-color: var(--app-surface);
           border: none;
           padding: 15px 15px 0 15px;
           margin-bottom: 0px;
@@ -725,6 +760,8 @@ function removeTag(str, tag) {
             width: 98px;
             height: 132px;
             float: left;
+            border-radius: 8px;
+            object-fit: cover;
           }
 
           .search_item_info {
@@ -750,7 +787,7 @@ function removeTag(str, tag) {
 }
 
 .active {
-  background-color: rgba(255, 55, 29, 0.85);
+  background-color: var(--app-primary);
   color: #ffffff !important;
   display: inline-block;
   height: 26px;
@@ -768,7 +805,7 @@ function removeTag(str, tag) {
   height: 26px;
   line-height: 26px;
   display: inline-block;
-  color: #968788;
+  color: var(--app-text-muted);
   text-align: center;
 }
 
@@ -834,11 +871,11 @@ function removeTag(str, tag) {
 }
 
 .search__item__info__price strong {
-  color: rgba(255, 55, 29, 0.85); /* 价格字体颜色为红色 */
+  color: var(--app-primary); /* 价格字体颜色为红色 */
 }
 :deep(em){
  font-weight: bolder;
-  color: rgba(255, 55, 29, 0.85);
+  color: var(--app-accent);
 
 }
 </style>

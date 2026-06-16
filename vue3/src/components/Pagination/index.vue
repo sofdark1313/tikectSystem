@@ -120,7 +120,7 @@ function handleCurrentChange(val) {
 :deep(.el-pagination.is-background .btn-next.is-active),
 :deep( .el-pagination.is-background .btn-prev.is-active),
 :deep(.el-pagination.is-background .el-pager li.is-active){
-  background: rgba(255, 55, 29, 0.85)!important;
+  background: var(--app-primary)!important;
 }
 :deep(.el-pagination .is-last){
   display: none !important;

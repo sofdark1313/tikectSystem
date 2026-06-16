@@ -83,7 +83,7 @@ function savePsd() {
 
 .btn {
   margin-left: 130px;
-  background: rgba(255, 55, 29, 0.85);
+  background: var(--app-primary);
   border: none;
 }
 </style>

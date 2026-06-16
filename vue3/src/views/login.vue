@@ -219,7 +219,7 @@ function getExperienceAccount(){
   display: inline-block;
   margin-left: 10px;
   font-size: 14px;
-  color: #08c;
+  color: var(--app-primary);
   text-decoration: none;
   font-weight: 400;
 }
@@ -228,7 +228,7 @@ function getExperienceAccount(){
   display: inline-block;
   margin-left: 10px;
   font-size: 20px;
-  color: #cc3600;
+  color: var(--app-accent);
   text-decoration: none;
   font-weight: 400;
 }
@@ -252,8 +252,8 @@ function getExperienceAccount(){
 }
 
 :deep(.el-tabs--card > .el-tabs__header .el-tabs__item.is-active) {
-  border-color: rgba(255, 55, 29, 0.85);
-  color: rgba(255, 55, 29, 0.85);
+  border-color: var(--app-primary);
+  color: var(--app-primary);
   background-color: #fff;
 }
 
@@ -299,10 +299,10 @@ function getExperienceAccount(){
 }
 
 .btn {
-  background-color: rgba(255, 55, 29, 0.85);
-  background-image: -webkit-gradient(linear, left top, right top, from(rgba(255, 55, 29, 0.85)), to(rgba(255, 55, 29, 0.85)));
-  background-image: linear-gradient(90deg, rgba(255, 55, 29, 0.85), rgba(255, 55, 29, 0.85));
-  border-color: rgba(255, 55, 29, 0.85);
+  background-color: var(--app-primary);
+  background-image: -webkit-gradient(linear, left top, right top, from(var(--app-primary)), to(var(--app-primary)));
+  background-image: linear-gradient(90deg, var(--app-primary), var(--app-primary));
+  border-color: var(--app-primary);
   border-radius: 3px;
   font-size: 20px;
   height: 42px;
@@ -346,10 +346,10 @@ function getExperienceAccount(){
 }
 
 .experienceAccountConfirm{
-  background-color: rgba(255, 55, 29, 0.85);
-  background-image: -webkit-gradient(linear, left top, right top, from(rgba(255, 55, 29, 0.85)), to(rgba(255, 55, 29, 0.85)));
-  background-image: linear-gradient(90deg, rgba(255, 55, 29, 0.85), rgba(255, 55, 29, 0.85));
-  border-color: rgba(255, 55, 29, 0.85);
+  background-color: var(--app-primary);
+  background-image: -webkit-gradient(linear, left top, right top, from(var(--app-primary)), to(var(--app-primary)));
+  background-image: linear-gradient(90deg, var(--app-primary), var(--app-primary));
+  border-color: var(--app-primary);
   border-radius: 3px;
   font-size: 20px;
   height: 42px;

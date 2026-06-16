@@ -346,10 +346,10 @@ function handleValueFromChild(value) {
 }
 
 .btn {
-  background-color: rgba(255, 55, 29, 0.85);
-  background-image: -webkit-gradient(linear, left top, right top, from(#ff4aae), to(rgba(255, 55, 29, 0.85)));
-  background-image: linear-gradient(90deg, #ff4aae, rgba(255, 55, 29, 0.85));
-  border-color: rgba(255, 55, 29, 0.85);
+  background-color: var(--app-primary);
+  background-image: -webkit-gradient(linear, left top, right top, from(var(--app-accent)), to(var(--app-primary)));
+  background-image: linear-gradient(90deg, var(--app-accent), var(--app-primary));
+  border-color: var(--app-primary);
   border-radius: 3px;
   font-size: 20px;
   height: 42px;

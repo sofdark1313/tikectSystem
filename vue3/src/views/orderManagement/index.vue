@@ -128,12 +128,12 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .red-line {
-  border-bottom: 5px solid rgba(255, 55, 29, 0.85);
+  border-bottom: 5px solid var(--app-primary);
 }
 
 .section {
   width: 1200px;
-  margin: 15px auto 0;
+  margin: 20px auto 0;
 
   .sidebarMenu {
     //width: 201px;
@@ -146,34 +146,48 @@ onMounted(() => {
     margin-left: 10px;
     float: right;
     overflow-y: scroll;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(18, 60, 70, .06);
+    padding: 12px;
 
     table{
-      width:940px;
+      width:100%;
       -webkit-box-sizing: border-box;
       box-sizing: border-box;
       border-left: 1px solid transparent;
       border-right: 1px solid transparent;
-      background: #f7f7f7;
-      color: #333;
+      background: var(--app-surface-soft);
+      color: var(--app-text-muted);
       padding: 12px 0 12px 20px;
       height: 40px;
       line-height: 16px;
       font-size: 12px;
       margin-bottom: 20px;
+      border-radius: 8px;
 
 
     }
     .orderBox{
-      border: 1px solid #ebebeb;
+      border: 1px solid var(--app-border);
       width: 100%;
       height: 150px;
       margin-bottom: 20px;
+      border-radius: 8px;
+      overflow: hidden;
+      transition: box-shadow .2s ease, transform .2s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--app-shadow);
+      }
       .num{
         font-size: 12px;
         padding: 14px 0 14px 20px;
-        background: #f7f7f7;
-        color: #000;
-        border-bottom: 1px solid #ebebeb;
+        background: var(--app-surface-soft);
+        color: var(--app-text-muted);
+        border-bottom: 1px solid var(--app-border);
       }
       ul{
         margin: 0;
@@ -184,18 +198,20 @@ onMounted(() => {
           flex-direction: row;
           float: left;
           font-size: 12px;
-          background: #ffffff;
+          background: var(--app-surface);
           height: 100px;
         }
         li:first-child{
           width: 390px;
           padding-left: 20px;
           padding-top:13px;
-          border-right: 1px solid #ebebeb;
+          border-right: 1px solid var(--app-border);
           img{
             width: 62px;
             height: 80px;
             float: left;
+            border-radius: 8px;
+            object-fit: cover;
           }
           .project{
             width: 293px;
@@ -203,7 +219,7 @@ onMounted(() => {
 
             .title{
               width: 210px;
-              color: #4a4a4a;
+              color: var(--app-text);
               margin-bottom: 4px;
               display: inline-block;
               white-space: nowrap;
@@ -212,7 +228,7 @@ onMounted(() => {
 
             }
             .content{
-              color: #9b9b9b;
+              color: var(--app-text-muted);
               margin-bottom: 2px;
             }
 
@@ -221,7 +237,7 @@ onMounted(() => {
         }
         li:nth-child(2){
           width: 100px;
-          border-right: 1px solid #ebebeb;
+          border-right: 1px solid var(--app-border);
           text-align: center;
           padding: 48px;
         }
@@ -229,7 +245,7 @@ onMounted(() => {
           width: 133px;
           display: block;
           padding-top: 32px;
-          border-right: 1px solid #ebebeb;
+          border-right: 1px solid var(--app-border);
           text-align: center;
           .price{
             width: 100%;
@@ -242,7 +258,7 @@ onMounted(() => {
           width: 133px;
           display: block;
           padding-top: 32px;
-          border-right: 1px solid #ebebeb;
+          border-right: 1px solid var(--app-border);
           text-align: center;
           .orderStatus{
             width: 100%;
@@ -261,10 +277,10 @@ onMounted(() => {
             height: 30px;
             line-height: 30px;
             text-align: center;
-            background-color: rgba(255, 55, 29, 0.85);
+            background-color: var(--app-primary);
             color: #fff;
             font-size: 14px;
-            border-radius: 20px;
+            border-radius: 8px;
             margin-top: 10px;
             border: none;
             margin-bottom: 10px;
@@ -274,9 +290,9 @@ onMounted(() => {
           }
           
           .orderDetial:hover {
-            background-color: rgba(255, 55, 29, 1);
+            background-color: #129083;
             transform: scale(1.05);
-            box-shadow: 0 2px 8px rgba(255, 55, 29, 0.3);
+            box-shadow: 0 8px 16px rgba(15, 118, 110, 0.24);
           }
         }
       }

@@ -114,13 +114,14 @@ function getMainCategoryList() {
 .app-container {
   width: 1200px;
   margin: 0 auto;
-  padding: 18px 0 32px;
+  padding: 24px 0 38px;
 
   .carousel-lamp {
     width: 100%;
     overflow: hidden;
     border-radius: 8px;
-    box-shadow: 0 14px 32px rgba(15, 34, 63, .12);
+    box-shadow: var(--app-shadow);
+    background: var(--app-primary-dark);
     img{
       width: 100%;
       height: 320px;
@@ -131,11 +132,12 @@ function getMainCategoryList() {
 
   .category {
 
-    margin-top: 15px !important;
+    margin-top: 18px !important;
     padding: 22px 0 25px 0;
-    border: 1px solid #EBEBEB;
+    border: 1px solid var(--app-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--app-surface);
+    box-shadow: 0 10px 24px rgba(18, 60, 70, .06);
     zoom: 1;
 
     ul {
@@ -151,6 +153,11 @@ function getMainCategoryList() {
         display: block;
         width: 110px;
         text-align: center;
+        transition: transform .2s ease;
+
+        &:hover {
+          transform: translateY(-3px);
+        }
 
         a {
           width: 110px;
@@ -163,11 +170,12 @@ function getMainCategoryList() {
             height: 20px;
             display: inline-block;
             font-size: 16px;
-            color: #111;
+            color: var(--app-text);
             text-align: center;
+            font-weight: 600;
 
             &:hover {
-              color: rgba(255, 55, 29, 0.85);
+              color: var(--app-primary);
             }
           }
         }
@@ -180,6 +188,7 @@ function getMainCategoryList() {
           margin: 0 auto;
           background: url("/src/assets/section/sprit.png") no-repeat;
           background-size: 100% auto;
+          filter: saturate(.78) hue-rotate(120deg);
         }
 
         .sprit1 {
@@ -230,19 +239,20 @@ function getMainCategoryList() {
   .diffrentType {
     width: 1200px;
     position: relative;
-    padding: 20px;
-    border: 1px solid #EBEBEB;
+    padding: 22px;
+    border: 1px solid var(--app-border);
     border-radius: 8px;
-    margin-top: 15px;
+    margin-top: 18px;
     display: flex;
-    background: #fff;
+    background: var(--app-surface);
+    box-shadow: 0 10px 24px rgba(18, 60, 70, .06);
 
     .name {
       font-size: 24px;
       display: inline-block;
       vertical-align: middle;
       margin-left: 5px;
-      color: #111;
+      color: var(--app-text);
       width: 1100px;
       height: 40px;
       line-height: 40px;
@@ -254,12 +264,15 @@ function getMainCategoryList() {
       vertical-align: middle;
       float: right;
       font-size: 14px;
-      color: #9B9B9B;
+      color: var(--app-text-muted);
       max-width: 100px;
       line-height: 40px;
       height: 100%;
       overflow: hidden;
       text-align: right;
+      &:hover {
+        color: var(--app-primary);
+      }
     }
   }
 
@@ -273,6 +286,8 @@ function getMainCategoryList() {
       position: relative;
       overflow: hidden;
       border: 1px solid #efefef;
+      border-radius: 8px;
+      box-shadow: 0 12px 26px rgba(18, 60, 70, .14);
 
       img {
         width: 100%;
@@ -280,6 +295,12 @@ function getMainCategoryList() {
         position: absolute;
         left: 0;
         top: 0;
+        object-fit: cover;
+        transition: transform .25s ease;
+
+        &:hover {
+          transform: scale(1.04);
+        }
 
       }
     }
@@ -301,6 +322,13 @@ function getMainCategoryList() {
         margin-bottom: 40px;
         color: #000;
         overflow: hidden;
+        border-radius: 8px;
+        transition: transform .2s ease, box-shadow .2s ease;
+
+        &:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 24px rgba(18, 60, 70, .10);
+        }
 
         img {
           width: 118px;
@@ -308,7 +336,9 @@ function getMainCategoryList() {
           overflow: hidden;
           position: relative;
           display: inline-block;
-          border: 1px solid #efefef;
+          border: 1px solid var(--app-border);
+          border-radius: 8px;
+          object-fit: cover;
         }
 
         .info {
@@ -322,7 +352,7 @@ function getMainCategoryList() {
           .img-title {
             line-height: 20px;
             font-size: 14px;
-            color: #4A4A4A;
+            color: var(--app-text);
             overflow: hidden;
             display: -webkit-box;
             -webkit-box-orient: vertical;
@@ -359,7 +389,7 @@ function getMainCategoryList() {
             left: 15px;
             bottom: 0;
             font-size: 19px;
-            color: rgba(255, 55, 29, 0.85);
+            color: var(--app-accent);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;

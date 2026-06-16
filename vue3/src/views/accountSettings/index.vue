@@ -106,7 +106,7 @@ function getIsVaild() {
 
 <style scoped lang="scss">
 .red-line {
-  border-bottom: 5px solid rgba(255, 55, 29, 0.85);
+  border-bottom: 5px solid var(--app-primary);
 }
 
 .section {
@@ -126,7 +126,7 @@ function getIsVaild() {
       border: 1px solid #efefef;
       height: 38px;
       overflow: hidden;
-      background: rgba(255, 55, 29, 0.85) repeat-x;
+      background: var(--app-primary) repeat-x;
       padding: 0 15px;
       line-height: 38px;
       color: #ffffff;
@@ -137,7 +137,7 @@ function getIsVaild() {
       margin-top: 23px;
 
       .title {
-        border-bottom: 2px solid rgba(255, 55, 29, 0.85);
+        border-bottom: 2px solid var(--app-primary);
         height: 29px;
 
         li {
@@ -158,7 +158,7 @@ function getIsVaild() {
           line-height: 20px;
 
           span {
-            color: rgba(255, 55, 29, 0.85);
+            color: var(--app-primary);
             font-size: 28px;
             font-weight: 700;
             line-height: 25px;
@@ -166,7 +166,7 @@ function getIsVaild() {
         }
 
         li.left {
-          background: rgba(255, 55, 29, 0.85) no-repeat scroll -139px -122px;
+          background: var(--app-primary) no-repeat scroll -139px -122px;
           display: block;
           line-height: 29px;
           text-align: center;
@@ -243,7 +243,7 @@ function getIsVaild() {
               height: 21px;
               line-height: 21px;
               text-align: center;
-              color: rgba(255, 55, 29, 0.85);
+              color: var(--app-primary);
               display: inline-block;
               font-size: 14px;
             }
