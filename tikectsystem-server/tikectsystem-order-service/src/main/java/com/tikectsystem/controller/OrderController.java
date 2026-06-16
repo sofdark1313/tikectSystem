@@ -74,7 +74,7 @@ public class OrderController {
         return ApiResponse.ok(orderService.payCheck(orderPayCheckDto));
     }
     
-    @Operation(summary  = "支付宝支付后回调通知")
+    @Operation(summary  = "支付后回调通知(兼容旧接口)")
     @PostMapping(value = "/alipay/notify")
     public String alipayNotify(HttpServletRequest request) {
         return orderService.alipayNotify(request);

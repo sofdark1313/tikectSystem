@@ -39,7 +39,7 @@ public class PayDto implements Serializable {
     @NotNull
     private BigDecimal price;
     
-    @Schema(name ="channel", type ="Integer", description ="支付渠道 alipay：支付宝 wx：微信",requiredMode= RequiredMode.REQUIRED)
+    @Schema(name ="channel", type ="String", description ="支付渠道保留字段，当前使用本地确认支付",requiredMode= RequiredMode.REQUIRED)
     @NotNull
     private String channel;
 

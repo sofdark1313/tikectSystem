@@ -20,7 +20,6 @@ import com.tikectsystem.domain.OrderCreateDomain;
 import com.tikectsystem.domain.OrderCreateMq;
 import com.tikectsystem.domain.SeatIdAndTicketUserIdDomain;
 import com.tikectsystem.dto.AccountOrderCountDto;
-import com.tikectsystem.dto.NotifyDto;
 import com.tikectsystem.dto.OrderCancelDto;
 import com.tikectsystem.dto.OrderCreateDto;
 import com.tikectsystem.dto.OrderCreateTestDto;
@@ -47,7 +46,6 @@ import com.tikectsystem.enums.BusinessStatus;
 import com.tikectsystem.enums.DiscardOrderReason;
 import com.tikectsystem.enums.OrderStatus;
 import com.tikectsystem.enums.PayBillStatus;
-import com.tikectsystem.enums.PayChannel;
 import com.tikectsystem.enums.ProgramOrderVersion;
 import com.tikectsystem.enums.RecordType;
 import com.tikectsystem.enums.SellStatus;
@@ -68,7 +66,6 @@ import com.tikectsystem.util.DateUtils;
 import com.tikectsystem.util.ServiceLockTool;
 import com.tikectsystem.util.StringUtil;
 import com.tikectsystem.vo.AccountOrderCountVo;
-import com.tikectsystem.vo.NotifyVo;
 import com.tikectsystem.vo.OrderGetVo;
 import com.tikectsystem.vo.OrderListVo;
 import com.tikectsystem.vo.OrderPayCheckVo;
@@ -330,6 +327,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         return true;
     }
     
+    @ServiceLock(name = UPDATE_ORDER_STATUS_LOCK,keys = {"#orderPayDto.orderNumber"})
     public String pay(OrderPayDto orderPayDto) {
         Long orderNumber = orderPayDto.getOrderNumber();
         LambdaQueryWrapper<Order> orderLambdaQueryWrapper =
@@ -358,8 +356,10 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (!Objects.equals(payResponse.getCode(), BaseCode.SUCCESS.getCode())) {
             throw new TikectsystemFrameException(payResponse);
         }
-        return Optional.ofNullable(payResponse.getData())
+        String payResult = Optional.ofNullable(payResponse.getData())
                 .orElseThrow(() -> new TikectsystemFrameException(BaseCode.PAY_ERROR));
+        orderService.updateOrderRelatedData(orderNumber,OrderStatus.PAY);
+        return payResult;
     }
     
     private PayDto getPayDto(OrderPayDto orderPayDto, Long orderNumber) {
@@ -367,7 +367,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         payDto.setOrderNumber(String.valueOf(orderNumber));
         payDto.setPayBillType(orderPayDto.getPayBillType());
         payDto.setSubject(orderPayDto.getSubject());
-        payDto.setChannel(orderPayDto.getChannel());
+        payDto.setChannel("simple");
         payDto.setPlatform(orderPayDto.getPlatform());
         payDto.setPrice(orderPayDto.getPrice());
         payDto.setNotifyUrl(orderProperties.getOrderPayNotifyUrl());
@@ -394,7 +394,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             RefundDto refundDto = new RefundDto();
             refundDto.setOrderNumber(String.valueOf(order.getOrderNumber()));
             refundDto.setAmount(order.getOrderPrice());
-            refundDto.setChannel("alipay");
+            refundDto.setChannel("simple");
             refundDto.setReason("延迟订单关闭");
             ApiResponse<String> response = payClient.refund(refundDto);
             if (response != null && Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode())) {
@@ -411,11 +411,10 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             return orderPayCheckVo;
         }
 
-        //调用支付服务查询支付渠道的真实状态
+        //调用支付服务查询本地支付账单状态
         TradeCheckDto tradeCheckDto = new TradeCheckDto();
         tradeCheckDto.setOutTradeNo(String.valueOf(orderPayCheckDto.getOrderNumber()));
-        tradeCheckDto.setChannel(Optional.ofNullable(PayChannel.getRc(orderPayCheckDto.getPayChannelType()))
-                .map(PayChannel::getValue).orElseThrow(() -> new TikectsystemFrameException(BaseCode.PAY_CHANNEL_NOT_EXIST)));
+        tradeCheckDto.setChannel("simple");
         ApiResponse<TradeCheckVo> tradeCheckVoApiResponse = payClient.tradeCheck(tradeCheckDto);
         if (tradeCheckVoApiResponse == null) {
             throw new TikectsystemFrameException(BaseCode.PAY_TRADE_CHECK_ERROR);
@@ -428,7 +427,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (tradeCheckVo.isSuccess()) {
             Integer payBillStatus = tradeCheckVo.getPayBillStatus();
             Integer orderStatus = order.getOrderStatus();
-            //如果订单的状态和账单的状态不一致，说明支付的回调没有成功，那么就在这次更新数据
+            //如果订单的状态和账单的状态不一致，则在本次检查中补偿更新
             if (!Objects.equals(orderStatus, payBillStatus)) {
                 orderPayCheckVo.setOrderStatus(payBillStatus);
                 try {
@@ -479,7 +478,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 RefundDto refundDto = new RefundDto();
                 refundDto.setOrderNumber(outTradeNo);
                 refundDto.setAmount(order.getOrderPrice());
-                refundDto.setChannel("alipay");
+                refundDto.setChannel("simple");
                 refundDto.setReason("延迟订单关闭");
                 ApiResponse<String> response = payClient.refund(refundDto);
                 if (response != null && Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode())) {
@@ -494,29 +493,12 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 return ALIPAY_NOTIFY_SUCCESS_RESULT;
             }
 
-            NotifyDto notifyDto = new NotifyDto();
-            notifyDto.setChannel(PayChannel.ALIPAY.getValue());
-            notifyDto.setParams(params);
-            //调用支付服务，将回调中的参数进行签名验证
-            ApiResponse<NotifyVo> notifyResponse = payClient.notify(notifyDto);
-            if (notifyResponse == null) {
-                throw new TikectsystemFrameException(BaseCode.PAY_ERROR);
+            try {
+                orderService.updateOrderRelatedData(Long.parseLong(outTradeNo), OrderStatus.PAY);
+            }catch (Exception e) {
+                log.warn("updateOrderRelatedData warn message",e);
             }
-            if (!Objects.equals(notifyResponse.getCode(), BaseCode.SUCCESS.getCode())) {
-                throw new TikectsystemFrameException(notifyResponse);
-            }
-            NotifyVo notifyVo = Optional.ofNullable(notifyResponse.getData())
-                    .orElseThrow(() -> new TikectsystemFrameException(BaseCode.PAY_ERROR));
-            //如果验证过程的话则进行订单状态更新
-            if (ALIPAY_NOTIFY_SUCCESS_RESULT.equals(notifyVo.getPayResult())) {
-                try {
-                    orderService.updateOrderRelatedData(Long.parseLong(notifyVo.getOutTradeNo())
-                            ,OrderStatus.PAY);
-                }catch (Exception e) {
-                    log.warn("updateOrderRelatedData warn message",e);
-                }
-            }
-            return notifyVo.getPayResult();
+            return ALIPAY_NOTIFY_SUCCESS_RESULT;
         }finally {
             lock.unlock();
         }

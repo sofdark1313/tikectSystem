@@ -18,11 +18,6 @@ import com.tikectsystem.enums.PayBillStatus;
 import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.mapper.PayBillMapper;
 import com.tikectsystem.mapper.RefundBillMapper;
-import com.tikectsystem.pay.PayResult;
-import com.tikectsystem.pay.PayStrategyContext;
-import com.tikectsystem.pay.PayStrategyHandler;
-import com.tikectsystem.pay.RefundResult;
-import com.tikectsystem.pay.TradeResult;
 import com.tikectsystem.servicelock.annotion.ServiceLock;
 import com.tikectsystem.util.DateUtils;
 import com.tikectsystem.vo.NotifyVo;
@@ -33,7 +28,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Objects;
 
@@ -50,6 +44,12 @@ import static com.tikectsystem.core.DistributedLockConstants.TRADE_CHECK;
 @Slf4j
 @Service
 public class PayService {
+
+    private static final String SIMPLE_PAY_CHANNEL = "simple";
+
+    private static final String SIMPLE_PAY_SCENE = "本地模拟支付";
+
+    private static final String SIMPLE_PAY_RESULT = "PAY_SUCCESS";
     
     @Autowired
     private PayBillMapper payBillMapper;
@@ -58,13 +58,10 @@ public class PayService {
     private RefundBillMapper refundBillMapper;
     
     @Autowired
-    private PayStrategyContext payStrategyContext;
-    
-    @Autowired
     private UidGenerator uidGenerator;
     
     /**
-     * 通用支付，用订单号加锁防止多次支付成功，不依赖第三方支付的幂等性
+     * 通用支付，用订单号加锁防止多次支付成功。当前演示版不再对接第三方渠道，点击确认即写入支付成功账单。
      * */
     @ServiceLock(name = COMMON_PAY,keys = {"#payDto.orderNumber"})
     @Transactional(rollbackFor = Exception.class)
@@ -72,44 +69,44 @@ public class PayService {
         LambdaQueryWrapper<PayBill> payBillLambdaQueryWrapper = 
                 Wrappers.lambdaQuery(PayBill.class).eq(PayBill::getOutOrderNo, payDto.getOrderNumber());
         PayBill payBill = payBillMapper.selectOne(payBillLambdaQueryWrapper);
+        if (Objects.nonNull(payBill) && Objects.equals(payBill.getPayBillStatus(), PayBillStatus.PAY.getCode())) {
+            return SIMPLE_PAY_RESULT;
+        }
         if (Objects.nonNull(payBill) && !Objects.equals(payBill.getPayBillStatus(), PayBillStatus.NO_PAY.getCode())) {
             throw new TikectsystemFrameException(BaseCode.PAY_BILL_IS_NOT_NO_PAY);
         }
-        PayStrategyHandler payStrategyHandler = payStrategyContext.get(payDto.getChannel());
-        PayResult pay = payStrategyHandler.pay(String.valueOf(payDto.getOrderNumber()), payDto.getPrice(), 
-                payDto.getSubject(),payDto.getNotifyUrl(),payDto.getReturnUrl());
-        if (pay == null) {
-            throw new TikectsystemFrameException(BaseCode.PAY_ERROR);
+
+        PayBill savePayBill = new PayBill();
+        savePayBill.setOutOrderNo(String.valueOf(payDto.getOrderNumber()));
+        savePayBill.setPayNumber(String.valueOf(uidGenerator.getUid()));
+        savePayBill.setTradeNumber(SIMPLE_PAY_CHANNEL + "-" + payDto.getOrderNumber());
+        savePayBill.setPayChannel(SIMPLE_PAY_CHANNEL);
+        savePayBill.setPayScene(SIMPLE_PAY_SCENE);
+        savePayBill.setSubject(payDto.getSubject());
+        savePayBill.setPayAmount(payDto.getPrice());
+        savePayBill.setPayBillType(payDto.getPayBillType());
+        savePayBill.setPayBillStatus(PayBillStatus.PAY.getCode());
+        savePayBill.setPayTime(DateUtils.now());
+        if (payBill == null) {
+            savePayBill.setId(uidGenerator.getUid());
+            payBillMapper.insert(savePayBill);
+        } else {
+            LambdaUpdateWrapper<PayBill> updateWrapper = Wrappers.lambdaUpdate(PayBill.class)
+                    .eq(PayBill::getId, payBill.getId())
+                    .eq(PayBill::getOutOrderNo, savePayBill.getOutOrderNo())
+                    .set(PayBill::getPayNumber, savePayBill.getPayNumber())
+                    .set(PayBill::getTradeNumber, savePayBill.getTradeNumber())
+                    .set(PayBill::getPayChannel, savePayBill.getPayChannel())
+                    .set(PayBill::getPayScene, savePayBill.getPayScene())
+                    .set(PayBill::getSubject, savePayBill.getSubject())
+                    .set(PayBill::getPayAmount, savePayBill.getPayAmount())
+                    .set(PayBill::getPayBillType, savePayBill.getPayBillType())
+                    .set(PayBill::getPayBillStatus, savePayBill.getPayBillStatus())
+                    .set(PayBill::getPayTime, savePayBill.getPayTime());
+            payBillMapper.update(null, updateWrapper);
         }
-        if (pay.isSuccess()) {
-            PayBill savePayBill = new PayBill();
-            savePayBill.setOutOrderNo(String.valueOf(payDto.getOrderNumber()));
-            savePayBill.setPayChannel(payDto.getChannel());
-            savePayBill.setPayScene("生产");
-            savePayBill.setSubject(payDto.getSubject());
-            savePayBill.setPayAmount(payDto.getPrice());
-            savePayBill.setPayBillType(payDto.getPayBillType());
-            savePayBill.setPayBillStatus(PayBillStatus.NO_PAY.getCode());
-            savePayBill.setPayTime(DateUtils.now());
-            if (payBill == null) {
-                savePayBill.setId(uidGenerator.getUid());
-                payBillMapper.insert(savePayBill);
-            } else {
-                LambdaUpdateWrapper<PayBill> updateWrapper = Wrappers.lambdaUpdate(PayBill.class)
-                        .eq(PayBill::getId, payBill.getId())
-                        .eq(PayBill::getOutOrderNo, savePayBill.getOutOrderNo())
-                        .set(PayBill::getPayChannel, savePayBill.getPayChannel())
-                        .set(PayBill::getPayScene, savePayBill.getPayScene())
-                        .set(PayBill::getSubject, savePayBill.getSubject())
-                        .set(PayBill::getPayAmount, savePayBill.getPayAmount())
-                        .set(PayBill::getPayBillType, savePayBill.getPayBillType())
-                        .set(PayBill::getPayBillStatus, savePayBill.getPayBillStatus())
-                        .set(PayBill::getPayTime, savePayBill.getPayTime());
-                payBillMapper.update(null, updateWrapper);
-            }
-        }
-        
-        return pay.getBody();
+
+        return SIMPLE_PAY_RESULT;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -118,15 +115,10 @@ public class PayService {
 
         log.info("回调通知参数 ===> {}", JSON.toJSONString(notifyDto));
         Map<String, String> params = notifyDto.getParams();
-        //验签
-        PayStrategyHandler payStrategyHandler = payStrategyContext.get(notifyDto.getChannel());
-        boolean signVerifyResult = payStrategyHandler.signVerify(params);
-        if (!signVerifyResult) {
+        if (params == null || params.get("out_trade_no") == null) {
             notifyVo.setPayResult(ALIPAY_NOTIFY_FAILURE_RESULT);
             return notifyVo;
         }
-        //按照支付结果异步通知中的描述，对支付结果中的业务内容进行二次校验
-        //1 商户需要验证该通知数据中的 out_trade_no 是否为商户系统中创建的订单号
         LambdaQueryWrapper<PayBill> payBillLambdaQueryWrapper =
                 Wrappers.lambdaQuery(PayBill.class).eq(PayBill::getOutOrderNo, params.get("out_trade_no"));
         //查询账单
@@ -137,31 +129,25 @@ public class PayService {
             notifyVo.setPayResult(ALIPAY_NOTIFY_FAILURE_RESULT);
             return notifyVo;
         }
-        //如果账单已支付了，直接返回支付宝成功状态
+        //如果账单已支付了，直接返回成功状态
         if (Objects.equals(payBill.getPayBillStatus(), PayBillStatus.PAY.getCode())) {
             log.info("账单已支付 notifyDto : {}",JSON.toJSONString(notifyDto));
             notifyVo.setOutTradeNo(payBill.getOutOrderNo());
             notifyVo.setPayResult(ALIPAY_NOTIFY_SUCCESS_RESULT);
             return notifyVo;
         }
-        //如果账单已取消了，直接返回支付宝成功状态
+        //如果账单已取消了，直接返回成功状态
         if (Objects.equals(payBill.getPayBillStatus(), PayBillStatus.CANCEL.getCode())) {
             log.info("账单已取消 notifyDto : {}",JSON.toJSONString(notifyDto));
             notifyVo.setOutTradeNo(payBill.getOutOrderNo());
             notifyVo.setPayResult(ALIPAY_NOTIFY_SUCCESS_RESULT);
             return notifyVo;
         }
-        //如果账单已退单了，直接返回支付宝成功状态
+        //如果账单已退单了，直接返回成功状态
         if (Objects.equals(payBill.getPayBillStatus(), PayBillStatus.REFUND.getCode())) {
             log.info("账单已退单 notifyDto : {}",JSON.toJSONString(notifyDto));
             notifyVo.setOutTradeNo(payBill.getOutOrderNo());
             notifyVo.setPayResult(ALIPAY_NOTIFY_SUCCESS_RESULT);
-            return notifyVo;
-        }
-        //验证支付宝回调传入的参数，防止恶意攻击
-        boolean dataVerify = payStrategyHandler.dataVerify(notifyDto.getParams(), payBill);
-        if (!dataVerify) {
-            notifyVo.setPayResult(ALIPAY_NOTIFY_FAILURE_RESULT);
             return notifyVo;
         }
         //更新账单为支付状态
@@ -179,47 +165,17 @@ public class PayService {
     @ServiceLock(name = TRADE_CHECK,keys = {"#tradeCheckDto.outTradeNo"})
     public TradeCheckVo tradeCheck(TradeCheckDto tradeCheckDto) {
         TradeCheckVo tradeCheckVo = new TradeCheckVo();
-        //通过渠道获取具体的支付渠道策略
-        PayStrategyHandler payStrategyHandler = payStrategyContext.get(tradeCheckDto.getChannel());
-        //调用支付状态查询
-        TradeResult tradeResult = payStrategyHandler.queryTrade(tradeCheckDto.getOutTradeNo());
-        if (tradeResult == null) {
-            log.error("trade check result is null, tradeCheckDto : {}", JSON.toJSONString(tradeCheckDto));
-            return tradeCheckVo;
-        }
-        BeanUtil.copyProperties(tradeResult,tradeCheckVo);
-        if (!tradeResult.isSuccess()) {
-            return tradeCheckVo;
-        }
-        BigDecimal totalAmount = tradeResult.getTotalAmount();
-        String outTradeNo = tradeResult.getOutTradeNo();
-        Integer payBillStatus = tradeResult.getPayBillStatus();
-        //查询对应的账单信息
         LambdaQueryWrapper<PayBill> payBillLambdaQueryWrapper =
-                Wrappers.lambdaQuery(PayBill.class).eq(PayBill::getOutOrderNo, outTradeNo);
+                Wrappers.lambdaQuery(PayBill.class).eq(PayBill::getOutOrderNo, tradeCheckDto.getOutTradeNo());
         PayBill payBill = payBillMapper.selectOne(payBillLambdaQueryWrapper);
         if (Objects.isNull(payBill)) {
             log.error("账单为空 tradeCheckDto : {}",JSON.toJSONString(tradeCheckDto));
             return tradeCheckVo;
         }
-        //如果支付渠道的金额和账单的金额不一致，则直接返回
-        if (payBill.getPayAmount().compareTo(totalAmount) != 0) {
-            log.error("支付渠道 和库中账单支付金额不一致 支付渠道支付金额 : {}, 库中账单支付金额 : {}, tradeCheckDto : {}",
-                    totalAmount,payBill.getPayAmount(),JSON.toJSONString(tradeCheckDto));
-            return tradeCheckVo;
-        }
-        //如果支付渠道的状态和账单的状态不一致，说明回调没有执行成功，则更新账单状态
-        if (!Objects.equals(payBill.getPayBillStatus(), payBillStatus)) {
-            log.warn("支付渠道和库中账单交易状态不一致 支付渠道payBillStatus : {}, 库中payBillStatus : {}, tradeCheckDto : {}",
-                    payBillStatus,payBill.getPayBillStatus(),JSON.toJSONString(tradeCheckDto));
-            PayBill updatePayBill = new PayBill();
-            updatePayBill.setId(payBill.getId());
-            updatePayBill.setPayBillStatus(payBillStatus);
-            LambdaUpdateWrapper<PayBill> payBillLambdaUpdateWrapper =
-                    Wrappers.lambdaUpdate(PayBill.class).eq(PayBill::getOutOrderNo, outTradeNo);
-            payBillMapper.update(updatePayBill,payBillLambdaUpdateWrapper);
-            return tradeCheckVo;
-        }
+        tradeCheckVo.setSuccess(true);
+        tradeCheckVo.setOutTradeNo(payBill.getOutOrderNo());
+        tradeCheckVo.setTotalAmount(payBill.getPayAmount());
+        tradeCheckVo.setPayBillStatus(payBill.getPayBillStatus());
         return tradeCheckVo;
     }
     
@@ -238,33 +194,21 @@ public class PayService {
             throw new TikectsystemFrameException(BaseCode.REFUND_AMOUNT_GREATER_THAN_PAY_AMOUNT);
         }
         
-        PayStrategyHandler payStrategyHandler = payStrategyContext.get(refundDto.getChannel());
-        RefundResult refundResult = 
-                payStrategyHandler.refund(refundDto.getOrderNumber(), refundDto.getAmount(), refundDto.getReason());
-        if (refundResult == null) {
-            throw new TikectsystemFrameException(BaseCode.REFUND_ERROR);
-        }
-        if (refundResult.isSuccess()) {
-            RefundBill refundBill = new RefundBill();
-            refundBill.setId(uidGenerator.getUid());
-            refundBill.setOutOrderNo(payBill.getOutOrderNo());
-            refundBill.setPayBillId(payBill.getId());
-            refundBill.setRefundAmount(refundDto.getAmount());
-            refundBill.setRefundStatus(1);
-            refundBill.setRefundTime(DateUtils.now());
-            refundBill.setReason(refundDto.getReason());
-            refundBillMapper.insert(refundBill);
-            PayBill updatePayBill = new PayBill();
-            updatePayBill.setId(payBill.getId());
-            updatePayBill.setPayBillStatus(PayBillStatus.REFUND.getCode());
-            payBillMapper.updateById(updatePayBill);
-            return refundBill.getOutOrderNo();
-        }else {
-            if (refundResult.getMessage() == null) {
-                throw new TikectsystemFrameException(BaseCode.REFUND_ERROR);
-            }
-            throw new TikectsystemFrameException(refundResult.getMessage());
-        }
+        RefundBill refundBill = new RefundBill();
+        refundBill.setId(uidGenerator.getUid());
+        refundBill.setOutOrderNo(payBill.getOutOrderNo());
+        refundBill.setPayBillId(payBill.getId());
+        refundBill.setRefundAmount(refundDto.getAmount());
+        refundBill.setRefundStatus(2);
+        refundBill.setRefundTime(DateUtils.now());
+        refundBill.setReason(refundDto.getReason());
+        refundBillMapper.insert(refundBill);
+
+        PayBill updatePayBill = new PayBill();
+        updatePayBill.setId(payBill.getId());
+        updatePayBill.setPayBillStatus(PayBillStatus.REFUND.getCode());
+        payBillMapper.updateById(updatePayBill);
+        return refundBill.getOutOrderNo();
     }
     
     public PayBillVo detail(PayBillDto payBillDto) {
