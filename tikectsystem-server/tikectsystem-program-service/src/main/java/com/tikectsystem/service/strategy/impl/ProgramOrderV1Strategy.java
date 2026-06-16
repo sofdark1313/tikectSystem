@@ -34,7 +34,10 @@ public class ProgramOrderV1Strategy extends AbstractApplicationCommandLineRunner
     
     @RepeatExecuteLimit(
             name = RepeatExecuteLimitConstants.CREATE_PROGRAM_ORDER,
-            keys = {"#programOrderCreateDto.userId","#programOrderCreateDto.programId"})
+            keys = {"#programOrderCreateDto.userId", "#programOrderCreateDto.programId",
+                    "#programOrderCreateDto.ticketCategoryId", "#programOrderCreateDto.ticketCount",
+                    "#programOrderCreateDto.ticketUserIdList", "#programOrderCreateDto.seatDtoList"},
+            durationTime = 10)
     @ServiceLock(name = PROGRAM_ORDER_CREATE_V1,keys = {"#programOrderCreateDto.programId"})
     @Override
     public String createOrder(final ProgramOrderCreateDto programOrderCreateDto) {

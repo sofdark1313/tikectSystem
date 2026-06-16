@@ -106,7 +106,9 @@
 <!--                     element-loading-svg-view-box="-10, -10, 50, 50"-->
 <!--                     element-loading-background="rgba(122, 122, 122, 0.8)"-->
 <!--                     @click="dialogLoading">点击loading</el-button>-->
-          <el-button type="primary" class="submit" @click="submitOrder">提交订单</el-button>
+          <el-button type="primary" class="submit" :loading="submitLoading" :disabled="submitLoading" @click="submitOrder">
+            {{ submitLoading ? '提交中' : '提交订单' }}
+          </el-button>
         </div>
         </div>
       </div>
@@ -156,6 +158,7 @@ const ticketUserIdArr = ref([])
 const ticketCategoryId = ref('')
 const orderNumberCache = ref('')
 const loading = ref(false)
+const submitLoading = ref(false)
 const svg = `
         <path class="path" d="
           M 30 15
@@ -213,11 +216,28 @@ function getSelectTicketUser(ticketUserId,isChecked){
 
 function getOrderCache(orderNumber){
   const orderNumberParams = {orderNumber}
-  getOrderCacheApi(orderNumberParams).then(response => {
+  return getOrderCacheApi(orderNumberParams).then(response => {
     if (response.code == '0' && response.data != null){
       orderNumberCache.value = response.data;
     }
+    return orderNumberCache.value;
   })
+}
+
+function goPay(orderNumber) {
+  const orderNumberText = String(orderNumber);
+  localStorage.setItem('orderNumber', orderNumberText);
+  router.replace({
+    path: '/order/payMethod',
+    query: {orderNumber: orderNumberText},
+    state: {'orderNumber': orderNumberText}
+  })
+}
+
+function submitOrderError() {
+  loadingClose();
+  submitLoading.value = false;
+  ElMessage.error('提交订单失败，请稍后重试');
 }
 
 //订单查询轮训
@@ -239,7 +259,7 @@ const startPolling = (orderNumber,startTime) => {
       //执行到这里说明订单创建成功
       //loading弹框关闭
       loadingClose();
-      router.replace({path:'/order/payMethod',state:{'orderNumber':orderNumberCache.value}})
+      goPay(orderNumberCache.value)
     }
   }, 200); // 每200毫秒调用一次
 };
@@ -255,6 +275,9 @@ const stopPolling = () => {
  * 提交订单
  * */
 function submitOrder(){
+  if (submitLoading.value) {
+    return;
+  }
 
   if (ticketUserIdArr.value.length != num.value) {
     ElMessage({
@@ -263,6 +286,9 @@ function submitOrder(){
     })
     return;
   }
+  submitLoading.value = true;
+  orderNumberCache.value = '';
+  loadingShow();
 
   const orderCreateParams = {
     'programId':detailList.value.id,
@@ -276,15 +302,11 @@ function submitOrder(){
   if (createOrderVersion == 1) {
     //v1版本的创建订单
 
-    //loading弹出框显示
-    loadingShow();
-    
     orderCreateV1Api(orderCreateParams).then(response => {
-      //loading弹出框关闭
       loadingClose();
       if (response.code == '0') {
         const orderNumber = response.data;
-        router.replace({path:'/order/payMethod',state:{'orderNumber':orderNumber}})
+        goPay(orderNumber)
       }else{
         // ElMessage({
         //   message:response.message,
@@ -293,19 +315,15 @@ function submitOrder(){
         //排队弹框显示
         dialogShow();
       }
-    })
+    }).catch(submitOrderError)
   }else if (createOrderVersion == 2) {
     //v2版本的创建订单
 
-    //loading弹出框显示
-    loadingShow();
-    
     orderCreateV2Api(orderCreateParams).then(response => {
-      //loading弹出框关闭
       loadingClose();
       if (response.code == '0') {
         const orderNumber = response.data;
-        router.replace({path:'/order/payMethod',state:{'orderNumber':orderNumber}})
+        goPay(orderNumber)
       }else{
         // ElMessage({
         //   message:response.message,
@@ -314,19 +332,15 @@ function submitOrder(){
         //排队弹框显示
         dialogShow();
       }
-    })
+    }).catch(submitOrderError)
   }else if (createOrderVersion == 3) {
     //v3版本的创建订单
 
-    //loading弹出框显示
-    loadingShow();
-    
     orderCreateV3Api(orderCreateParams).then(response => {
-      //loading弹出框关闭
       loadingClose();
       if (response.code == '0') {
         const orderNumber = response.data;
-        router.replace({path:'/order/payMethod',state:{'orderNumber':orderNumber}})
+        goPay(orderNumber)
       }else{
         // ElMessage({
         //   message:response.message,
@@ -335,13 +349,10 @@ function submitOrder(){
         //排队弹框显示
         dialogShow();
       }
-    })
+    }).catch(submitOrderError)
   }else if (createOrderVersion == 4) {
     //v4版本的创建订单
 
-    //loading弹出框显示
-    loadingShow();
-    
     orderCreateV4Api(orderCreateParams).then(response => {
       if (response.code == '0' && response.data != null) {
         console.log('异步订单创建成功 订单编号',response.data)
@@ -351,18 +362,24 @@ function submitOrder(){
         timeoutTimer.value = setTimeout(() => {
           if (pollingTimer.value) {
             stopPolling();
+            loadingClose();
+            submitLoading.value = false;
+            dialogShow();
           }
         }, tenSecond);
       }else{
         dialogShow();
       }
-    })
+    }).catch(submitOrderError)
+  }else{
+    submitOrderError();
   }
 }
 //弹出排队框
 function dialogShow(){
   dialogVisible.value = true
   isSHowInfo.value=false
+  submitLoading.value = false
 }
 
 function dialogLoading(){
@@ -386,6 +403,7 @@ function loadingClose(){
 
 onBeforeUnmount(() => {
   stopPolling();
+  submitLoading.value = false;
 });
 </script>
 

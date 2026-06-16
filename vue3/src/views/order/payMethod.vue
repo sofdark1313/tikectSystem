@@ -19,7 +19,9 @@
           <strong>￥{{ orderDetailData.orderPrice }}</strong>
         </div>
       </div>
-      <el-button type="primary" class="payContinue" :loading="paying" @click="confirmPay">确认支付</el-button>
+      <el-button type="primary" class="payContinue" :loading="paying" :disabled="paying || !orderDetailData" @click="confirmPay">
+        {{ paying ? '支付中' : '确认支付' }}
+      </el-button>
     </div>
   </div>
 </template>
@@ -28,7 +30,7 @@
 import {ref,onMounted} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {ElMessage} from "element-plus";
-import {getOrderDetailApi,orderPayApi} from "@/api/order.js";
+import {getOrderDetailApi, orderPayApi, payCheckApi} from "@/api/order.js";
 //订单编号
 const orderNumber = ref('')
 //订单详情数据
@@ -36,15 +38,23 @@ const orderDetailData = ref(null);
 const paying = ref(false);
 const route = useRoute();
 const router = useRouter();
+const PAY_STATUS = 3;
+const ORDER_PAY_CODE = 40017;
 
 
-function confirmPay() {
+async function confirmPay() {
   if (paying.value) {
     return;
   }
-  const payAction = orderDetailData.value ? Promise.resolve() : getOrderDetail();
   paying.value = true;
-  payAction.then(() => {
+  try {
+    if (!orderDetailData.value) {
+      await getOrderDetail();
+    }
+    if (orderDetailData.value.orderStatus == PAY_STATUS) {
+      goPaySuccess();
+      return;
+    }
     const orderPayParams = {
       platform: 3,
       orderNumber: orderNumber.value,
@@ -53,19 +63,37 @@ function confirmPay() {
       channel: 'simple',
       payBillType: 1
     }
-    return orderPayApi(orderPayParams);
-  }).then(() => {
-    localStorage.setItem('orderNumber', orderNumber.value)
-    router.replace({path:'/order/paySuccess'})
-  }).catch(() => {
-    ElMessage.error('支付失败，请稍后重试')
-  }).finally(() => {
+    const payResponse = await orderPayApi(orderPayParams);
+    if (payResponse.code != '0' && payResponse.code != ORDER_PAY_CODE) {
+      throw new Error(payResponse.message || '支付失败，请稍后重试');
+    }
+    const checkResponse = await payCheckApi({orderNumber: orderNumber.value});
+    if (checkResponse.code != '0') {
+      throw new Error(checkResponse.message || '支付状态确认失败');
+    }
+    if (!checkResponse.data || checkResponse.data.orderStatus != PAY_STATUS) {
+      throw new Error('支付状态尚未确认，请稍后在订单列表查看');
+    }
+    goPaySuccess();
+  } catch (error) {
+    ElMessage.error(error.message || '支付失败，请稍后重试')
+  } finally {
     paying.value = false;
-  })
+  }
 }
 
 function goBack() {
   router.back();
+}
+
+function goPaySuccess() {
+  const orderNumberText = String(orderNumber.value);
+  localStorage.setItem('orderNumber', orderNumberText)
+  router.replace({
+    path: '/order/paySuccess',
+    query: {orderNumber: orderNumberText},
+    state: {'orderNumber': orderNumberText}
+  })
 }
 
 //跳转后的接收值
@@ -74,15 +102,18 @@ onMounted(() => {
 })
 //订单详情方法
 function getOrderDetail() {
-  orderNumber.value = history.state.orderNumber || route.query.orderNumber || localStorage.getItem('orderNumber');
+  orderNumber.value = route.query.orderNumber || history.state.orderNumber || localStorage.getItem('orderNumber');
   if (orderNumber.value == '' || orderNumber.value == null) {
     router.replace({path:'/orderManagement/index'})
-    return Promise.reject();
+    return Promise.reject(new Error('订单号不存在'));
   }
   const orderDetailParams = {'orderNumber': orderNumber.value}
   //传值-订单号
   localStorage.setItem('orderNumber',orderNumber.value)
   return getOrderDetailApi(orderDetailParams).then(response => {
+    if (response.code != '0' || !response.data) {
+      throw new Error(response.message || '订单不存在');
+    }
     orderDetailData.value = response.data;
   })
 }

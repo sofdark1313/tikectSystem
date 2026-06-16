@@ -45,7 +45,10 @@ public class ProgramOrderV21Strategy extends AbstractApplicationCommandLineRunne
     
     @RepeatExecuteLimit(
             name = RepeatExecuteLimitConstants.CREATE_PROGRAM_ORDER,
-            keys = {"#programOrderCreateDto.userId","#programOrderCreateDto.programId"})
+            keys = {"#programOrderCreateDto.userId", "#programOrderCreateDto.programId",
+                    "#programOrderCreateDto.ticketCategoryId", "#programOrderCreateDto.ticketCount",
+                    "#programOrderCreateDto.ticketUserIdList", "#programOrderCreateDto.seatDtoList"},
+            durationTime = 10)
     @Override
     public String createOrder(ProgramOrderCreateDto programOrderCreateDto) {
         compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);

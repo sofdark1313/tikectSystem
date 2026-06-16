@@ -17,8 +17,9 @@
 import Header from '@/components/header/index'
 import Footer from '@/components/footer/index'
 import {ref, onMounted} from 'vue'
-import {useRouter} from 'vue-router'
+import {useRoute, useRouter} from 'vue-router'
 const router = useRouter();
+const route = useRoute();
 const orderNumber = ref('');
 
 //继续逛逛
@@ -27,15 +28,16 @@ const  continueQuery=()=>{
 }
 //查看订单列表
 const orderQuery=()=>{
-  router.push({path:'/orderManagement/index'})
+  router.replace({path:'/orderManagement/index'})
 }
 
 onMounted(()=>{
-  orderNumber.value =  localStorage.getItem('orderNumber' )
-  //将这次获取到订单号移除
-  localStorage.removeItem('orderNumber')
+  orderNumber.value = route.query.orderNumber || history.state.orderNumber || localStorage.getItem('orderNumber')
+  if (orderNumber.value) {
+    localStorage.removeItem('orderNumber')
+  }
   if (orderNumber.value == '' || orderNumber.value == null){
-    router.replace({path:'/'})
+    router.replace({path:'/orderManagement/index'})
   }
 })
 </script>

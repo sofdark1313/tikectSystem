@@ -112,6 +112,8 @@ import static com.tikectsystem.core.RepeatExecuteLimitConstants.CREATE_PROGRAM_O
 @Service
 public class OrderService extends ServiceImpl<OrderMapper, Order> {
     
+    private static final String SIMPLE_PAY_RESULT = "PAY_SUCCESS";
+
     @Autowired
     private UidGenerator uidGenerator;
     
@@ -340,7 +342,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             throw new TikectsystemFrameException(BaseCode.ORDER_CANCEL);
         }
         if (Objects.equals(order.getOrderStatus(), OrderStatus.PAY.getCode())) {
-            throw new TikectsystemFrameException(BaseCode.ORDER_PAY);
+            return SIMPLE_PAY_RESULT;
         }
         if (Objects.equals(order.getOrderStatus(), OrderStatus.REFUND.getCode())) {
             throw new TikectsystemFrameException(BaseCode.ORDER_REFUND);
@@ -358,7 +360,13 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         }
         String payResult = Optional.ofNullable(payResponse.getData())
                 .orElseThrow(() -> new TikectsystemFrameException(BaseCode.PAY_ERROR));
-        orderService.updateOrderRelatedData(orderNumber,OrderStatus.PAY);
+        try {
+            orderService.updateOrderRelatedData(orderNumber,OrderStatus.PAY);
+        } catch (TikectsystemFrameException e) {
+            if (!Objects.equals(e.getCode(), BaseCode.ORDER_PAY.getCode())) {
+                throw e;
+            }
+        }
         return payResult;
     }
     
@@ -600,8 +608,16 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             seatMap.put(k,v.stream().map(OrderTicketUser::getSeatId).collect(Collectors.toList()));
         });
         //更新缓存和节目库相关数据
-        updateProgramRelatedDataResolution(programId,seatMap,orderStatus,order.getIdentifierId(),order.getUserId(),
-                seatIdAndTicketUserIdDomainList,order.getOrderVersion());
+        try {
+            updateProgramRelatedDataResolution(programId,seatMap,orderStatus,order.getIdentifierId(),order.getUserId(),
+                    seatIdAndTicketUserIdDomainList,order.getOrderVersion());
+        } catch (Exception e) {
+            if (Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode())) {
+                log.warn("order paid, but program related data update failed, orderNumber:{}", orderNumber, e);
+            } else {
+                throw e;
+            }
+        }
     }
     
     public void checkOrderStatus(Order order){

@@ -99,6 +99,7 @@ function cancelOrder(orderNumber){
         message: '取消成功',
         type: 'success',
       })
+      getOrderList()
     }else{
       ElMessage({
         message:response.message,
@@ -109,7 +110,13 @@ function cancelOrder(orderNumber){
 }
 
 function payOrder(orderNumber){
-  router.replace({path:'/order/payMethod',state:{'orderNumber':orderNumber}})
+  const orderNumberText = String(orderNumber);
+  localStorage.setItem('orderNumber', orderNumberText)
+  router.replace({
+    path:'/order/payMethod',
+    query:{orderNumber: orderNumberText},
+    state:{'orderNumber': orderNumberText}
+  })
 }
 
 onMounted(() => {
