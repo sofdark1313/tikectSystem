@@ -86,8 +86,7 @@
 
         </div>
         <div class="box-right">
-          <img :src="document" alt="">
-          <span><a href="https://javaup.chat" target="_blank">帮助</a></span>
+          <a href="/help.html" target="_blank" class="help-link">帮助</a>
         </div>
       </div>
     </div>
@@ -98,7 +97,6 @@
 
 import logo from '@/assets/login/logo.png'
 import photo from '@/assets/login/photo.png'
-import document from '@/assets/login/document.jpeg'
 import {ref, reactive, onMounted, nextTick} from 'vue'
 import {getToken, getUserIdKey, removeToken, removeUserIdKey, removeName} from "../../utils/auth";
 import useUserStore from '@/store/modules/user'
@@ -420,7 +418,6 @@ function getProgramSearchList() {
         height: 100%;
         display: inline-block;
         line-height: 72px;
-        cursor: pointer;
         position: relative;
         margin-left: 20px;
 
@@ -428,15 +425,12 @@ function getProgramSearchList() {
           color: rgba(255, 55, 29, 0.85);
         }
 
-        img {
-          width: 26px;
-          z-index: 20000;
+        .help-link {
+          color: inherit;
+          cursor: pointer;
           display: inline-block;
-          margin-right: 4px;
-          vertical-align: middle;
+          text-decoration: none;
         }
-
-
       }
     }
   }

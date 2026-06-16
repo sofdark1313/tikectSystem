@@ -1,63 +1,88 @@
 <template>
   <div class="app-container">
     <div class="pay-header">
-      <div class="back"><el-icon><ArrowLeftBold /></el-icon></div>
-      <div class="content"><img :src="pay" alt=""><span>支付宝付款</span></div>
+      <button class="back" type="button" @click="goBack"><el-icon><ArrowLeftBold /></el-icon></button>
+      <div class="content"><span>确认支付</span></div>
     </div>
     <div class="pay-section">
-      <el-button type="primary" class="payContinue" @click="continuePay">继续浏览器付款</el-button>
+      <div class="order-summary" v-if="orderDetailData">
+        <div class="summary-row">
+          <span>订单编号</span>
+          <strong>{{ orderNumber }}</strong>
+        </div>
+        <div class="summary-row">
+          <span>订单名称</span>
+          <strong>{{ orderDetailData.programTitle }}</strong>
+        </div>
+        <div class="summary-row amount">
+          <span>应付金额</span>
+          <strong>￥{{ orderDetailData.orderPrice }}</strong>
+        </div>
+      </div>
+      <el-button type="primary" class="payContinue" :loading="paying" @click="confirmPay">确认支付</el-button>
     </div>
   </div>
 </template>
 
 <script setup name="PayMethod">
-import pay from "@/assets/section/pay.png"
 import {ref,onMounted} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
+import {ElMessage} from "element-plus";
 import {getOrderDetailApi,orderPayApi} from "@/api/order.js";
 //订单编号
 const orderNumber = ref('')
 //订单详情数据
-const orderDetailData = ref('');
+const orderDetailData = ref(null);
+const paying = ref(false);
 const route = useRoute();
 const router = useRouter();
-import {useMitt} from "@/utils/index";
-
-const emitter = useMitt();
 
 
-function continuePay() {
-  //支付前，要调取订单详情
-  if (orderDetailData.value == '' || orderDetailData.value == null) {
-    getOrderDetail()
+function confirmPay() {
+  if (paying.value) {
+    return;
   }
-
-  const orderPayParams = {
-    'platform':3,
-    'orderNumber':orderNumber.value,
-    'subject':orderDetailData.value.programTitle,
-    'price':orderDetailData.value.orderPrice,
-    'channel':'alipay',
-    'payBillType':1
-  }
-  orderPayApi(orderPayParams).then(response => {
-    //将支付宝返回的表单字符串写在浏览器中，表单会自动触发submit提交
-    document.write(response.data);
-
+  const payAction = orderDetailData.value ? Promise.resolve() : getOrderDetail();
+  paying.value = true;
+  payAction.then(() => {
+    const orderPayParams = {
+      platform: 3,
+      orderNumber: orderNumber.value,
+      subject: orderDetailData.value.programTitle,
+      price: orderDetailData.value.orderPrice,
+      channel: 'simple',
+      payBillType: 1
+    }
+    return orderPayApi(orderPayParams);
+  }).then(() => {
+    localStorage.setItem('orderNumber', orderNumber.value)
+    router.replace({path:'/order/paySuccess'})
+  }).catch(() => {
+    ElMessage.error('支付失败，请稍后重试')
+  }).finally(() => {
+    paying.value = false;
   })
+}
+
+function goBack() {
+  router.back();
 }
 
 //跳转后的接收值
 onMounted(() => {
-  getOrderDetail()
+  getOrderDetail().catch(() => {})
 })
 //订单详情方法
 function getOrderDetail() {
-  orderNumber.value = history.state.orderNumber;
+  orderNumber.value = history.state.orderNumber || route.query.orderNumber || localStorage.getItem('orderNumber');
+  if (orderNumber.value == '' || orderNumber.value == null) {
+    router.replace({path:'/orderManagement/index'})
+    return Promise.reject();
+  }
   const orderDetailParams = {'orderNumber': orderNumber.value}
   //传值-订单号
   localStorage.setItem('orderNumber',orderNumber.value)
-  getOrderDetailApi(orderDetailParams).then(response => {
+  return getOrderDetailApi(orderDetailParams).then(response => {
     orderDetailData.value = response.data;
   })
 }
@@ -66,40 +91,35 @@ function getOrderDetail() {
 
 <style scoped lang="scss">
 .app-container {
+  min-height: 100vh;
+  background: #f6f7fb;
   .pay-header {
     display: flex;
-    -webkit-box-pack: justify;
-    -webkit-justify-content: space-between;
-    justify-content: space-between;
-    -webkit-box-align: center;
-    -webkit-align-items: center;
-    flex-direction: row;
+    justify-content: center;
     align-items: center;
-    height: 100%;
+    height: 92px;
     padding: 0 55px;
     background-color: #fff;
+    position: relative;
 
     .back {
       width: 40px;
+      height: 40px;
+      position: absolute;
+      left: 55px;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
       .el-icon{
         font-size: 40px;
       }
     }
 
     .content {
-      width: calc(100% - 40px);
       text-align: center;
-      position: relative;
-      img {
-        width: 60px;
-        height: 60px;
-        position: absolute;
-        top: 4px;
-        left: 40%;
-      }
-
       span {
-        font-size: 40px;
+        font-size: 34px;
         font-weight: 700;
         color: #333;
         height: 70px;
@@ -111,12 +131,40 @@ function getOrderDetail() {
     }
   }
   .pay-section{
+    width: 720px;
+    margin: 120px auto 0;
+    .order-summary{
+      background: #fff;
+      border: 1px solid #ebeef5;
+      border-radius: 8px;
+      padding: 28px 34px;
+      margin-bottom: 32px;
+      .summary-row{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 46px;
+        font-size: 18px;
+        color: #606266;
+        strong{
+          max-width: 460px;
+          text-align: right;
+          color: #303133;
+          font-weight: 600;
+          word-break: break-all;
+        }
+      }
+      .amount{
+        strong{
+          color: rgb(255, 40, 105);
+          font-size: 28px;
+        }
+      }
+    }
     .payContinue{
-      width: 95%;
-      height: 123px;
-      margin-top: 300px;
-      font-size: 60px;
-      margin-left: 40px;
+      width: 100%;
+      height: 72px;
+      font-size: 26px;
     }
   }
 }

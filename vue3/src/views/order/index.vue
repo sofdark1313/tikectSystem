@@ -88,8 +88,8 @@
         </div>
         <div class="sendline"></div>
         <div class="payMethod">
-          <div class="title">支付方式</div>
-          <div class="payMoney"><img :src="pay" alt=""><span>支付宝</span> <el-radio class="radioPay" value="1" size="large"></el-radio></div>
+          <div class="title">付款确认</div>
+          <div class="payMoney"><span>提交订单后进入确认支付页面，点击按钮即可完成付款</span></div>
         </div>
         <div class="info">
           <div class="descript">由于票品为价票券，非普通商品，其背后承载的文化服务具有时效性、稀缺性等特征，一旦订购成功，不支持退换。</div>
@@ -131,7 +131,6 @@
 
 <script setup name="orderIndex">
 import {ref, nextTick, onActivated, onMounted,onBeforeUnmount } from 'vue'
-import pay from "@/assets/section/pay.png"
 import {getCurrentDateTime,formatDateWithWeekday,useMitt} from '@/utils/index'
 import {useRoute, useRouter} from 'vue-router'
 import { getUserIdKey} from "@/utils/auth";
@@ -933,21 +932,13 @@ onBeforeUnmount(() => {
         }
         .payMoney{
           display: flex;
-          height: 300px;
-          img{
-            width: 80px;
-            height: 80px;
-          }
+          min-height: 80px;
+          align-items: center;
           span{
-            padding: 30px 15px;
-            font-size: 3.4vmin;
+            font-size: 24px;
             color: #000000;
             letter-spacing: 0;
-            line-height: 15px;
-            margin-right: 1500px;
-          }
-          .radioPay{
-
+            line-height: 34px;
           }
         }
       }

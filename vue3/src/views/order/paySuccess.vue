@@ -16,10 +16,8 @@
 <script setup name="PaySuccess">
 import Header from '@/components/header/index'
 import Footer from '@/components/footer/index'
-import {ref, nextTick, onActivated, onMounted} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
-import {payCheckApi} from '@/api/order.js'
-const route = useRoute();
+import {ref, onMounted} from 'vue'
+import {useRouter} from 'vue-router'
 const router = useRouter();
 const orderNumber = ref('');
 
@@ -34,18 +32,9 @@ const orderQuery=()=>{
 
 onMounted(()=>{
   orderNumber.value =  localStorage.getItem('orderNumber' )
-  console.log('这里是获取的订单号========================================', localStorage.getItem('orderNumber' ));
   //将这次获取到订单号移除
   localStorage.removeItem('orderNumber')
-  if (orderNumber.value != '' && orderNumber.value != null){
-    const tradeCheckParams = {
-      'orderNumber':orderNumber.value,
-      'payChannelType':'1'
-    }
-    payCheckApi(tradeCheckParams).then(response => {
-      console.log('交易状态查询结果',response.data)
-    })
-  }else {
+  if (orderNumber.value == '' || orderNumber.value == null){
     router.replace({path:'/'})
   }
 })
