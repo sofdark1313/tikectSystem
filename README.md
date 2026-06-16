@@ -436,9 +436,6 @@ Kafka 主要用于：
 
 本地联调时，program-service 和 order-service 都需要能访问同一 Kafka 集群。
 
-### Elasticsearch
-
-Elasticsearch 主要用于节目搜索。若本地只验证下单和支付流程，可以暂时不启动搜索相关链路，但涉及搜索页面或索引同步时需要启动。
 
 ### Seata
 
@@ -459,78 +456,6 @@ mvn spotless:check
 spotless/spotless.xml
 spotless/license-header
 ```
-
-约定：
-
-- Java 源码使用 UTF-8。
-- 服务间调用通过 `tikectsystem-server-client` 中的 Feign Client。
-- 不要跨服务直接引用其他服务 Controller。
-- 新增分片表时，同步更新 SQL、实体、Mapper、Mapper XML 和 ShardingSphere YAML。
-- 修改下单、库存、座位逻辑时，同时检查 Redis Lua 脚本和 Kafka 消息消费逻辑。
-
-## 常见问题
-
-### 前端请求 404 或跨域失败
-
-检查：
-
-- gateway-service 是否启动。
-- `vue3/.env.development` 中网关地址是否正确。
-- Vite proxy 前缀是否和 Axios baseURL 一致。
-- 请求路径是否符合 `/tikectsystem/{service}/**` 的网关规则。
-
-### 服务启动后注册不到 Nacos
-
-检查：
-
-- Nacos 地址是否正确。
-- Nacos 用户名密码是否正确。
-- `prefix.distinction.name` 是否符合当前环境约定。
-- 本机网络是否能访问 Nacos 端口。
-
-### 数据库连接失败
-
-检查：
-
-- MySQL 是否启动。
-- 分片库是否已创建。
-- 当前 profile 是否匹配对应的 `shardingsphere-*-local.yaml` 或 `shardingsphere-*-pro.yaml`。
-- JDBC URL、用户名、密码是否由正确环境注入。
-
-### 下单后一直排队或订单不生成
-
-检查：
-
-- Redis 是否可用。
-- Kafka 是否可用。
-- program-service 和 order-service 是否都已启动。
-- 下单版本配置是否和后端实现一致。
-- order-service 消费组是否正常消费消息。
-
-### 支付后仍显示未支付
-
-检查：
-
-- pay-service 是否启动。
-- order-service 是否能查询到该订单。
-- 支付接口是否返回成功。
-- 前端是否携带正确的 `orderNumber`。
-- 支付成功后订单状态是否已更新为已支付。
-
-### Elasticsearch 连接失败
-
-检查：
-
-- Elasticsearch 地址是否正确。
-- 用户名和密码是否正确。
-- 当前环境是否确实需要启动搜索链路。
-
-## 安全建议
-
-- 不要在 README、Git 提交、前端 `.env` 或 YAML 中提交真实密码、私钥、Token、数据库账号。
-- 示例参数统一使用占位符。
-- 生产环境建议使用配置中心、环境变量、密钥管理系统或容器 Secret 注入敏感信息。
-- 前端签名私钥、测试账号等配置只适合本地开发，不应直接用于生产环境。
 
 ## License
 
