@@ -396,6 +396,9 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             throw new TikectsystemFrameException(BaseCode.ORDER_NOT_EXIST);
         }
         BeanUtil.copyProperties(order,orderPayCheckVo);
+        if (Objects.equals(order.getOrderStatus(), OrderStatus.PAY.getCode())) {
+            return orderPayCheckVo;
+        }
 
         //如果订单已取消则进行退款
         if (Objects.equals(order.getOrderStatus(), OrderStatus.CANCEL.getCode())) {

@@ -67,13 +67,7 @@ async function confirmPay() {
     if (payResponse.code != '0' && payResponse.code != ORDER_PAY_CODE) {
       throw new Error(payResponse.message || '支付失败，请稍后重试');
     }
-    const checkResponse = await payCheckApi({orderNumber: orderNumber.value});
-    if (checkResponse.code != '0') {
-      throw new Error(checkResponse.message || '支付状态确认失败');
-    }
-    if (!checkResponse.data || checkResponse.data.orderStatus != PAY_STATUS) {
-      throw new Error('支付状态尚未确认，请稍后在订单列表查看');
-    }
+    await confirmPayStatus();
     goPaySuccess();
   } catch (error) {
     ElMessage.error(error.message || '支付失败，请稍后重试')
@@ -84,6 +78,17 @@ async function confirmPay() {
 
 function goBack() {
   router.back();
+}
+
+async function confirmPayStatus() {
+  try {
+    const checkResponse = await payCheckApi({orderNumber: orderNumber.value});
+    if (checkResponse.code == '0' && checkResponse.data && checkResponse.data.orderStatus == PAY_STATUS) {
+      orderDetailData.value.orderStatus = PAY_STATUS;
+    }
+  } catch (error) {
+    console.warn('pay status check failed', error);
+  }
 }
 
 function goPaySuccess() {
