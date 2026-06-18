@@ -2,7 +2,7 @@
 <div class="app-container" v-show="orderNumber !== '' && orderNumber !== null">
   <Header></Header>
   <div class="main">
-    <el-icon :size="50" class="iconCircle"><CircleCheck color="var(--app-primary)" /></el-icon>
+    <el-icon :size="50" class="iconCircle"><CircleCheck color="var(--app-accent)" /></el-icon>
     <span class="paySuccess">支付成功</span>
    <div class="btn">
      <el-button  class="continueQuery" @click="continueQuery"    >继续逛逛</el-button>
@@ -48,20 +48,21 @@ onMounted(()=>{
   margin: 0 auto;
   overflow: auto;
   min-height: 100vh;
-  background: var(--app-bg);
+  background: transparent;
 
   .main{
     height: 500px;
     width: 100%;
-    background: var(--app-surface);
+    background: #111113;
     margin: 0 auto;
     padding-top: 100px;
     text-align: center;
     position: relative;
     border: 1px solid var(--app-border);
     border-radius: 8px;
-    box-shadow: var(--app-shadow);
+    box-shadow: 0 24px 60px rgba(24, 24, 27, .20);
     margin-top: 24px;
+    overflow: hidden;
     .iconCircle{
       position: absolute;
       margin-left: -60px;
@@ -71,6 +72,7 @@ onMounted(()=>{
         font-size: 30px;
        font-weight: bolder;
       color: var(--app-text);
+      color: #fff;
 
     }
     .btn{
@@ -80,20 +82,25 @@ onMounted(()=>{
         width: 100px;
         height: 30px;
         border-radius: 50px;
+        color: #111;
+        background: #fff;
         &:hover{
-          color: var(--app-primary);
-          border-color:  var(--app-primary);
-          background: var(--app-primary-soft);
+          color: #111;
+          border-color:  var(--app-accent);
+          background: var(--app-accent);
         }
       }
       .orderQuery{
         width: 100px;
         height: 30px;
         border-radius: 50px;
+        color: #111;
+        background: var(--app-accent);
+        border-color: var(--app-accent);
         &:hover{
-          color: var(--app-primary);
-          border-color:  var(--app-primary);
-          background: var(--app-primary-soft);
+          color: #111;
+          border-color:  var(--app-accent);
+          background: #fff;
         }
       }
     }

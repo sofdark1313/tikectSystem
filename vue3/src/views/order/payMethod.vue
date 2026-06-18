@@ -128,17 +128,19 @@ function getOrderDetail() {
 <style scoped lang="scss">
 .app-container {
   min-height: 100vh;
-  background: radial-gradient(circle at top, #eaf6f4 0, var(--app-bg) 36%, var(--app-bg) 100%);
+  background:
+      linear-gradient(135deg, rgba(245, 158, 11, .12), transparent 34%),
+      var(--app-bg);
   .pay-header {
     display: flex;
     justify-content: center;
     align-items: center;
     height: 92px;
     padding: 0 55px;
-    background-color: rgba(255,255,255,.94);
+    background-color: #111113;
     position: relative;
-    border-bottom: 1px solid var(--app-border);
-    box-shadow: 0 10px 28px rgba(18, 60, 70, .08);
+    border-bottom: 3px solid var(--app-accent);
+    box-shadow: 0 18px 46px rgba(24, 24, 27, .20);
 
     .back {
       width: 40px;
@@ -149,6 +151,7 @@ function getOrderDetail() {
       background: transparent;
       padding: 0;
       cursor: pointer;
+      color: #fff;
       .el-icon{
         font-size: 40px;
       }
@@ -160,6 +163,7 @@ function getOrderDetail() {
         font-size: 34px;
         font-weight: 700;
         color: #333;
+        color: #fff;
         height: 70px;
         display: inline-block;
         line-height: 70px;
@@ -175,9 +179,21 @@ function getOrderDetail() {
       background: var(--app-surface);
       border: 1px solid var(--app-border);
       border-radius: 8px;
-      padding: 28px 34px;
+      padding: 30px 36px;
       margin-bottom: 32px;
-      box-shadow: var(--app-shadow);
+      box-shadow: 0 22px 58px rgba(24, 24, 27, .14);
+      position: relative;
+      overflow: hidden;
+
+      &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 7px;
+        background: linear-gradient(90deg, var(--app-accent), var(--app-danger));
+      }
       .summary-row{
         display: flex;
         justify-content: space-between;
@@ -196,6 +212,7 @@ function getOrderDetail() {
       .amount{
         strong{
           color: var(--app-accent);
+          color: var(--app-danger);
           font-size: 28px;
         }
       }
@@ -205,7 +222,11 @@ function getOrderDetail() {
       height: 72px;
       font-size: 26px;
       border-radius: 8px;
-      box-shadow: 0 14px 28px rgba(15, 118, 110, .22);
+      background: var(--app-accent);
+      border-color: var(--app-accent);
+      color: #111;
+      font-weight: 800;
+      box-shadow: 0 18px 34px rgba(245, 158, 11, .26);
     }
   }
 }

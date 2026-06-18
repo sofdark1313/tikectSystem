@@ -528,11 +528,18 @@ function removeTag(str, tag) {
 .app-container {
   width: 1200px;
   margin: 0 auto;
-  padding: 20px 0 36px;
+  padding: 26px 0 42px;
 
   .goods {
-    line-height: 50px;
-    color: var(--app-text-muted);
+    display: inline-flex;
+    align-items: center;
+    height: 34px;
+    line-height: 34px;
+    margin-bottom: 14px;
+    padding: 0 14px;
+    color: rgba(255, 255, 255, .76);
+    background: #111113;
+    border-radius: 999px;
     font-size: 14px;
 
     span {
@@ -551,12 +558,12 @@ function removeTag(str, tag) {
         width: 928px;
 
         .box-type {
-          padding: 0 24px;
-          border: 1px solid var(--app-border);
+          padding: 6px 24px 12px;
+          border: 1px solid rgba(24, 24, 27, .16);
           min-height: 300px;
-          background: var(--app-surface);
+          background: #111113;
           border-radius: 8px;
-          box-shadow: 0 10px 24px rgba(18, 60, 70, .06);
+          box-shadow: 0 18px 44px rgba(24, 24, 27, .16);
 
           div.city {
             display: inline-block;
@@ -576,15 +583,15 @@ function removeTag(str, tag) {
                 line-height: 26px;
                 padding: 0 8px;
                 margin-right: 20px;
-                color: #333;
+                color: rgba(255, 255, 255, .72);
                 border-radius: 999px;
                 white-space: nowrap;
                 cursor: pointer;
                 transition: color .2s ease, background .2s ease;
 
                 &:hover {
-                  color: var(--app-primary);
-                  background: var(--app-primary-soft);
+                  color: #111;
+                  background: var(--app-accent);
                 }
               }
 
@@ -622,10 +629,11 @@ function removeTag(str, tag) {
                 border-bottom: 1px solid var(--app-border);
                 margin: 0 10px;
                 height: 250px;
-                transition: background .2s ease;
+                transition: background .2s ease, transform .2s ease;
 
                 &:hover {
-                  background: var(--app-surface-soft);
+                  background: var(--app-accent-soft);
+                  transform: translateX(4px);
                 }
 
                 .link {
@@ -637,7 +645,7 @@ function removeTag(str, tag) {
                   margin-right: 20px;
                   float: left;
                   border-radius: 8px;
-                  box-shadow: 0 10px 22px rgba(18, 60, 70, .10);
+                  box-shadow: 0 14px 30px rgba(24, 24, 27, .14);
 
                   img {
                     width: 100%;
@@ -672,7 +680,7 @@ function removeTag(str, tag) {
                       font-weight: 700;
 
                       &:hover {
-                        color: var(--app-primary);
+                        color: var(--app-danger);
                       }
 
                     }
@@ -696,8 +704,7 @@ function removeTag(str, tag) {
                     overflow: hidden;
 
                     .price {
-                      color: var(--app-primary);
-                      color: var(--app-accent);
+                      color: var(--app-danger);
                       font-weight: 700;
                       font-size: 16px;
                       margin-right: 20px;
@@ -726,7 +733,7 @@ function removeTag(str, tag) {
       border-color: var(--app-border);
       border-radius: 8px;
       background: var(--app-surface);
-      box-shadow: 0 10px 24px rgba(18, 60, 70, .06);
+      box-shadow: var(--app-shadow);
       margin-left: 10px;
       max-height: 514px;
       float: right;
@@ -734,11 +741,11 @@ function removeTag(str, tag) {
       .box-like {
         height: 37px;
         line-height: 37px;
-        background-color: #f5f5f5;
+        background-color: #111113;
         border-bottom: 1px solid var(--app-border);
         font-size: 14px;
         font-family: Microsoft YaHei;
-        color: var(--app-text);
+        color: #fff;
         font-weight: 700;
         padding: 0 15px;
       }
@@ -755,6 +762,11 @@ function removeTag(str, tag) {
           padding: 15px 15px 0 15px;
           margin-bottom: 0px;
           box-shadow: none;
+          transition: background .2s ease;
+
+          &:hover {
+            background: var(--app-primary-soft);
+          }
 
           img {
             width: 98px;
@@ -787,8 +799,8 @@ function removeTag(str, tag) {
 }
 
 .active {
-  background-color: var(--app-primary);
-  color: #ffffff !important;
+  background-color: var(--app-accent);
+  color: #111 !important;
   display: inline-block;
   height: 26px;
   line-height: 26px;
@@ -805,7 +817,7 @@ function removeTag(str, tag) {
   height: 26px;
   line-height: 26px;
   display: inline-block;
-  color: var(--app-text-muted);
+  color: rgba(255, 255, 255, .62);
   text-align: center;
 }
 
@@ -813,7 +825,7 @@ function removeTag(str, tag) {
 :deep(.el-collapse-item) {
   display: flex;
   flex-direction: row;
-  border-bottom: 1px dotted #dfdfdf;
+  border-bottom: 1px dotted rgba(255, 255, 255, .18);
 }
 
 :deep(.el-collapse-item:first-child) {
@@ -871,11 +883,43 @@ function removeTag(str, tag) {
 }
 
 .search__item__info__price strong {
-  color: var(--app-primary); /* 价格字体颜色为红色 */
+  color: var(--app-danger);
 }
 :deep(em){
  font-weight: bolder;
-  color: var(--app-accent);
+  color: var(--app-danger);
 
+}
+
+:deep(.el-collapse) {
+  --el-collapse-border-color: transparent;
+  background: transparent;
+}
+
+:deep(.el-collapse-item__header) {
+  background: transparent;
+  color: rgba(255, 255, 255, .72);
+}
+
+:deep(.el-tabs--border-card) {
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--app-shadow);
+}
+
+:deep(.el-tabs--border-card > .el-tabs__header) {
+  background: #111113;
+  border-bottom: 3px solid var(--app-accent);
+}
+
+:deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item) {
+  color: rgba(255, 255, 255, .72);
+  border: none;
+}
+
+:deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item.is-active) {
+  color: #111;
+  background: var(--app-accent);
 }
 </style>

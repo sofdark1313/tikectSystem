@@ -236,33 +236,36 @@ function getProgramSearchList() {
 <style scoped lang="scss">
 .app-header {
   width: 100%;
-  height: 76px;
-  background: rgba(255, 255, 255, .94);
-  border-bottom: 1px solid var(--app-border);
-  box-shadow: 0 10px 28px rgba(18, 60, 70, .08);
+  height: 82px;
+  background: #111113;
+  border-bottom: 3px solid var(--app-accent);
+  box-shadow: 0 18px 46px rgba(24, 24, 27, .22);
   position: sticky;
   top: 0;
   z-index: 1000;
-  backdrop-filter: blur(10px);
 
   .header {
     width: 1200px;
     margin: 0 auto;
-    height: 76px;
+    height: 82px;
     display: flex;
     align-items: center;
-    gap: 22px;
+    gap: 20px;
 
     .link {
       display: block;
       float: none;
-      width: 132px;
-      height: 76px;
-      flex: 0 0 132px;
+      width: 144px;
+      height: 52px;
+      flex: 0 0 144px;
+      border-radius: 8px;
+      background: #fff;
+      padding: 5px 10px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .3);
       img {
-        margin-top: 15px;
-        width: 132px;
-        height: 46px;
+        margin-top: 0;
+        width: 124px;
+        height: 42px;
         display: block;
         object-fit: contain;
       }
@@ -274,15 +277,15 @@ function getProgramSearchList() {
       float: none;
       position: relative;
       margin-left: 0;
-      line-height: 76px;
+      line-height: 82px;
       white-space: nowrap;
       cursor: pointer;
-      color: var(--app-text-muted);
+      color: rgba(255, 255, 255, .72);
 
       .city-location {
         max-width: 56px;
         font-size: 16px;
-        color: var(--app-text);
+        color: #fff;
         display: inline-block;
         vertical-align: middle;
         margin-left: 5px;
@@ -305,41 +308,49 @@ function getProgramSearchList() {
       height: 100%;
       float: none;
       margin: 0;
-      line-height: 76px;
+      line-height: 82px;
       overflow: hidden;
       flex: 0 0 auto;
 
       .routeHome {
         display: inline-block;
         font-size: 16px;
-        margin-right: 18px;
+        margin-right: 10px;
+        padding: 0 13px;
         overflow: hidden;
-        color: var(--app-text-muted);
+        color: rgba(255, 255, 255, .74);
         font-weight: 600;
+        border-radius: 999px;
+        line-height: 34px;
 
       }
 
       .routeHome.router-link-active {
-        color: var(--app-primary);
+        color: #111;
+        background: var(--app-accent);
       }
 
       .routeType {
         display: inline-block;
         font-size: 16px;
-        color: var(--app-text-muted);
-        margin-right: 18px;
+        color: rgba(255, 255, 255, .74);
+        margin-right: 10px;
+        padding: 0 13px;
         overflow: hidden;
         font-weight: 600;
+        border-radius: 999px;
+        line-height: 34px;
 
       }
 
       .routeType.router-link-active {
-        color: var(--app-primary);
+        color: #111;
+        background: var(--app-accent);
       }
     }
 
     .searchHeader {
-      width: 360px;
+      width: 420px;
       height: 46px;
       margin-top: 0;
       margin-left: auto;
@@ -348,8 +359,8 @@ function getProgramSearchList() {
       position: relative;
 
       .input-with-search {
-        width: 360px;
-        height: 44px;
+        width: 420px;
+        height: 46px;
         position: absolute;
         left: 0;
         top: 0;
@@ -359,10 +370,10 @@ function getProgramSearchList() {
         -webkit-appearance: none;
         border: 0;
         border-radius: 999px;
-        background-color: var(--app-surface-soft);
-        border-right-color: var(--app-primary);
+        background-color: #fff;
+        border-right-color: var(--app-accent);
         box-sizing: content-box;
-        box-shadow: 0 0 0 1px var(--app-border) inset;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, .16) inset, 0 12px 28px rgba(0, 0, 0, .22);
 
         :deep .el-input-group__prepend {
           box-shadow: none;
@@ -377,15 +388,15 @@ function getProgramSearchList() {
       }
 
       .searchBtn {
-        width: 82px;
+        width: 90px;
         height: 100%;
         position: absolute;
         right: 0;
         top: 0;
-        background: var(--app-primary);
+        background: var(--app-accent);
         font-size: 16px;
         text-align: center;
-        color: #FFF;
+        color: #111;
         border-radius: 0 27px 27px 0;
         z-index: 11;
         letter-spacing: 0;
@@ -399,19 +410,20 @@ function getProgramSearchList() {
       height: 100%;
       position: relative;
       float: none;
-      line-height: 76px;
+      line-height: 82px;
       flex: 0 0 auto;
 
       .box-left {
         height: 100%;
         display: inline-block;
-        line-height: 76px;
+        line-height: 82px;
         cursor: pointer;
         position: relative;
-        margin-left: 20px;
+        margin-left: 14px;
+        color: rgba(255, 255, 255, .84);
 
         &:hover {
-          color: var(--app-primary);
+          color: var(--app-accent);
         }
 
         img {
@@ -434,18 +446,25 @@ function getProgramSearchList() {
       .box-right {
         height: 100%;
         display: inline-block;
-        line-height: 76px;
+        line-height: 82px;
         position: relative;
-        margin-left: 20px;
+        margin-left: 14px;
 
         &:hover {
-          color: var(--app-primary);
+          color: #111;
         }
 
         .help-link {
-          color: inherit;
+          color: #111;
           cursor: pointer;
-          display: inline-block;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 54px;
+          height: 32px;
+          padding: 0 14px;
+          background: #fff;
+          border-radius: 999px;
           text-decoration: none;
           font-weight: 600;
         }
@@ -493,7 +512,7 @@ function getProgramSearchList() {
   margin-top: 60px;
   background: #FFF;
   border: 1px solid var(--app-border);
-  box-shadow: var(--app-shadow);
+  box-shadow: 0 18px 50px rgba(24, 24, 27, .22);
   border-radius: var(--app-radius);
   padding: 21px;
   max-height: 1500px;
@@ -526,8 +545,8 @@ function getProgramSearchList() {
     }
 
     .select-city {
-      color: var(--app-primary);
-      background-color: var(--app-primary-soft);
+      color: #111;
+      background-color: var(--app-accent);
       padding: 0 10px;
       border-radius: 4px;
     }
@@ -566,7 +585,7 @@ function getProgramSearchList() {
         letter-spacing: .56px;
 
         &:hover {
-          color: var(--app-primary);
+          color: var(--app-accent);
           cursor: pointer;
         }
       }
@@ -607,7 +626,7 @@ function getProgramSearchList() {
         float: left;
 
         &:hover {
-          color: var(--app-primary);
+          color: var(--app-accent);
           cursor: pointer;
         }
       }

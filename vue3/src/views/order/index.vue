@@ -411,7 +411,7 @@ onBeforeUnmount(() => {
 .app-container {
   width: 100%;
   height: 100%;
-  background: #ffffff;
+  background: var(--app-bg);
 
   .confirm-order {
     position: relative;
@@ -438,7 +438,8 @@ onBeforeUnmount(() => {
         width: 100%;
         padding-top: 31px;
         height: 318px;
-        background: var(--app-primary);
+        background: #111113;
+        border-bottom: 7px solid var(--app-accent);
 
         .title {
           position: relative;
@@ -486,7 +487,7 @@ onBeforeUnmount(() => {
           flex-shrink: 0;
           flex-grow: 0;
           margin-right: 43px;
-          background-color: var(--app-primary);
+          background-color: var(--app-accent);
           place-self: center flex-end;
           margin-left: 43px;
           width: 100%;
@@ -680,7 +681,7 @@ onBeforeUnmount(() => {
             place-self: flex-start center;
             width: fit-content;
             -webkit-box-flex: 1;
-            color: var(--app-primary);
+            color: var(--app-accent);
             margin-top: 6px;
             height: auto;
             -webkit-box-pack: start;
@@ -701,9 +702,9 @@ onBeforeUnmount(() => {
             flex-grow: 0;
             overflow: hidden;
             margin-right: 43px;
-            background-color: var(--app-primary);
+            background-color: var(--app-accent);
             place-self: center flex-end;
-            box-shadow: var(--app-primary) 0px 0px 0px 1px inset;
+            box-shadow: var(--app-accent) 0px 0px 0px 1px inset;
             width: 110px;
             height: 55px;
             border-radius: 28px;
@@ -966,6 +967,8 @@ onBeforeUnmount(() => {
         position: fixed;
         bottom: 0px;
         background: #ffffff;
+        border-top: 3px solid var(--app-accent);
+        box-shadow: 0 -18px 46px rgba(24, 24, 27, .14);
         z-index: 100000;
         .descript{
           position: relative;
@@ -997,7 +1000,7 @@ onBeforeUnmount(() => {
             font-size: 41px;
             place-self: center flex-start;
             width: fit-content;
-            color: var(--app-primary);
+            color: var(--app-danger);
             height: auto;
             -webkit-box-pack: start;
             justify-content: flex-start;
@@ -1033,12 +1036,12 @@ onBeforeUnmount(() => {
             justify-content: center;
             -webkit-box-align: center;
             align-items: center;
-            color: rgb(255, 255, 255);
+            color: #111;
             height: 90px;
             overflow: hidden;
             max-width: none;
             border-radius: 20px;
-            background: var(--app-primary);
+            background: var(--app-accent);
             border: none;
 
           }

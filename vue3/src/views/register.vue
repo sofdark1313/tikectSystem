@@ -257,11 +257,13 @@ function handleValueFromChild(value) {
   width: 100%;
   height: 100%;
   position: absolute;
-  background: #ffffff;
+  background: var(--app-bg);
 
   .main {
-    background-color: #f8f8f8;
-    padding-top: 40px;
+    background:
+        linear-gradient(135deg, rgba(245, 158, 11, .14), transparent 30%),
+        var(--app-bg);
+    padding: 46px 0 58px;
 
     .main-center {
       width: 1200px;
@@ -270,6 +272,20 @@ function handleValueFromChild(value) {
       padding-top: 40px;
       margin: 0 auto;
       position: relative;
+      border: 1px solid var(--app-border);
+      border-radius: 8px;
+      box-shadow: var(--app-shadow);
+      overflow: hidden;
+
+      &::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 7px;
+        background: linear-gradient(90deg, var(--app-primary), var(--app-accent), var(--app-danger));
+      }
 
 
       .el-form {
@@ -347,8 +363,7 @@ function handleValueFromChild(value) {
 
 .btn {
   background-color: var(--app-primary);
-  background-image: -webkit-gradient(linear, left top, right top, from(var(--app-accent)), to(var(--app-primary)));
-  background-image: linear-gradient(90deg, var(--app-accent), var(--app-primary));
+  background-image: linear-gradient(90deg, var(--app-primary), #2f2f35);
   border-color: var(--app-primary);
   border-radius: 3px;
   font-size: 20px;

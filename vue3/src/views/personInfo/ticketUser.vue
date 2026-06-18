@@ -182,7 +182,7 @@ function reset(){
 <style scoped lang="scss">
 .container{
   .red-line {
-    border-bottom: 5px solid var(--app-primary);
+    border-bottom: 5px solid var(--app-accent);
   }
 
   .section {
@@ -203,6 +203,7 @@ function reset(){
         height: 38px;
         overflow: hidden;
         background: var(--app-primary) repeat-x;
+        border-bottom: 3px solid var(--app-accent);
         padding: 0 15px;
         line-height: 38px;
         color: #ffffff;
@@ -213,15 +214,18 @@ function reset(){
         margin-top: 23px;
           .addUser{
             margin: 0px 0px 10px 86%;
-            background-color: var(--app-primary);
-            color: #fff;
+            background-color: var(--app-accent);
+            color: #111;
           }
         .addTicketUserInfo{
           border: 1px solid #ebeef5;
+          border-radius: 8px;
+          background: #fff;
+          box-shadow: 0 10px 24px rgba(24, 24, 27, .06);
           .title{
             width: 136px;
             line-height: 36px;
-            border-bottom: 2px solid var(--app-primary);;
+            border-bottom: 2px solid var(--app-accent);;
             padding-left: 15px;
             font-size: 16px;
             color: #333333;

@@ -128,7 +128,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .red-line {
-  border-bottom: 5px solid var(--app-primary);
+  border-bottom: 5px solid var(--app-accent);
 }
 
 .section {
@@ -149,7 +149,7 @@ onMounted(() => {
     background: var(--app-surface);
     border: 1px solid var(--app-border);
     border-radius: 8px;
-    box-shadow: 0 10px 24px rgba(18, 60, 70, .06);
+    box-shadow: var(--app-shadow);
     padding: 12px;
 
     table{
@@ -158,8 +158,8 @@ onMounted(() => {
       box-sizing: border-box;
       border-left: 1px solid transparent;
       border-right: 1px solid transparent;
-      background: var(--app-surface-soft);
-      color: var(--app-text-muted);
+      background: #111113;
+      color: rgba(255, 255, 255, .72);
       padding: 12px 0 12px 20px;
       height: 40px;
       line-height: 16px;
@@ -177,17 +177,18 @@ onMounted(() => {
       border-radius: 8px;
       overflow: hidden;
       transition: box-shadow .2s ease, transform .2s ease;
+      background: var(--app-surface);
 
       &:hover {
         transform: translateY(-2px);
-        box-shadow: var(--app-shadow);
+        box-shadow: var(--app-shadow-hover);
       }
       .num{
         font-size: 12px;
         padding: 14px 0 14px 20px;
-        background: var(--app-surface-soft);
-        color: var(--app-text-muted);
-        border-bottom: 1px solid var(--app-border);
+        background: #111113;
+        color: rgba(255, 255, 255, .72);
+        border-bottom: 3px solid var(--app-accent);
       }
       ul{
         margin: 0;
@@ -249,6 +250,8 @@ onMounted(() => {
           text-align: center;
           .price{
             width: 100%;
+            color: var(--app-danger);
+            font-weight: 800;
           }
           .money{
             width: 100%;
@@ -290,9 +293,10 @@ onMounted(() => {
           }
           
           .orderDetial:hover {
-            background-color: #129083;
+            background-color: var(--app-accent);
+            color: #111;
             transform: scale(1.05);
-            box-shadow: 0 8px 16px rgba(15, 118, 110, 0.24);
+            box-shadow: 0 10px 20px rgba(245, 158, 11, 0.26);
           }
         }
       }

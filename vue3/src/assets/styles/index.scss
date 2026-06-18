@@ -1,20 +1,22 @@
 @import './reset.scss';
 
 :root {
-  --app-bg: #f3f7f8;
+  --app-bg: #f6f7fb;
   --app-surface: #ffffff;
-  --app-surface-soft: #f8fbfb;
-  --app-border: #dfe8e8;
-  --app-border-strong: #cbdada;
-  --app-primary: #0f766e;
-  --app-primary-dark: #123c46;
-  --app-primary-soft: #e4f4f2;
-  --app-accent: #ff6b4a;
-  --app-accent-soft: #fff0eb;
-  --app-text: #172426;
-  --app-text-muted: #657477;
-  --app-shadow: 0 14px 34px rgba(18, 60, 70, .10);
-  --app-shadow-hover: 0 20px 42px rgba(18, 60, 70, .16);
+  --app-surface-soft: #f1f3f8;
+  --app-border: #e4e7ef;
+  --app-border-strong: #c8cfdd;
+  --app-primary: #18181b;
+  --app-primary-dark: #09090b;
+  --app-primary-soft: #f4f4f5;
+  --app-accent: #f59e0b;
+  --app-accent-soft: #fff7e6;
+  --app-danger: #db2777;
+  --app-info: #0284c7;
+  --app-text: #18181b;
+  --app-text-muted: #71717a;
+  --app-shadow: 0 16px 40px rgba(24, 24, 27, .10);
+  --app-shadow-hover: 0 22px 54px rgba(24, 24, 27, .18);
   --app-radius: 8px;
 }
 
@@ -28,7 +30,11 @@ body {
   text-rendering: optimizeLegibility;
   font-family: Inter, Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Arial, sans-serif;
   color: var(--app-text);
-  background: var(--app-bg);
+  background-color: var(--app-bg);
+  background-image:
+      linear-gradient(rgba(24, 24, 27, .035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(24, 24, 27, .035) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 label {
@@ -42,7 +48,7 @@ html {
 
 #app {
   height: 100%;
-  background: var(--app-bg);
+  background: transparent;
 }
 
 *,
@@ -200,7 +206,7 @@ aside {
   }
 }
 .el-loading-spinner .path{
-  stroke: var(--app-primary) !important;
+  stroke: var(--app-accent) !important;
 }
 .el-loading-text{
   color: var(--app-primary) !important;
@@ -210,8 +216,8 @@ aside {
 .el-button--primary {
   --el-button-bg-color: var(--app-primary);
   --el-button-border-color: var(--app-primary);
-  --el-button-hover-bg-color: #129083;
-  --el-button-hover-border-color: #129083;
+  --el-button-hover-bg-color: var(--app-accent);
+  --el-button-hover-border-color: var(--app-accent);
   --el-button-active-bg-color: var(--app-primary-dark);
   --el-button-active-border-color: var(--app-primary-dark);
 }
@@ -224,7 +230,7 @@ aside {
 
 .el-input__wrapper.is-focus,
 .el-textarea__inner:focus {
-  box-shadow: 0 0 0 1px var(--app-primary) inset !important;
+  box-shadow: 0 0 0 1px var(--app-accent) inset !important;
 }
 
 .el-pagination.is-background .el-pager li.is-active {
@@ -232,6 +238,6 @@ aside {
 }
 
 ::selection {
-  color: #fff;
-  background: var(--app-primary);
+  color: #111;
+  background: var(--app-accent);
 }

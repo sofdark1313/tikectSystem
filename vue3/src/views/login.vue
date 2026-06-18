@@ -165,13 +165,15 @@ function getExperienceAccount(){
 .app-container {
   width: 100%;
   min-height: 100%;
-  background: #f6f8fb;
+  background: var(--app-bg);
 
 
   .main {
     width: 100%;
     min-height: 620px;
-    background: linear-gradient(135deg, #0f223f, #117667);
+    background:
+        linear-gradient(135deg, rgba(245, 158, 11, .18), transparent 28%),
+        linear-gradient(180deg, #111113 0%, #18181b 100%);
     display: flex;
     align-items: center;
 
@@ -193,7 +195,8 @@ function getExperienceAccount(){
           display: block;
           object-fit: cover;
           border-radius: 8px;
-          box-shadow: 0 24px 60px rgba(0, 0, 0, .26);
+          box-shadow: 0 28px 70px rgba(0, 0, 0, .42);
+          border: 1px solid rgba(255, 255, 255, .14);
         }
       }
 
@@ -207,6 +210,7 @@ function getExperienceAccount(){
         text-align: center;
         border-radius: 8px;
         box-shadow: 0 24px 60px rgba(0, 0, 0, .22);
+        border-top: 7px solid var(--app-accent);
       }
     }
 
@@ -228,7 +232,7 @@ function getExperienceAccount(){
   display: inline-block;
   margin-left: 10px;
   font-size: 20px;
-  color: var(--app-accent);
+  color: var(--app-danger);
   text-decoration: none;
   font-weight: 400;
 }
@@ -252,9 +256,9 @@ function getExperienceAccount(){
 }
 
 :deep(.el-tabs--card > .el-tabs__header .el-tabs__item.is-active) {
-  border-color: var(--app-primary);
-  color: var(--app-primary);
-  background-color: #fff;
+  border-color: var(--app-accent);
+  color: #111;
+  background-color: var(--app-accent);
 }
 
 :deep(.el-tabs--card > .el-tabs__header .el-tabs__item) {
@@ -300,8 +304,7 @@ function getExperienceAccount(){
 
 .btn {
   background-color: var(--app-primary);
-  background-image: -webkit-gradient(linear, left top, right top, from(var(--app-primary)), to(var(--app-primary)));
-  background-image: linear-gradient(90deg, var(--app-primary), var(--app-primary));
+  background-image: linear-gradient(90deg, var(--app-primary), #2f2f35);
   border-color: var(--app-primary);
   border-radius: 3px;
   font-size: 20px;
@@ -347,8 +350,7 @@ function getExperienceAccount(){
 
 .experienceAccountConfirm{
   background-color: var(--app-primary);
-  background-image: -webkit-gradient(linear, left top, right top, from(var(--app-primary)), to(var(--app-primary)));
-  background-image: linear-gradient(90deg, var(--app-primary), var(--app-primary));
+  background-image: linear-gradient(90deg, var(--app-primary), #2f2f35);
   border-color: var(--app-primary);
   border-radius: 3px;
   font-size: 20px;

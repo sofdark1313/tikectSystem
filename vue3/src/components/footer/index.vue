@@ -50,10 +50,11 @@ const footerList = ref(
 
 <style scoped lang="scss">
 .footer {
-  background: linear-gradient(180deg, #f7fbfb 0%, #edf4f4 100%);
+  background: #111113;
   width: 100%;
-  height: 150px;
-  border-top: 1px solid var(--app-border);
+  height: 158px;
+  border-top: 3px solid var(--app-accent);
+  box-shadow: 0 -14px 38px rgba(24, 24, 27, .10);
   //position: fixed;
 
   .footer-sec {
@@ -69,12 +70,12 @@ const footerList = ref(
       zoom: 1;
       list-style: none;
       font-size: 13px;
-      color: var(--app-text-muted);
+      color: rgba(255, 255, 255, .68);
 
       li {
         transition: color .2s ease;
         &:hover {
-          color: var(--app-primary);
+          color: var(--app-accent);
         }
         &:last-child {
           .line {
@@ -84,6 +85,7 @@ const footerList = ref(
 
         .line {
           padding: 0 24px;
+          color: rgba(255, 255, 255, .22);
 
 
         }
@@ -171,7 +173,15 @@ const footerList = ref(
         height: 20px;
         text-align: center;
         font-size: 14px;
-        color: var(--app-text-muted);
+        color: rgba(255, 255, 255, .58);
+
+        a {
+          color: rgba(255, 255, 255, .58);
+
+          &:hover {
+            color: var(--app-accent);
+          }
+        }
       }
     }
   }

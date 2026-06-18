@@ -81,7 +81,10 @@ const props = defineProps({
 }
 
 :deep(.menu_border) {
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--app-border);
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+  background: #fff;
 }
 
 :deep(.el-menu) {
@@ -99,8 +102,8 @@ const props = defineProps({
 
 :deep(.el-sub-menu .el-menu-item:hover),
 :deep(.el-sub-menu .el-menu-item.is-active) {
-  border-left: 2px solid var(--app-primary);
-  background: #fafafa url(//assets.tikectsystem.cn/tikectsystem_v2/passport/images/i.png) no-repeat scroll 183px 13px;
+  border-left: 3px solid var(--app-accent);
+  background: var(--app-accent-soft);
   height: 32px;
   margin-left: -1px;
   position: relative;
@@ -110,14 +113,14 @@ const props = defineProps({
 }
 
 :deep(.el-menu .el-sub-menu .el-sub-menu__title) {
-  background: url(//assets.tikectsystem.cn/tikectsystem_v2/passport/images/side-h3.png) repeat-x;
+  background: #111113;
   //border-top: 1px solid #efefef;
-  border-bottom: 1px solid #efefef;
+  border-bottom: 1px solid rgba(255, 255, 255, .12);
   height: 30px;
   line-height: 30px;
   padding-left: 20px;
   font-family: "Microsoft YaHei";
-  color: #333;
+  color: #fff;
   font-weight: 700;
 }
 
@@ -132,6 +135,7 @@ const props = defineProps({
 
 .mb-2 {
   background: var(--app-primary) no-repeat;
+  border-bottom: 3px solid var(--app-accent);
   width: 205px;
   height: 33px;
   position: relative;

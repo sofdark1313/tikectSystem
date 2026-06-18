@@ -106,7 +106,7 @@ function getIsVaild() {
 
 <style scoped lang="scss">
 .red-line {
-  border-bottom: 5px solid var(--app-primary);
+  border-bottom: 5px solid var(--app-accent);
 }
 
 .section {
@@ -127,6 +127,7 @@ function getIsVaild() {
       height: 38px;
       overflow: hidden;
       background: var(--app-primary) repeat-x;
+      border-bottom: 3px solid var(--app-accent);
       padding: 0 15px;
       line-height: 38px;
       color: #ffffff;
@@ -137,7 +138,7 @@ function getIsVaild() {
       margin-top: 23px;
 
       .title {
-        border-bottom: 2px solid var(--app-primary);
+        border-bottom: 2px solid var(--app-accent);
         height: 29px;
 
         li {
@@ -158,7 +159,7 @@ function getIsVaild() {
           line-height: 20px;
 
           span {
-            color: var(--app-primary);
+            color: var(--app-danger);
             font-size: 28px;
             font-weight: 700;
             line-height: 25px;
@@ -167,6 +168,7 @@ function getIsVaild() {
 
         li.left {
           background: var(--app-primary) no-repeat scroll -139px -122px;
+          border-bottom: 3px solid var(--app-accent);
           display: block;
           line-height: 29px;
           text-align: center;
@@ -184,6 +186,9 @@ function getIsVaild() {
 
       .account-info {
         border: 1px solid #eef1f3;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(24, 24, 27, .06);
         padding: 25px 20px 25px 25px;
         overflow: hidden;
         zoom: 1;
@@ -243,7 +248,7 @@ function getIsVaild() {
               height: 21px;
               line-height: 21px;
               text-align: center;
-              color: var(--app-primary);
+              color: var(--app-danger);
               display: inline-block;
               font-size: 14px;
             }

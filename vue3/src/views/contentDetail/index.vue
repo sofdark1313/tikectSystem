@@ -356,7 +356,7 @@ function getRecommendList(){
   width: 1200px;
   margin: 0 auto;
   overflow: auto;
-  padding-bottom: 36px;
+  padding: 26px 0 42px;
 
   .wrapper {
     display: flex;
@@ -367,12 +367,14 @@ function getRecommendList(){
       background: var(--app-surface);
       border: 1px solid var(--app-border);
       border-radius: 8px;
-      box-shadow: 0 10px 24px rgba(18, 60, 70, .06);
+      box-shadow: var(--app-shadow);
+      overflow: hidden;
 
       .box-detail {
         position: relative;
         padding: 40px 0 30px;
         min-height: 360px;
+        background: linear-gradient(90deg, #111113 0, #111113 300px, #fff 300px, #fff 100%);
 
         .count {
           padding-left: 330px;
@@ -388,7 +390,7 @@ function getRecommendList(){
               height: 360px;
               border-radius: 8px;
               object-fit: cover;
-              box-shadow: 0 16px 34px rgba(18, 60, 70, .16);
+              box-shadow: 0 20px 46px rgba(0, 0, 0, .38);
             }
           }
 
@@ -408,11 +410,10 @@ function getRecommendList(){
                 //background: -webkit-linear-gradient(135deg, var(--app-primary), #ff5593);
                 //background: -moz-linear-gradient(135deg, var(--app-primary) 0, #ff5593 100%);
                 //background: linear-gradient(-45deg, var(--app-primary), #ff5593);
-                background: var(--app-primary);
-                background: var(--app-primary);
+                background: var(--app-accent);
                 z-index: 10;
                 font-size: 14px;
-                color: #fff;
+                color: #111;
                 border-bottom-right-radius: 10px;
                 border-top-left-radius: 3px;
                 border-top-right-radius: 3px
@@ -456,8 +457,8 @@ function getRecommendList(){
                 line-height: 23px;
                 text-align: center;
                 padding: 0 7px;
-                color: var(--app-primary);
-                background: var(--app-primary-soft);
+                color: #111;
+                background: var(--app-accent);
                 border-radius: 0 100px 100px 0;
                 margin-bottom: 10px;
                 font-size: 14px;
@@ -624,9 +625,9 @@ function getRecommendList(){
                       transition: border-color .2s ease, color .2s ease, background .2s ease;
 
                       &:hover {
-                        color: var(--app-primary);
-                        border-color: var(--app-primary);
-                        background: var(--app-primary-soft);
+                        color: #111;
+                        border-color: var(--app-accent);
+                        background: var(--app-accent-soft);
                       }
 
                       span {
@@ -645,7 +646,7 @@ function getRecommendList(){
 
                 .order-count {
                   font-size: 21px;
-                  color: var(--app-accent);
+                  color: var(--app-danger);
                   margin-left: 9px;
                   font-weight: bold;
                 }
@@ -712,12 +713,14 @@ function getRecommendList(){
                 background-color: var(--app-primary);
                 border-radius: 8px;
                 font-weight: 700;
-                box-shadow: 0 10px 22px rgba(15, 118, 110, .22);
+                box-shadow: 0 14px 30px rgba(24, 24, 27, .24);
                 transition: transform .2s ease, box-shadow .2s ease;
 
                 &:hover {
                   transform: translateY(-2px);
-                  box-shadow: 0 16px 30px rgba(15, 118, 110, .28);
+                  background: var(--app-accent);
+                  color: #111;
+                  box-shadow: 0 18px 34px rgba(245, 158, 11, .25);
                 }
               }
 
@@ -931,11 +934,12 @@ function getRecommendList(){
       background: var(--app-surface);
       border: 1px solid var(--app-border);
       border-radius: 8px;
-      box-shadow: 0 10px 24px rgba(18, 60, 70, .06);
+      box-shadow: var(--app-shadow);
+      overflow: hidden;
 
       .service {
         padding: 24px 15px;
-        background: var(--app-surface-soft);
+        background: #111113;
         border: 1px solid var(--app-border);
         border-radius: 8px;
 
@@ -948,7 +952,8 @@ function getRecommendList(){
           text-align: center;
           color: #fff;
           cursor: pointer;
-          background-color: var(--app-primary);
+          background-color: var(--app-accent);
+          color: #111;
           border-radius: 8px;
         }
 
@@ -958,6 +963,7 @@ function getRecommendList(){
           .service-name {
             font-size: 14px;
             margin-bottom: 10px;
+            color: rgba(255, 255, 255, .88);
 
             .icon {
               display: inline-block;
@@ -973,7 +979,7 @@ function getRecommendList(){
           .service-desc {
             //margin-top: 6px;
             font-size: 12px;
-            color: #999;
+            color: rgba(255, 255, 255, .58);
             margin-bottom: 6px;
           }
         }
@@ -1033,7 +1039,7 @@ function getRecommendList(){
             }
             .search__item__info__price{
               font-size: 16px;
-              color: var(--app-accent);
+              color: var(--app-danger);
               margin-top: 39px;
               padding-left: 20px;
               font-weight: bold;
@@ -1048,28 +1054,28 @@ function getRecommendList(){
 }
 
 .active {
-  border-color: var(--app-primary);
-  color: var(--app-primary);
+  border-color: var(--app-accent);
+  color: #111;
   background: #fff;
 }
 
 .activeCity {
-  color: var(--app-primary) !important;
-  border: 1px solid var(--app-primary) !important;
-  background: var(--app-primary-soft) !important;
+  color: #111 !important;
+  border: 1px solid var(--app-accent) !important;
+  background: var(--app-accent-soft) !important;
 }
 
 .ticket {
-  color: var(--app-primary) !important;
-  border: 1px solid var(--app-primary) !important;
-  background: var(--app-primary-soft) !important;
+  color: #111 !important;
+  border: 1px solid var(--app-accent) !important;
+  background: var(--app-accent-soft) !important;
 }
 
 .menuActive {
   //position: relative;
   font-size: 20px;
   color: #000;
-  border-bottom: 2px solid var(--app-primary);
+  border-bottom: 3px solid var(--app-accent);
 }
 
 .icon-no {
