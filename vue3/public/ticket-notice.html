@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>购票须知</title>
+  <style>
+    :root {
+      --app-bg: #f6f7fb;
+      --app-surface: #ffffff;
+      --app-border: #e4e7ef;
+      --app-primary: #18181b;
+      --app-accent: #f59e0b;
+      --app-danger: #db2777;
+      --app-text: #18181b;
+      --app-text-muted: #71717a;
+      --app-shadow: 0 18px 44px rgba(24, 24, 27, .14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      color: var(--app-text);
+      background-color: var(--app-bg);
+      background-image:
+        linear-gradient(rgba(24, 24, 27, .04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(24, 24, 27, .04) 1px, transparent 1px);
+      background-size: 24px 24px;
+      padding: 40px 24px;
+    }
+
+    main {
+      width: min(860px, 100%);
+      margin: 0 auto;
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: 8px;
+      box-shadow: var(--app-shadow);
+      border-top: 7px solid var(--app-accent);
+      overflow: hidden;
+    }
+
+    header {
+      padding: 32px 36px 24px;
+      background:
+        radial-gradient(circle at top right, rgba(219, 39, 119, .10), transparent 28%),
+        linear-gradient(180deg, #fff, #fafafa);
+      border-bottom: 1px solid var(--app-border);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      font-weight: 800;
+    }
+
+    .summary {
+      margin: 12px 0 0;
+      color: var(--app-text-muted);
+      font-size: 16px;
+      line-height: 1.8;
+    }
+
+    section {
+      padding: 28px 36px 10px;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 20px;
+      line-height: 1.4;
+    }
+
+    ul {
+      margin: 0 0 24px;
+      padding: 0;
+      list-style: none;
+    }
+
+    li {
+      position: relative;
+      padding: 12px 0 12px 24px;
+      color: #3f3f46;
+      font-size: 15px;
+      line-height: 1.8;
+      border-bottom: 1px solid #f0f1f5;
+    }
+
+    li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 24px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--app-accent);
+    }
+
+    .tip {
+      margin: 4px 0 28px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      color: #111;
+      background: #fff7e6;
+      border: 1px solid rgba(245, 158, 11, .28);
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    footer {
+      padding: 24px 36px 34px;
+      text-align: center;
+    }
+
+    a {
+      color: #fff;
+      background: var(--app-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 40px;
+      padding: 0 22px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 15px;
+    }
+
+    a:hover {
+      color: #111;
+      background: var(--app-accent);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>购票须知</h1>
+      <p class="summary">下单前请确认演出信息、入场规则、退改政策和实名要求。以下内容是通用说明，具体以项目详情页展示为准。</p>
+    </header>
+    <section>
+      <h2>下单前</h2>
+      <ul>
+        <li>请确认演出名称、时间、场馆、城市、票档、数量和观演人信息。</li>
+        <li>部分项目可能要求实名购票或实名入场，请按页面提示填写真实有效信息。</li>
+        <li>热门项目库存变化较快，加入订单不代表锁定成功，以最终支付和出票结果为准。</li>
+      </ul>
+      <h2>支付与出票</h2>
+      <ul>
+        <li>订单提交后请在页面提示的有效时间内完成支付，超时订单可能自动关闭。</li>
+        <li>电子票、快递票、现场取票等配送方式以项目页面说明为准。</li>
+        <li>出票成功后，请妥善保管订单和票务凭证，不要向陌生人泄露票码信息。</li>
+      </ul>
+      <h2>退改与入场</h2>
+      <ul>
+        <li>演出票品具有时效性和稀缺性，是否支持退票、改签以项目规则为准。</li>
+        <li>入场时请携带项目要求的票品凭证、身份证件或其他必要材料。</li>
+        <li>如遇演出变更、延期或取消，请关注订单详情和平台通知。</li>
+      </ul>
+    </section>
+    <footer>
+      <a href="/index">返回首页</a>
+    </footer>
+  </main>
+</body>
+</html>

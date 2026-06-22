@@ -183,7 +183,7 @@
           <div class="box-like">
             为你推荐
           </div>
-          <ul class="search__box">
+          <ul class="search__box" v-if="recommendList && recommendList.length">
             <li class="search__item" v-for="item in recommendList">
                 <router-link :to="{name:'detial',params:{id:item.id}}" class="link" >
                   <img :src="item.itemPicture" alt="">
@@ -204,6 +204,11 @@
 
             </li>
           </ul>
+          <div class="recommend-empty" v-else>
+            <div class="empty-mark"></div>
+            <div class="empty-title">暂无推荐</div>
+            <div class="empty-desc">当前城市还没有更多相似活动</div>
+          </div>
         </div>
       </div>
     </div>
@@ -250,7 +255,7 @@ const recommendParams = reactive({
 })
 recommendParams.programId = paramValue;
 //推荐列表数据
-const recommendList = ref(0)
+const recommendList = ref([])
 getProgramDetialsList()
 
 function getProgramDetialsList() {
@@ -353,17 +358,24 @@ function getRecommendList(){
 
 <style scoped lang="scss">
 .app-container {
-  width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  min-height: 100%;
   overflow: auto;
-  padding: 26px 0 42px;
+
+  .detail-page {
+    width: min(1440px, calc(100vw - 64px));
+    margin: 0 auto;
+    padding: 26px 0 42px;
+  }
 
   .wrapper {
-    display: flex;
-    gap: 20px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+    align-items: start;
 
     .box-left {
-      flex: 1;
+      min-width: 0;
       background: var(--app-surface);
       border: 1px solid var(--app-border);
       border-radius: 8px;
@@ -372,36 +384,74 @@ function getRecommendList(){
 
       .box-detail {
         position: relative;
-        padding: 40px 0 30px;
-        min-height: 360px;
-        background: linear-gradient(90deg, #111113 0, #111113 300px, #fff 300px, #fff 100%);
+        padding: 26px;
+        min-height: 0;
+        background:
+            radial-gradient(circle at 16% 18%, rgba(245, 158, 11, .12), transparent 24%),
+            linear-gradient(180deg, #fff 0%, #fafafa 100%);
 
-        .count {
-          padding-left: 330px;
+        > .count {
+          display: grid;
+          grid-template-columns: 260px minmax(0, 1fr);
+          gap: 26px;
+          align-items: stretch;
+          padding-left: 0;
           font-size: 22px;
           color: #000;
 
           .box-img {
-            img {
+            position: relative;
+            height: 360px;
+            min-height: 360px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #111113;
+            padding: 10px;
+            box-shadow: 0 20px 48px rgba(24, 24, 27, .18);
+            border: 1px solid rgba(24, 24, 27, .12);
+
+            &::after {
+              content: "";
               position: absolute;
-              left: 30px;
-              top: 40px;
-              width: 270px;
-              height: 360px;
-              border-radius: 8px;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              height: 42%;
+              background: linear-gradient(180deg, transparent, rgba(0, 0, 0, .55));
+              pointer-events: none;
+            }
+
+            img {
+              position: static;
+              width: 100%;
+              height: 100%;
+              min-height: 0;
+              border-radius: 6px;
               object-fit: cover;
-              box-shadow: 0 20px 46px rgba(0, 0, 0, .38);
+              box-shadow: none;
+              display: block;
             }
           }
 
           .order {
             position: relative;
-            padding-right: 30px;
+            padding: 22px 26px 24px;
+            background: rgba(255, 255, 255, .96);
+            border: 1px solid var(--app-border);
+            border-radius: 8px;
+            box-shadow: 0 16px 38px rgba(24, 24, 27, .07);
 
             .title {
+              font-size: 23px;
+              line-height: 32px;
+              color: var(--app-text);
+              font-weight: 800;
+              letter-spacing: 0;
+
               .tips {
                 display: inline-block;
-                width: 60px;
+                width: auto;
+                min-width: 54px;
                 height: 24px;
                 position: relative;
                 top: -3px;
@@ -414,9 +464,10 @@ function getRecommendList(){
                 z-index: 10;
                 font-size: 14px;
                 color: #111;
-                border-bottom-right-radius: 10px;
-                border-top-left-radius: 3px;
-                border-top-right-radius: 3px
+                border-radius: 999px;
+                padding: 0 10px;
+                margin-right: 8px;
+                font-weight: 700;
               }
 
               span {
@@ -426,13 +477,18 @@ function getRecommendList(){
 
             .address {
               position: relative;
-              font-size: 16px;
+              font-size: 15px;
               color: var(--app-text-muted);
-              margin-top: 21px;
+              margin-top: 16px;
+              padding: 12px 14px;
+              background: var(--app-primary-soft);
+              border-radius: 8px;
+              border: 1px solid var(--app-border);
               zoom: 1;
 
               .time {
-                padding-bottom: 10px;
+                padding-bottom: 8px;
+                color: #4b5563;
               }
 
               .place {
@@ -443,12 +499,12 @@ function getRecommendList(){
             }
 
             .notice {
-              margin-top: 18px;
-              padding: 12px 15px;
+              margin-top: 14px;
+              padding: 12px 14px;
               font-size: 12px;
-              background: #f6f6f6;
-              background: var(--app-surface-soft);
-              border-radius: 4px;
+              background: #fff8e8;
+              border: 1px solid rgba(245, 158, 11, .28);
+              border-radius: 8px;
               position: relative;
 
               .ticket-type {
@@ -459,9 +515,10 @@ function getRecommendList(){
                 padding: 0 7px;
                 color: #111;
                 background: var(--app-accent);
-                border-radius: 0 100px 100px 0;
+                border-radius: 999px;
                 margin-bottom: 10px;
                 font-size: 14px;
+                font-weight: 700;
 
                 span {
                   vertical-align: middle;
@@ -479,30 +536,37 @@ function getRecommendList(){
                 overflow: hidden;
                 text-overflow: ellipsis;
                 cursor: pointer;
+                line-height: 1.7;
 
                 div {
 
                 }
 
                 .notice-content {
-                  color: #999;
+                  color: var(--app-text-muted);
                 }
               }
             }
 
             .citys {
-              margin-top: 24px;
+              margin-top: 18px;
+              display: grid;
+              grid-template-columns: 56px minmax(0, 1fr) auto;
+              align-items: start;
+              column-gap: 0;
 
               span {
                 display: inline-block;
-                font-size: 16px;
-                color: #000;
+                font-size: 15px;
+                color: var(--app-text);
+                line-height: 40px;
+                font-weight: 700;
               }
 
               .city-list {
-                display: inline-block;
+                display: block;
                 font-size: 12px;
-                width: 420px;
+                width: auto;
                 height: 40px;
                 overflow: hidden;
                 vertical-align: top;
@@ -533,16 +597,17 @@ function getRecommendList(){
                   margin-bottom: 8px;
                   cursor: pointer;
                   border-radius: 3px;
-                  margin-left: 17px;
+                  margin-left: 0;
+                  font-weight: 700;
                 }
 
 
               }
 
               .city-more {
-                float: right;
+                float: none;
                 font-size: 12px;
-                color: #4a4a4a;
+                color: var(--app-text-muted);
                 cursor: pointer;
                 margin-top: 10px;
               }
@@ -550,9 +615,9 @@ function getRecommendList(){
 
             .order-box {
               .notice-time {
-                color: #999;
+                color: var(--app-text-muted);
                 font-size: 12px;
-                margin: 24px 0 9px;
+                margin: 16px 0 8px;
               }
 
               .order-time {
@@ -564,9 +629,12 @@ function getRecommendList(){
 
                 .order-name {
                   display: inline-block;
-                  font-size: 16px;
-                  color: #000;
+                  font-size: 15px;
+                  color: var(--app-text);
                   height: 48px;
+                  min-width: 56px;
+                  font-weight: 700;
+                  line-height: 40px;
                 }
 
                 .select {
@@ -610,19 +678,18 @@ function getRecommendList(){
                       display: flex;
                       float: left;
                       font-size: 12px;
-                      color: #000;
+                      color: var(--app-text);
                       padding: 10px 24px;
                       margin: 0 6px 6px 0;
                       position: relative;
                       cursor: pointer;
-                      border-radius: 3px;
-                      background: #f6f7f8;
                       background: var(--app-surface-soft);
                       border: 1px solid rgba(0, 0, 0, .1);
                       border-color: var(--app-border);
-                      text-align: left;
                       border-radius: 8px;
                       transition: border-color .2s ease, color .2s ease, background .2s ease;
+                      min-height: 38px;
+                      font-weight: 700;
 
                       &:hover {
                         color: #111;
@@ -645,10 +712,11 @@ function getRecommendList(){
                 }
 
                 .order-count {
-                  font-size: 21px;
+                  font-size: 26px;
                   color: var(--app-danger);
                   margin-left: 9px;
-                  font-weight: bold;
+                  font-weight: 900;
+                  line-height: 40px;
                 }
                 .count-detial{
                   position: relative;
@@ -667,10 +735,12 @@ function getRecommendList(){
               display: flex;
 
               .num {
-                font-size: 16px;
-                color: #000;
+                font-size: 15px;
+                color: var(--app-text);
                 height: 48px;
-                flex: 0.1;
+                flex: 0 0 56px;
+                font-weight: 700;
+                line-height: 40px;
               }
 
               .count {
@@ -686,7 +756,7 @@ function getRecommendList(){
 
                 .num-limit {
                   font-size: 12px;
-                  color: #999;
+                  color: var(--app-text-muted);
                   line-height: 22px;
                   vertical-align: text-top;
                   display: inline-block;
@@ -701,18 +771,18 @@ function getRecommendList(){
               display: inline-block;
               margin-top: 20px;
               .buy-link-now{
-                width: 100px;
+                width: 144px;
                 display: block;
                 margin-bottom: 24px;
-                height: 35px;
-                line-height: 35px;
-                font-size: 12px;
+                height: 44px;
+                line-height: 44px;
+                font-size: 15px;
                 text-align: center;
                 color: #fff;
                 cursor: pointer;
-                background-color: var(--app-primary);
-                border-radius: 8px;
-                font-weight: 700;
+                background: linear-gradient(135deg, var(--app-primary), #2f2f35);
+                border-radius: 999px;
+                font-weight: 800;
                 box-shadow: 0 14px 30px rgba(24, 24, 27, .24);
                 transition: transform .2s ease, box-shadow .2s ease;
 
@@ -784,22 +854,26 @@ function getRecommendList(){
 
       .box-item {
         width: 100%;
-        height: 800px;
+        min-height: 800px;
+        height: auto;
 
         .box-menu {
-          height: 54px;
-          line-height: 54px;
-          padding-left: 30px;
-          border-top: 1px solid #e2e2e2;
+          height: 58px;
+          line-height: 58px;
+          padding-left: 28px;
+          background: #fff;
+          border-top: 1px solid var(--app-border);
           border-bottom: 1px solid var(--app-border);
-          border-top-color: var(--app-border);
-          //padding: 60px 30px 0;
+          position: sticky;
+          top: 82px;
+          z-index: 10;
 
           .menu-children {
             font-size: 16px;
-            color: #9c9ca5;
-            margin-right: 60px;
+            color: var(--app-text-muted);
+            margin-right: 46px;
             cursor: pointer;
+            font-weight: 700;
           }
 
         }
@@ -807,15 +881,15 @@ function getRecommendList(){
         #projectDetial {
           //width: 100%;
           //height:100%;
-          padding: 60px 30px 0;
+          padding: 42px 28px 0;
 
           .proDetial {
             padding-bottom: 14px;
             margin-bottom: 23px;
             font-size: 20px;
-            color: #000;
-            border-bottom: 1px solid #e2e2e2;
-            border-bottom-color: var(--app-border);
+            color: var(--app-text);
+            border-bottom: 1px solid var(--app-border);
+            font-weight: 800;
           }
 
           img {
@@ -843,15 +917,17 @@ function getRecommendList(){
 
         #ticketNeed {
           width: 100%;
-          height: 600px;
-          padding: 60px 30px 0;
+          min-height: 360px;
+          height: auto;
+          padding: 42px 28px 0;
 
           .proDetial {
             padding-bottom: 14px;
             margin-bottom: 23px;
             font-size: 20px;
-            color: #000;
-            border-bottom: 1px solid #e2e2e2;
+            color: var(--app-text);
+            border-bottom: 1px solid var(--app-border);
+            font-weight: 800;
           }
 
           ul {
@@ -866,7 +942,7 @@ function getRecommendList(){
                 height: 20px;
                 line-height: 20px;
                 display: block;
-                color: #999;
+                color: var(--app-text-muted);
                 font-size: 13px;
               }
 
@@ -874,7 +950,7 @@ function getRecommendList(){
                 line-height: 26px;
                 padding-bottom: 15px;
                 font-size: 16px;
-                color: #4a4a4a;
+                color: #3f3f46;
               }
             }
           }
@@ -882,8 +958,9 @@ function getRecommendList(){
 
         #watchNeed {
           width: 100%;
-          height: 500px;
-          padding: 60px 30px 0;
+          min-height: 320px;
+          height: auto;
+          padding: 42px 28px 0;
           //padding-bottom: 14px;
           //margin-bottom: 23px;
           //font-size: 20px;
@@ -893,8 +970,9 @@ function getRecommendList(){
             padding-bottom: 14px;
             margin-bottom: 23px;
             font-size: 20px;
-            color: #000;
-            border-bottom: 1px solid #e2e2e2;
+            color: var(--app-text);
+            border-bottom: 1px solid var(--app-border);
+            font-weight: 800;
           }
 
           ul {
@@ -909,7 +987,7 @@ function getRecommendList(){
                 height: 20px;
                 line-height: 20px;
                 display: block;
-                color: #999;
+                color: var(--app-text-muted);
                 font-size: 13px;
               }
 
@@ -917,7 +995,7 @@ function getRecommendList(){
                 line-height: 26px;
                 padding-bottom: 15px;
                 font-size: 16px;
-                color: #4a4a4a;
+                color: #3f3f46;
               }
             }
           }
@@ -927,9 +1005,9 @@ function getRecommendList(){
 
     .box-right {
       box-sizing: border-box;
-      width: 320px;
+      width: 340px;
       border-left: 0;
-      padding: 40px 18px 0;
+      padding: 18px;
       float: left;
       background: var(--app-surface);
       border: 1px solid var(--app-border);
@@ -938,10 +1016,13 @@ function getRecommendList(){
       overflow: hidden;
 
       .service {
-        padding: 24px 15px;
-        background: #111113;
-        border: 1px solid var(--app-border);
+        padding: 22px 18px;
+        background:
+            radial-gradient(circle at top right, rgba(245, 158, 11, .22), transparent 36%),
+            #111113;
+        border: 1px solid rgba(245, 158, 11, .20);
         border-radius: 8px;
+        box-shadow: 0 18px 44px rgba(24, 24, 27, .18);
 
         .sit {
           display: block;
@@ -958,12 +1039,16 @@ function getRecommendList(){
         }
 
         .service-note {
-          margin-bottom: 18px;
+          margin-bottom: 0;
 
           .service-name {
-            font-size: 14px;
-            margin-bottom: 10px;
+            font-size: 15px;
+            margin-bottom: 8px;
             color: rgba(255, 255, 255, .88);
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 6px;
 
             .icon {
               display: inline-block;
@@ -980,16 +1065,29 @@ function getRecommendList(){
             //margin-top: 6px;
             font-size: 12px;
             color: rgba(255, 255, 255, .58);
-            margin-bottom: 6px;
+            margin: 0 0 14px 18px;
+            line-height: 1.55;
           }
         }
       }
       .box-like{
         margin-top: 24px;
-        margin-bottom: 24px;
+        margin-bottom: 16px;
         font-size: 20px;
-        color: #000;
+        color: var(--app-text);
         line-height: 28px;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        &::after {
+          content: "";
+          width: 86px;
+          height: 3px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, var(--app-accent), var(--app-danger));
+        }
       }
       .search__box{
         list-style: none;
@@ -997,29 +1095,42 @@ function getRecommendList(){
         padding: 0;
           .search__item{
             width: 100%;
-            height: 160px;
-            margin-bottom: 30px;
-            transition: transform .2s ease;
+            min-height: 132px;
+            height: auto;
+            margin-bottom: 14px;
+            padding: 10px;
+            border: 1px solid var(--app-border);
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 10px 24px rgba(24, 24, 27, .05);
+            transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+            display: grid;
+            grid-template-columns: 88px minmax(0, 1fr);
+            gap: 12px;
 
             &:hover {
               transform: translateY(-3px);
+              border-color: var(--app-accent);
+              box-shadow: 0 16px 34px rgba(24, 24, 27, .12);
             }
             .link{
-            width: 120px;
-            height: 100%;
-            display: inline-block;
+            width: 88px;
+            height: 112px;
+            display: block;
               img{
-                float: left;
-                width: 120px;
+                float: none;
+                width: 88px;
                 height: 100%;
                 border-radius: 8px;
                 object-fit: cover;
               }
           }
           .search_item_info{
-            width: 157px;
-            float: right;
-            height: 160px;
+            width: auto;
+            float: none;
+            min-height: 112px;
+            height: auto;
+            position: relative;
             .link__title{
               display: -webkit-box;
               -webkit-box-orient: vertical;
@@ -1027,24 +1138,74 @@ function getRecommendList(){
               line-clamp: 2;
               overflow: hidden;
               font-size: 14px;
-              color: #4a4a4a;
-              padding-left: 17px;
+              color: var(--app-text);
+              padding-left: 0;
+              line-height: 20px;
+              font-weight: 800;
             }
             .search__item__info__venue{
-              margin-top: 12px;
-              color: #9b9b9b;
-              padding-left: 20px;
+              margin-top: 8px;
+              color: var(--app-text-muted);
+              padding-left: 0;
               font-size: 12px;
+              line-height: 18px;
 
             }
             .search__item__info__price{
               font-size: 16px;
               color: var(--app-danger);
-              margin-top: 39px;
-              padding-left: 20px;
+              margin-top: 10px;
+              padding-left: 0;
               font-weight: bold;
             }
           }
+        }
+      }
+
+      .recommend-empty {
+        min-height: 190px;
+        border: 1px dashed var(--app-border-strong);
+        border-radius: 8px;
+        background:
+            linear-gradient(135deg, rgba(245, 158, 11, .08), transparent 42%),
+            var(--app-surface-soft);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: var(--app-text-muted);
+
+        .empty-mark {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          background: #111113;
+          position: relative;
+          margin-bottom: 12px;
+          box-shadow: 0 10px 24px rgba(24, 24, 27, .18);
+
+          &::before {
+            content: "";
+            position: absolute;
+            left: 12px;
+            top: 14px;
+            width: 18px;
+            height: 12px;
+            border-radius: 3px;
+            background: linear-gradient(135deg, var(--app-accent), var(--app-danger));
+          }
+        }
+
+        .empty-title {
+          color: var(--app-text);
+          font-size: 15px;
+          font-weight: 800;
+          margin-bottom: 6px;
+        }
+
+        .empty-desc {
+          font-size: 12px;
         }
       }
     }

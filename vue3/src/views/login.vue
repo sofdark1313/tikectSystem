@@ -7,54 +7,50 @@
           <img :src="bg" alt="票务系统登录">
         </div>
         <div class="main-right">
-          <el-tabs
-              v-model="activeName"
-              type="card"
-              class="demo-tabs"
-              @tab-click="handleClick"
-          >
-            <el-tab-pane label="密码登录" name="first">
-              <el-form ref="loginRef" :model="loginForm" :rules="loginRules" class="login-form">
-                <div class="error-tips" v-if="isTips">
-                  <WarningFilled style="width: 1em; height: 1em; margin-left: 8px;color: #ff934c"/>
-                  {{ tipsContent }}</div>
-                <el-input v-model="userName" placeholder="请输入手机号或邮箱" prop="userName">
-                  <template #prepend>
-                    <el-icon :size="30" color="#ffffff">
-                      <User/>
-                    </el-icon>
-                  </template>
-                </el-input>
-                <el-input type="password" show-password v-model="loginForm.password" placeholder="请输入密码"
-                          prop="password">
-                  <template #prepend>
-                    <el-icon :size="30" color="#ffffff">
-                      <Lock/>
-                    </el-icon>
-                  </template>
-                </el-input>
-                <el-button
-                    :loading="loading"
-                    size="large"
-                    type="primary"
-                    style="width:100%;"
-                    class="btn"
-                    @click.prevent="handleLogin"
-                >
-                  <span v-if="!loading">登 录</span>
-                  <span v-else>登 录 中...</span>
-                </el-button>
-                <div v-show="experienceAccountFlag != 1" style="float: right;" v-if="register" class="register">
-                  <router-link class="link-type" :to="'/register'">立即注册</router-link>
-                </div>
-                <div v-show="experienceAccountFlag == 1" style="float: right;" v-if="register" class="experienceAccount">
-                  <a class="link-type" @click="getExperienceAccount">点击获取体验账号</a>
-                </div>
-              </el-form>
-            </el-tab-pane>
-            <el-tab-pane label="短信登录" name="second">暂未开放</el-tab-pane>
-            <el-tab-pane label="扫码登录" name="third">暂未开放</el-tab-pane>
-          </el-tabs>
+          <div class="login-panel-header">
+            <div class="panel-kicker">Account access</div>
+            <div class="panel-title">账号登录</div>
+            <div class="panel-desc">使用手机号或邮箱继续购票</div>
+          </div>
+          <el-form ref="loginRef" :model="loginForm" :rules="loginRules" class="login-form">
+            <div class="error-tips" v-if="isTips">
+              <WarningFilled style="width: 1em; height: 1em; margin-left: 8px;color: #ff934c"/>
+              {{ tipsContent }}</div>
+            <el-input v-model="userName" placeholder="请输入手机号或邮箱" prop="userName">
+              <template #prepend>
+                <el-icon :size="22" color="#111113">
+                  <User/>
+                </el-icon>
+              </template>
+            </el-input>
+            <el-input type="password" show-password v-model="loginForm.password" placeholder="请输入密码"
+                      prop="password">
+              <template #prepend>
+                <el-icon :size="22" color="#111113">
+                  <Lock/>
+                </el-icon>
+              </template>
+            </el-input>
+            <el-button
+                :loading="loading"
+                size="large"
+                type="primary"
+                style="width:100%;"
+                class="btn"
+                @click.prevent="handleLogin"
+            >
+              <span v-if="!loading">登 录</span>
+              <span v-else>登 录 中...</span>
+            </el-button>
+            <div class="login-actions">
+              <div v-show="experienceAccountFlag != 1" v-if="register" class="register">
+                <router-link class="link-type" :to="'/register'">立即注册</router-link>
+              </div>
+              <div v-show="experienceAccountFlag == 1" v-if="register" class="experienceAccount">
+                <a class="link-type" @click="getExperienceAccount">点击获取体验账号</a>
+              </div>
+            </div>
+          </el-form>
         </div>
       </div>
     </div>
@@ -97,7 +93,6 @@ const stateOpen = ref(false)
 const userStore = useUserStore()
 const router = useRouter();
 const loading = ref(false);
-const activeName = ref('first')
 // 注册开关
 const register = ref(true);
 const isTips = ref(false)
@@ -115,9 +110,6 @@ const loginForm = ref({
 const loginRules = ref({});
 
 
-const handleClick = (tab, event) => {
-  console.log(tab, event)
-}
 const handleLogin = () => {
   proxy.$refs.loginRef.validate(valid => {
     if (valid) {
@@ -202,15 +194,48 @@ function getExperienceAccount(){
 
       .main-right {
         margin: 0;
-        padding: 10px 0 18px;
+        padding: 0 0 24px;
         overflow: hidden;
-        width: 350px;
-        min-height: 338px;
-        background: #fff;
-        text-align: center;
+        width: 390px;
+        min-height: 360px;
+        background:
+            linear-gradient(180deg, rgba(245, 158, 11, .10), transparent 42%),
+            #fff;
+        text-align: left;
         border-radius: 8px;
         box-shadow: 0 24px 60px rgba(0, 0, 0, .22);
-        border-top: 7px solid var(--app-accent);
+        border: 1px solid rgba(255, 255, 255, .18);
+        border-top: 6px solid var(--app-accent);
+
+        .login-panel-header {
+          padding: 26px 32px 18px;
+          border-bottom: 1px solid var(--app-border);
+          background:
+              radial-gradient(circle at 90% 0, rgba(219, 39, 119, .12), transparent 30%),
+              linear-gradient(180deg, #fff, #fafafa);
+
+          .panel-kicker {
+            color: var(--app-accent);
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .8px;
+            text-transform: uppercase;
+          }
+
+          .panel-title {
+            margin-top: 8px;
+            color: var(--app-text);
+            font-size: 28px;
+            line-height: 34px;
+            font-weight: 900;
+          }
+
+          .panel-desc {
+            margin-top: 8px;
+            color: var(--app-text-muted);
+            font-size: 14px;
+          }
+        }
       }
     }
 
@@ -219,101 +244,103 @@ function getExperienceAccount(){
 
 }
 
+.login-form {
+  width: 326px;
+  margin: 24px auto 0;
+}
+
+.login-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
 .register a {
   display: inline-block;
-  margin-left: 10px;
+  margin-left: 0;
   font-size: 14px;
   color: var(--app-primary);
   text-decoration: none;
-  font-weight: 400;
+  font-weight: 700;
+
+  &:hover {
+    color: var(--app-danger);
+  }
 }
 
 .experienceAccount a {
   display: inline-block;
-  margin-left: 10px;
-  font-size: 20px;
+  margin-left: 0;
+  font-size: 14px;
   color: var(--app-danger);
   text-decoration: none;
-  font-weight: 400;
-}
-
-:deep(.demo-tabs > .el-tabs__content) {
-  padding: 15px;
-  color: #6b778c;
-  font-size: 32px;
-  font-weight: 600;
-}
-
-:deep(.el-tabs__nav-scroll) {
-  width: 350px;
-  display: flex;
-  overflow: hidden;
-}
-
-:deep(.el-tabs__nav-scroll .el-tabs__nav) {
-  width: 350px !important;
-  margin: 0 auto 20px !important;
-}
-
-:deep(.el-tabs--card > .el-tabs__header .el-tabs__item.is-active) {
-  border-color: var(--app-accent);
-  color: #111;
-  background-color: var(--app-accent);
-}
-
-:deep(.el-tabs--card > .el-tabs__header .el-tabs__item) {
-
-  width: 116px;
-  text-align: center;
-  line-height: 38px;
-  height: 38px;
-  background-color: #e7e7e7;
-  border: none;
-  border-top: 2px solid #ccc;
-  cursor: pointer;
-  color: #222;
-  font-size: 16px;
-}
-
-:deep(#pane-first) {
-  width: 300px;
-  margin: 0 auto;
+  font-weight: 700;
 }
 
 :deep(.el-input-group__prepend) {
-  width: 42px;
-  height: 42px;
-  line-height: 42px;
+  width: 48px;
+  height: 46px;
+  line-height: 46px;
   text-align: center;
-  color: #fff;
+  color: #111;
   position: absolute;
-  left: 8px;
-  bottom: 1px;
-  background-color: #ccc;
+  left: 0;
+  bottom: 0;
+  background: var(--app-accent);
+  border: 0;
+  box-shadow: none;
+  border-radius: 8px 0 0 8px;
 
 }
 
 .el-input-group--prepend {
   border: none;
-  height: 42px;
+  height: 46px;
   outline: none;
   font-size: 14px;
-  padding-left: 50px;
-  margin-bottom: 20px;
+  padding-left: 56px;
+  margin-bottom: 18px;
+}
+
+:deep(.el-input__wrapper) {
+  min-height: 46px;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--app-border) inset !important;
+  transition: box-shadow .2s ease, background .2s ease;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--app-accent) inset, 0 0 0 4px rgba(245, 158, 11, .12) !important;
+}
+
+:deep(.el-input__inner) {
+  font-size: 14px;
+  color: var(--app-text);
 }
 
 .btn {
-  background-color: var(--app-primary);
-  background-image: linear-gradient(90deg, var(--app-primary), #2f2f35);
+  background: linear-gradient(135deg, var(--app-primary), #2f2f35);
   border-color: var(--app-primary);
-  border-radius: 3px;
-  font-size: 20px;
-  height: 42px;
-  line-height: 42px;
+  border-radius: 8px;
+  font-size: 18px;
+  height: 46px;
+  line-height: 46px;
   outline: none;
   color: #fff;
   width: 100%;
   cursor: pointer;
+  font-weight: 900;
+  letter-spacing: 2px;
+  box-shadow: 0 16px 34px rgba(24, 24, 27, .24);
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    background: var(--app-accent);
+    border-color: var(--app-accent);
+    color: #111;
+    box-shadow: 0 18px 36px rgba(245, 158, 11, .26);
+  }
 }
 .error-tips{
   border: 1px solid #ff934c;

@@ -3,9 +3,9 @@
     <div class="footer-sec">
       <ul class="footer-links">
 <!--        <li v-for="item in footerList">{{ item }}<span class="line">|</span></li>-->
-        <li>帮助中心<span class="line">|</span></li>
-        <li>购票须知<span class="line">|</span></li>
-        <li>客服支持<span class="line">|</span></li>
+        <li><a href="/help.html" target="_blank">帮助中心</a><span class="line">|</span></li>
+        <li><a href="/ticket-notice.html" target="_blank">购票须知</a><span class="line">|</span></li>
+        <li><a href="/customer-service.html" target="_blank">客服支持</a><span class="line">|</span></li>
       </ul>
 <!--      <div class="footer-ft">-->
 <!--        <router-link to="/index" class="link">-->
@@ -40,12 +40,6 @@
 </template>
 
 <script setup>
-import {ref} from "vue";
-const footerList = ref(
-    [
-      '帮助中心', '公司介绍', '品牌识别', '公司大事记', '协议及隐私权政策', '廉正举报', '联系合作', '招聘信息', '防骗秘籍'
-    ]
-)
 </script>
 
 <style scoped lang="scss">
@@ -74,6 +68,11 @@ const footerList = ref(
 
       li {
         transition: color .2s ease;
+        a {
+          color: inherit;
+          text-decoration: none;
+        }
+
         &:hover {
           color: var(--app-accent);
         }
