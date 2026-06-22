@@ -856,7 +856,7 @@ function removeTag(str, tag) {
 }
 
 .link {
-  color: #007bff; /* 链接颜色 */
+  color: var(--app-primary);
   text-decoration: none; /* 去除下划线 */
 }
 

@@ -139,7 +139,7 @@ async function getPersonInfoIdList() {
     float: right;
 
     .breadcrumb {
-      border: 1px solid #efefef;
+      border: 1px solid var(--app-border);
       height: 38px;
       overflow: hidden;
       background: var(--app-primary) repeat-x;
@@ -199,7 +199,7 @@ async function getPersonInfoIdList() {
     }
 
     .box {
-      border: 1px solid #eef1f3;
+      border: 1px solid var(--app-border);
       border-radius: 8px;
       background: #fff;
       box-shadow: 0 10px 24px rgba(24, 24, 27, .06);
@@ -209,8 +209,8 @@ async function getPersonInfoIdList() {
         color: #666;
 
         .tips-info {
-          background: #fffdee;
-          border: 1px solid #edd28b;
+          background: var(--app-accent-soft);
+          border: 1px solid rgba(245, 158, 11, .35);
           padding: 10px 20px;
           color: #999;
           margin-bottom: 15px;
@@ -225,6 +225,12 @@ async function getPersonInfoIdList() {
           border: 0;
           cursor: pointer;
           color: #fff;
+          border-radius: 8px;
+
+          &:hover {
+            color: #111;
+            background: var(--app-accent);
+          }
         }
       }
     }

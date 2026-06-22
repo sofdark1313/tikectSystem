@@ -147,13 +147,14 @@ export default {
 .verifybox {
   position: relative;
   box-sizing: border-box;
-  border-radius: 2px;
-  border: 1px solid #e4e7eb;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
   background-color: #fff;
-  box-shadow: 0 0 10px rgba(0, 0, 0, .3);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .34);
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  overflow: hidden;
 }
 
 .verifybox-top {
@@ -162,9 +163,11 @@ export default {
   line-height: 50px;
   text-align: left;
   font-size: 16px;
-  color: #45494c;
-  border-bottom: 1px solid #e4e7eb;
+  color: #fff;
+  background: #111113;
+  border-bottom: 3px solid var(--app-accent);
   box-sizing: border-box;
+  font-weight: 800;
 }
 
 .verifybox-bottom {
@@ -189,7 +192,7 @@ export default {
   z-index: 1001;
   width: 100%;
   height: 100vh;
-  background: rgba(0, 0, 0, .3);
+  background: rgba(0, 0, 0, .58);
   /* display: none; */
   transition: all .5s;
 }
@@ -260,29 +263,30 @@ export default {
 }
 
 .verify-change-code {
-  color: #337AB7;
+  color: var(--app-danger);
   cursor: pointer;
 }
 
 .verify-btn {
   width: 200px;
   height: 30px;
-  background-color: #337AB7;
+  background-color: var(--app-primary);
   color: #FFFFFF;
   border: none;
   margin-top: 10px;
+  border-radius: 8px;
 }
 
 
 /*滑动验证码*/
 .verify-bar-area {
   position: relative;
-  background: #FFFFFF;
+  background: var(--app-primary-soft);
   text-align: center;
   -webkit-box-sizing: content-box;
   -moz-box-sizing: content-box;
   box-sizing: content-box;
-  border: 1px solid #ddd;
+  border: 1px solid var(--app-border);
   -webkit-border-radius: 4px;
 }
 
@@ -290,17 +294,18 @@ export default {
   position: absolute;
   top: 0px;
   left: 0;
-  background: #fff;
+  background: var(--app-accent);
+  color: #111;
   cursor: pointer;
   -webkit-box-sizing: content-box;
   -moz-box-sizing: content-box;
   box-sizing: content-box;
-  box-shadow: 0 0 2px #888888;
+  box-shadow: 0 8px 18px rgba(245, 158, 11, .28);
   -webkit-border-radius: 1px;
 }
 
 .verify-bar-area .verify-move-block:hover {
-  background-color: #337ab7;
+  background-color: var(--app-primary);
   color: #FFFFFF;
 }
 
@@ -308,12 +313,12 @@ export default {
   position: absolute;
   top: -1px;
   left: -1px;
-  background: #f0fff0;
+  background: var(--app-accent-soft);
   cursor: pointer;
   -webkit-box-sizing: content-box;
   -moz-box-sizing: content-box;
   box-sizing: content-box;
-  border: 1px solid #ddd;
+  border: 1px solid var(--app-accent);
 }
 
 .verify-img-panel {
@@ -321,9 +326,9 @@ export default {
   -webkit-box-sizing: content-box;
   -moz-box-sizing: content-box;
   box-sizing: content-box;
-  border-top: 1px solid #ddd;
-  border-bottom: 1px solid #ddd;
-  border-radius: 3px;
+  border-top: 1px solid var(--app-border);
+  border-bottom: 1px solid var(--app-border);
+  border-radius: 8px;
   position: relative;
 }
 

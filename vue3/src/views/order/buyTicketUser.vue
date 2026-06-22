@@ -123,12 +123,26 @@ const submit =()=>{
 
 <style scoped lang="scss">
 .app-container{
+  min-height: 100vh;
+  padding: 54px 0 120px;
+  background: var(--app-bg);
   .el-form{
+    width: 720px;
+    margin: 0 auto;
+    padding: 34px 44px 120px;
+    background: #fff;
+    border: 1px solid var(--app-border);
+    border-top: 7px solid var(--app-accent);
+    border-radius: 8px;
+    box-shadow: var(--app-shadow);
+    position: relative;
+
     .el-form-item{
       width: auto;
-      height: 18.1vmin;
-      padding-left: 5.6vmin;
-      padding-right: 5.6vmin;
+      height: auto;
+      min-height: 72px;
+      padding-left: 0;
+      padding-right: 0;
       display: flex;
       -webkit-box-orient: horizontal;
       flex-direction: row;
@@ -143,24 +157,27 @@ const submit =()=>{
     }
     .line{
       width: auto;
-      height: 0.27vmin;
-      margin-left: 5.6vmin;
-      margin-right: 5.6vmin;
-      background: rgb(238, 238, 238);
+      height: 1px;
+      margin: 0 0 20px;
+      background: var(--app-border);
     }
     .tips{
       width: auto;
-      height: 10.67vmin;
-      color: rgb(204, 204, 204);
-      font-size: 3.2vmin;
-      line-height: 5.6vmin;
-      margin-left: 5.6vmin;
-      margin-right: 5.6vmin;
+      min-height: 44px;
+      color: var(--app-text-muted);
+      font-size: 14px;
+      line-height: 22px;
+      margin: 18px 0 0;
+      padding: 12px 14px;
       display: flex;
+      gap: 6px;
       -webkit-box-align: center;
       align-items: center;
+      background: var(--app-accent-soft);
+      border-radius: 8px;
       span{
-        color: rgb(59, 153, 252);
+        color: var(--app-danger);
+        font-weight: 700;
       }
     }
     .sure{
@@ -172,21 +189,26 @@ const submit =()=>{
       -webkit-box-align: end;
       align-items: flex-end;
       bottom: 0px;
-      height:21.5vmin;
-      padding-bottom: 5.9vmin;
-      box-shadow: rgba(0, 0, 0, 0.04) 0px -2px 6px 0px;
+      left: 0;
+      height: 92px;
+      padding-bottom: 24px;
+      background: #fff;
+      border-top: 1px solid var(--app-border);
+      box-shadow: 0 -14px 32px rgba(24, 24, 27, .08);
       .submit{
         display: flex;
         -webkit-box-pack: center;
         justify-content: center;
         -webkit-box-align: center;
         align-items: center;
-        width: 88.8vmin;
-        height: 13.3vmin;
-        font-size: 4.27vmin;
-        color: rgb(255, 255, 255);
-        border-radius: 170.667px 170.667px 170.667px 0px;
-        background-image: linear-gradient(-270deg, var(--app-accent) 0%, var(--app-primary) 100%);
+        width: 360px;
+        height: 44px;
+        font-size: 16px;
+        color: #111;
+        border-radius: 999px;
+        border: none;
+        background: var(--app-accent);
+        font-weight: 800;
 
       }
     }
@@ -197,9 +219,9 @@ const submit =()=>{
 
 :deep(.el-form-item--default .el-form-item__label) {
 
-  font-size: 62px;
-  color: rgb(51, 51, 51);
-  font-weight: normal;
+  font-size: 15px;
+  color: var(--app-text);
+  font-weight: 800;
 
 }
 :deep(.el-input .el-input__wrapper .el-input__inner) {

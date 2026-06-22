@@ -82,14 +82,39 @@ function savePsd() {
 
 <style scoped lang="scss">
 .el-row {
-  width: 400px;
-  height: 400px;
-  margin: 100px auto 30px;
+  width: 520px;
+  min-height: 320px;
+  margin: 88px auto 46px;
+  padding: 42px 52px;
+  background: #fff;
+  border: 1px solid var(--app-border);
+  border-top: 7px solid var(--app-accent);
+  border-radius: 8px;
+  box-shadow: var(--app-shadow);
 }
 
 .btn {
-  margin-left: 130px;
+  display: block;
+  width: 160px;
+  height: 42px;
+  margin: 30px auto 0;
   background: var(--app-primary);
   border: none;
+  border-radius: 8px;
+  font-weight: 800;
+
+  &:hover {
+    color: #111;
+    background: var(--app-accent);
+  }
+}
+
+:deep(.el-form) {
+  width: 100%;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 700;
+  color: var(--app-text);
 }
 </style>

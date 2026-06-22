@@ -211,9 +211,9 @@ export default {
       startMoveTime.value = +new Date();    //开始滑动的时间
       if (isEnd.value == false) {
         text.value = ''
-        moveBlockBackgroundColor.value = '#337ab7'
-        leftBarBorderColor.value = '#337AB7'
-        iconColor.value = '#fff'
+        moveBlockBackgroundColor.value = '#f59e0b'
+        leftBarBorderColor.value = '#f59e0b'
+        iconColor.value = '#111'
         e.stopPropagation();
         status.value = true;
       }
@@ -383,4 +383,3 @@ export default {
   },
 }
 </script>
-

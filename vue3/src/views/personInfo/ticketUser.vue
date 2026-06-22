@@ -199,7 +199,7 @@ function reset(){
       float: right;
 
       .breadcrumb {
-        border: 1px solid #efefef;
+        border: 1px solid var(--app-border);
         height: 38px;
         overflow: hidden;
         background: var(--app-primary) repeat-x;
@@ -213,12 +213,16 @@ function reset(){
       .right-tab {
         margin-top: 23px;
           .addUser{
-            margin: 0px 0px 10px 86%;
+            display: block;
+            margin: 0 0 14px auto;
             background-color: var(--app-accent);
             color: #111;
+            border: none;
+            font-weight: 800;
+            border-radius: 8px;
           }
         .addTicketUserInfo{
-          border: 1px solid #ebeef5;
+          border: 1px solid var(--app-border);
           border-radius: 8px;
           background: #fff;
           box-shadow: 0 10px 24px rgba(24, 24, 27, .06);
@@ -233,14 +237,18 @@ function reset(){
           .line{
             width: 100%;
             height:2px;
-            background: #ebeef5;
-            margin-bottom: 50px;
+            background: var(--app-border);
+            margin-bottom: 34px;
           }
           .ticketForm{
             margin-top: 2px;
+            padding: 0 34px 28px;
             .save{
               background-color: var(--app-primary);
               color: #fff;
+              border: none;
+              border-radius: 8px;
+              font-weight: 800;
             }
           }
         }
@@ -263,6 +271,25 @@ function reset(){
 :deep(.el-select .el-input__wrapper ) {
   flex-grow: 0.4;
   width: 340.5px !important;
+}
+
+:deep(.el-table) {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--app-shadow);
+}
+
+:deep(.el-table th.el-table__cell) {
+  background: #111113;
+  color: rgba(255, 255, 255, .78);
+}
+
+:deep(.el-table--border .el-table__cell) {
+  border-color: var(--app-border);
+}
+
+:deep(.el-button--primary.is-link) {
+  color: var(--app-danger);
 }
 
 

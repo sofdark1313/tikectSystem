@@ -2,7 +2,7 @@
   <!--点击进入单独界面详情-->
   <div class="app-container">
     <Header></Header>
-    <div class="app-container">
+    <div class="detail-page">
       <div class="wrapper">
         <div class="box-left">
           <div class="box-detail">

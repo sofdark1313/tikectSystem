@@ -123,7 +123,7 @@ function getIsVaild() {
     float: right;
 
     .breadcrumb {
-      border: 1px solid #efefef;
+      border: 1px solid var(--app-border);
       height: 38px;
       overflow: hidden;
       background: var(--app-primary) repeat-x;
@@ -185,7 +185,7 @@ function getIsVaild() {
     .box {
 
       .account-info {
-        border: 1px solid #eef1f3;
+        border: 1px solid var(--app-border);
         border-radius: 8px;
         background: #fff;
         box-shadow: 0 10px 24px rgba(24, 24, 27, .06);
@@ -203,7 +203,7 @@ function getIsVaild() {
 
           .name-info-yes {
             width: 149px;
-            border-right: 1px solid #eef1f3;
+            border-right: 1px solid var(--app-border);
             height: 30px;
             line-height: 30px;
             background: url(//assets.tikectsystem.cn/tikectsystem_v2/passport/images/right2.png) no-repeat;
@@ -215,7 +215,7 @@ function getIsVaild() {
 
           .name-info-no {
             width: 149px;
-            border-right: 1px solid #eef1f3;
+            border-right: 1px solid var(--app-border);
             height: 30px;
             line-height: 30px;
             background: url(//assets.tikectsystem.cn/tikectsystem_v2/passport/images/sec2.png) no-repeat;
@@ -253,7 +253,7 @@ function getIsVaild() {
               font-size: 14px;
             }
             .btnColor {
-              color: #2f97b4;
+              color: var(--app-text-muted);
               font-size: 14px;
             }
           }

@@ -2,7 +2,13 @@
   <div class="app-header">
     <div class="header">
       <router-link to="/index" class="link">
-        <img :src="logo" alt="票务系统">
+        <span class="brand-mark">
+          <span class="brand-ticket"></span>
+        </span>
+        <span class="brand-copy">
+          <strong>TICKET</strong>
+          <em>Platform</em>
+        </span>
       </router-link>
       <div class="localHeader" v-if="isShowHeader">
         <el-icon :size="16">
@@ -95,7 +101,6 @@
 
 <script setup>
 
-import logo from '@/assets/login/logo.png'
 import photo from '@/assets/login/photo.png'
 import {ref, reactive, onMounted, nextTick} from 'vue'
 import {getToken, getUserIdKey, removeToken, removeUserIdKey, removeName} from "../../utils/auth";
@@ -253,21 +258,88 @@ function getProgramSearchList() {
     gap: 20px;
 
     .link {
-      display: block;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
       float: none;
-      width: 144px;
-      height: 52px;
-      flex: 0 0 144px;
-      border-radius: 8px;
-      background: #fff;
-      padding: 5px 10px;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .3);
-      img {
-        margin-top: 0;
-        width: 124px;
-        height: 42px;
+      width: 142px;
+      height: 44px;
+      flex: 0 0 142px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, .04));
+      border: 1px solid rgba(245, 158, 11, .42);
+      padding: 0 14px 0 12px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04), 0 12px 30px rgba(0, 0, 0, .28);
+      transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+
+      &:hover {
+        transform: translateY(-1px);
+        border-color: var(--app-accent);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06), 0 16px 34px rgba(0, 0, 0, .36);
+      }
+
+      .brand-mark {
+        width: 30px;
+        height: 30px;
+        flex: 0 0 30px;
+        border-radius: 50%;
+        background: #fff7e6;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, .12);
+      }
+
+      .brand-ticket {
+        width: 17px;
+        height: 12px;
+        border-radius: 3px;
+        background: linear-gradient(135deg, var(--app-accent), var(--app-danger));
         display: block;
-        object-fit: contain;
+        position: relative;
+
+        &::before,
+        &::after {
+          content: "";
+          position: absolute;
+          top: 4px;
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: #fff7e6;
+        }
+
+        &::before {
+          left: -2px;
+        }
+
+        &::after {
+          right: -2px;
+        }
+      }
+
+      .brand-copy {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-width: 0;
+        line-height: 1;
+
+        strong {
+          color: #fff;
+          font-size: 15px;
+          font-weight: 900;
+          letter-spacing: .8px;
+        }
+
+        em {
+          margin-top: 4px;
+          color: rgba(255, 255, 255, .56);
+          font-size: 10px;
+          font-style: normal;
+          letter-spacing: .2px;
+        }
       }
     }
 

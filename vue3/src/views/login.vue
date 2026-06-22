@@ -82,7 +82,7 @@
 
 <script setup>
 import contactQrcode from '@/assets/section/contact-qrcode.png'
-import bg from '@/assets/section/javaup.jpg'
+import bg from '@/assets/section/login-visual-generated.jpg'
 import Header from '@/components/header/index'
 import Footer from '@/components/footer/index'
 import {isPhoneNumber, isEmailAddress} from '@/utils/index'

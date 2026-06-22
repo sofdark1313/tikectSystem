@@ -139,38 +139,61 @@ function getOrderStatus(orderStatus){
 .orderDetail{
   width: 100%;
   height: 100%;
-  background: #ffffff;
+  background: var(--app-bg);
   .app-container{
     width: 1200px;
     margin: 0 auto;
-    padding: 10px 0;
+    padding: 26px 0 42px;
     .orderNum{
-      margin-top: 10px;
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      margin-top: 0;
       font-size: 16px;
-      margin-bottom: 20px;
+      margin-bottom: 14px;
+      padding: 0 16px;
+      color: rgba(255, 255, 255, .78);
+      background: #111113;
+      border-radius: 999px;
     }
     .isPay{
-      font-size: 30px;
+      font-size: 28px;
       display: flex;
       flex-direction: row;
       margin-bottom: 20px;
+      padding: 26px 30px;
+      background: #111113;
+      border-radius: 8px;
+      border-bottom: 7px solid var(--app-accent);
+      color: #fff;
+      box-shadow: 0 18px 46px rgba(24, 24, 27, .18);
       span:first-child{
       flex-grow: 0.8;
+      font-weight: 800;
       }
       span:last-child{
         font-size: 14px;
         flex-grow: 0.2;
         span{
           font-size: 30px;
+          color: var(--app-accent);
+          font-weight: 800;
         }
       }
     }
     .program-table{
+      background: #fff;
+      border: 1px solid var(--app-border);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--app-shadow);
       .tableCloumn{
         img{
           width: 62px;
           height: 80px;
           float: left;
+          border-radius: 8px;
+          object-fit: cover;
         }
         .project{
           width: 293px;
@@ -200,12 +223,16 @@ function getOrderStatus(orderStatus){
       padding: 0;
       width: 100%;
       height: 180px;
-      border: 1px solid #f5f7fa;
+      border: 1px solid var(--app-border);
       margin-top: 30px;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 12px 28px rgba(24, 24, 27, .08);
       li{
         width: 25%;
         height: 100%;
-        border-right: 1px solid #f5f7fa;
+        border-right: 1px solid var(--app-border);
         list-style: none;
         float: left;
         .title{
@@ -214,6 +241,8 @@ function getOrderStatus(orderStatus){
           display: block;
           font-size: 20px;
           padding-left: 20px;
+          font-weight: 800;
+          color: var(--app-text);
         }
         div{
           padding: 2px 2px 2px 10px;
@@ -229,12 +258,17 @@ function getOrderStatus(orderStatus){
       margin-top: 20px;
       margin-bottom: 20px;
       border: 1px solid #f5f7fa;
+      border-color: var(--app-border);
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 12px 28px rgba(24, 24, 27, .08);
       .title{
         width: 100%;
         height: 20px;
         display: block;
         font-size: 20px;
         padding-left: 20px;
+        font-weight: 800;
       }
       .info{
         width: 20%;
@@ -243,6 +277,7 @@ function getOrderStatus(orderStatus){
         div{
           padding: 2px 2px 2px 10px;
           font-size: 14px;
+          color: var(--app-text-muted);
         }
       }
     }
@@ -250,4 +285,14 @@ function getOrderStatus(orderStatus){
 
 }
 
+:deep(.el-table th.el-table__cell) {
+  background: #111113;
+  color: rgba(255, 255, 255, .78);
+}
+
+:deep(.el-table--border .el-table__cell) {
+  border-color: var(--app-border);
+}
+
 </style>
+          color: var(--app-text-muted);

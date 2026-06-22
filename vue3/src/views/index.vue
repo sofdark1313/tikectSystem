@@ -54,7 +54,7 @@
 
 <script setup>
 import Header from '@/components/header/index'
-import swiperPic1 from '@/assets/section/javaup.png'
+import swiperPic1 from '@/assets/section/ticket-hero-generated.jpg'
 import {onMounted, ref} from 'vue'
 import Footer from '@/components/footer/index'
 import {getcategoryType, getMainCategory} from '@/api/index'
@@ -112,7 +112,7 @@ function getMainCategoryList() {
 </script>
 <style scoped lang="scss">
 .app-container {
-  width: 1200px;
+  width: min(1440px, calc(100vw - 64px));
   margin: 0 auto;
   padding: 28px 0 44px;
 
@@ -252,7 +252,7 @@ function getMainCategoryList() {
   }
 
   .diffrentType {
-    width: 1200px;
+    width: 100%;
     position: relative;
     padding: 24px;
     border: 1px solid var(--app-border);
@@ -275,11 +275,12 @@ function getMainCategoryList() {
 
     .name {
       font-size: 24px;
-      display: inline-block;
-      vertical-align: middle;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       margin-left: 5px;
       color: var(--app-text);
-      width: 1100px;
+      width: 100%;
       height: 40px;
       line-height: 40px;
       overflow: hidden;
@@ -287,9 +288,7 @@ function getMainCategoryList() {
     }
 
     .more {
-      display: inline-block;
-      vertical-align: middle;
-      float: right;
+      flex: 0 0 auto;
       font-size: 14px;
       color: #111;
       background: var(--app-accent);
@@ -310,9 +309,13 @@ function getMainCategoryList() {
 
   .box {
     margin-top: 15px;
+    display: grid;
+    grid-template-columns: 270px minmax(0, 1fr);
+    gap: 24px;
+    align-items: stretch;
 
     .box-left {
-      display: inline-block;
+      display: block;
       width: 270px;
       height: 360px;
       position: relative;
@@ -338,24 +341,25 @@ function getMainCategoryList() {
     }
 
     .box-right {
-      display: inline-block;
-      width: 870px;
-      margin-left: 15px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 22px;
+      width: 100%;
+      margin-left: 0;
       height: 360px;
-      vertical-align: top;
       overflow: hidden;
 
       .rtLink {
-        width: 273px;
-        height: 160px;
+        width: 100%;
+        height: 169px;
         display: block;
-        margin-right: 16px;
-        display: inline-block;
-        margin-bottom: 40px;
+        margin: 0;
         color: #000;
         overflow: hidden;
         border-radius: 8px;
-        border: 1px solid transparent;
+        border: 1px solid var(--app-border);
+        background: linear-gradient(180deg, #fff, #fafafa);
+        box-shadow: 0 10px 24px rgba(24, 24, 27, .06);
         transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 
         &:hover {
@@ -364,9 +368,14 @@ function getMainCategoryList() {
           box-shadow: 0 16px 34px rgba(24, 24, 27, .14);
         }
 
+        a {
+          display: block;
+          height: 100%;
+        }
+
         img {
           width: 118px;
-          height: 158px;
+          height: 167px;
           overflow: hidden;
           position: relative;
           display: inline-block;
@@ -376,10 +385,10 @@ function getMainCategoryList() {
         }
 
         .info {
-          width: 138px;
+          width: calc(100% - 126px);
           height: 100%;
           position: relative;
-          padding-left: 15px;
+          padding: 10px 12px 10px 14px;
           display: inline-block;
           vertical-align: top;
 
@@ -399,7 +408,7 @@ function getMainCategoryList() {
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 2;
             font-size: 12px;
-            margin-top: 14px;
+            margin-top: 12px;
             color: #9B9B9B;
             overflow: hidden;
             word-break: break-all;
@@ -411,17 +420,17 @@ function getMainCategoryList() {
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 2;
             font-size: 12px;
-            margin-top: 14px;
+            margin-top: 10px;
             color: #9B9B9B;
             overflow: hidden;
             word-break: break-all;
           }
 
           .price {
-            width: 138px;
+            width: calc(100% - 24px);
             position: absolute;
-            left: 15px;
-            bottom: 0;
+            left: 14px;
+            bottom: 8px;
             font-size: 19px;
             color: var(--app-danger);
             white-space: nowrap;
