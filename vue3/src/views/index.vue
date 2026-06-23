@@ -147,28 +147,31 @@ function getMainCategoryList() {
   .category {
 
     margin-top: 20px !important;
-    padding: 22px 24px 24px;
+    padding: 18px 20px;
     border: 1px solid rgba(24, 24, 27, .16);
     border-radius: 8px;
-    background: #111113;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, .04), transparent),
+        #111113;
     box-shadow: 0 18px 44px rgba(24, 24, 27, .14);
     zoom: 1;
 
     ul {
       display: grid;
       grid-template-columns: repeat(10, 1fr);
+      gap: 10px;
       list-style-type: none;
       margin: 0;
       padding: 0;
       width: 100%;
-      height: 80px;
+      height: auto;
 
       li {
         float: none;
         display: block;
         width: auto;
         text-align: center;
-        transition: transform .2s ease;
+        transition: transform .2s ease, background .2s ease;
 
         &:hover {
           transform: translateY(-3px);
@@ -176,74 +179,81 @@ function getMainCategoryList() {
 
         a {
           width: 100%;
-          height: 50px;
-          display: block;
-
+          min-height: 54px;
+          padding: 8px 10px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, .08);
+          background: rgba(255, 255, 255, .04);
+          transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
 
           span {
-            width: 100%;
-            height: 20px;
-            display: inline-block;
-            font-size: 16px;
+            width: auto;
+            height: auto;
+            display: block;
+            font-size: 14px;
             color: rgba(255, 255, 255, .82);
-            text-align: center;
-            font-weight: 600;
+            text-align: left;
+            font-weight: 800;
+            line-height: 18px;
+            white-space: nowrap;
 
             &:hover {
               color: var(--app-accent);
             }
           }
+
+          &:hover {
+            border-color: rgba(245, 158, 11, .65);
+            background: rgba(245, 158, 11, .12);
+            box-shadow: inset 0 0 0 1px rgba(245, 158, 11, .14);
+          }
         }
 
 
         .sprit {
-          display: block;
-          width: 48px;
-          height: 48px;
-          margin: 0 auto;
-          background: url("/src/assets/section/sprit.png") no-repeat;
-          background-size: 100% auto;
-          filter: grayscale(1) brightness(2.2) sepia(.8) saturate(3) hue-rotate(350deg);
+          display: inline-block;
+          width: 30px;
+          height: 30px;
+          flex: 0 0 30px;
+          margin: 0;
+          border-radius: 50%;
+          background: rgba(245, 158, 11, .16);
+          border: 1px solid rgba(245, 158, 11, .55);
+          box-shadow: 0 0 0 4px rgba(245, 158, 11, .12);
+          color: var(--app-accent);
+          font-size: 13px;
+          font-style: normal;
+          font-weight: 900;
+          line-height: 28px;
+          text-align: center;
+          position: relative;
         }
 
-        .sprit1 {
-          background-position: 0 0;
+        .sprit::before {
+          content: "";
+          position: absolute;
+          left: 8px;
+          top: 10px;
+          width: 14px;
+          height: 10px;
+          border-radius: 3px;
+          background: linear-gradient(135deg, var(--app-accent), var(--app-danger));
+          transform: rotate(-10deg);
         }
 
-        .sprit2 {
-          background-position: 0 -64px;
-        }
-
-        .sprit3 {
-          background-position: 0 -120px;
-        }
-
-        .sprit4 {
-          background-position: 0 -180px;
-        }
-
-        .sprit5 {
-          background-position: 0 -240px;
-        }
-
-        .sprit6 {
-          background-position: 0 -297px
-        }
-
-        .sprit7 {
-          background-position: 0 -360px;
-        }
-
-        .sprit8 {
-          background-position: 0 -420px;
-        }
-
-        .sprit9 {
-          background-position: 0 -480px;
-        }
-
-        .sprit10 {
-          background-position: 0 -540px;
+        .sprit::after {
+          content: "";
+          position: absolute;
+          left: 13px;
+          top: 9px;
+          width: 4px;
+          height: 12px;
+          border-left: 1px dashed rgba(17, 17, 17, .42);
+          transform: rotate(-10deg);
         }
       }
     }

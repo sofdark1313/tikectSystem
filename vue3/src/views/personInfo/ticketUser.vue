@@ -2,13 +2,22 @@
   <!--个人信息-->
   <div class="container">
     <Header></Header>
-    <div class="red-line"></div>
+    <main class="profile-page">
     <div class="section">
       <MenuSideBar class="sidebarMenu" activeIndex="4"></MenuSideBar>
       <div class="right-section">
-        <div class="breadcrumb"><span>常用购票人管理</span></div>
+        <div class="breadcrumb">
+          <span>账户中心</span>
+          <strong>常用购票人管理</strong>
+        </div>
         <div class="right-tab">
-          <el-button class="addUser" @click="addTicketUser">新增购票人</el-button>
+          <div class="toolbar">
+            <div>
+              <h2>实名观演人</h2>
+              <p>维护常用购票人信息，下单时可直接选择。</p>
+            </div>
+            <el-button class="addUser" @click="addTicketUser">新增购票人</el-button>
+          </div>
           <el-table :data="ticketUserListData" v-if="isShow" style="width: 100%" border>
             <el-table-column  type="index"  label="序号" width="100px"   align="center"/>
             <el-table-column prop="relName" label="姓名"    align="center"/>
@@ -72,7 +81,8 @@
         </div>
       </div>
     </div>
-    <Footer class="foot"></Footer>
+    </main>
+    <Footer></Footer>
   </div>
 
 </template>
@@ -181,40 +191,90 @@ function reset(){
 
 <style scoped lang="scss">
 .container{
-  .red-line {
-    border-bottom: 5px solid var(--app-accent);
+  min-height: 100vh;
+  background: var(--app-bg);
+
+  .profile-page {
+    min-height: calc(100vh - 230px);
+    padding: 28px 0 56px;
+    border-top: 5px solid var(--app-accent);
+    background:
+      linear-gradient(180deg, rgba(245, 158, 11, .10), rgba(245, 158, 11, 0) 220px),
+      var(--app-bg);
   }
 
   .section {
-    width: 1000px;
-    margin: 15px auto 0;
+    width: min(1180px, calc(100vw - 64px));
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 26px;
+    align-items: start;
 
     .sidebarMenu {
-      //width: 201px;
-      float: left;
+      position: sticky;
+      top: 96px;
     }
 
     .right-section {
-      width: 789px;
-      float: right;
+      min-width: 0;
 
       .breadcrumb {
-        border: 1px solid var(--app-border);
-        height: 38px;
-        overflow: hidden;
-        background: var(--app-primary) repeat-x;
+        min-height: 82px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+        border: 1px solid rgba(255, 255, 255, .08);
+        background:
+          radial-gradient(circle at 10% 0, rgba(245, 158, 11, .28), transparent 28%),
+          linear-gradient(135deg, #111113, #25252b);
         border-bottom: 3px solid var(--app-accent);
-        padding: 0 15px;
-        line-height: 38px;
+        border-radius: 8px;
+        padding: 18px 22px;
         color: #ffffff;
-        margin-bottom: 15px;
+
+        span {
+          color: var(--app-accent);
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        strong {
+          font-size: 22px;
+        }
       }
 
       .right-tab {
-        margin-top: 23px;
+        margin-top: 18px;
+        padding: 22px;
+        border: 1px solid var(--app-border);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: var(--app-shadow);
+
+        .toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          margin-bottom: 18px;
+
+          h2 {
+            margin: 0;
+            color: var(--app-text);
+            font-size: 20px;
+          }
+
+          p {
+            margin: 6px 0 0;
+            color: var(--app-text-muted);
+            font-size: 13px;
+          }
+        }
+
           .addUser{
-            display: block;
-            margin: 0 0 14px auto;
+            flex: 0 0 auto;
             background-color: var(--app-accent);
             color: #111;
             border: none;
@@ -224,25 +284,22 @@ function reset(){
         .addTicketUserInfo{
           border: 1px solid var(--app-border);
           border-radius: 8px;
-          background: #fff;
-          box-shadow: 0 10px 24px rgba(24, 24, 27, .06);
+          background: var(--app-surface-soft);
           .title{
-            width: 136px;
-            line-height: 36px;
-            border-bottom: 2px solid var(--app-accent);;
-            padding-left: 15px;
+            line-height: 46px;
+            border-bottom: 1px solid var(--app-border);
+            padding-left: 20px;
             font-size: 16px;
-            color: #333333;
+            color: var(--app-text);
+            font-weight: 800;
           }
           .line{
-            width: 100%;
-            height:2px;
-            background: var(--app-border);
-            margin-bottom: 34px;
+            display: none;
           }
           .ticketForm{
-            margin-top: 2px;
-            padding: 0 34px 28px;
+            max-width: 560px;
+            margin-top: 0;
+            padding: 28px 34px;
             .save{
               background-color: var(--app-primary);
               color: #fff;
@@ -259,18 +316,16 @@ function reset(){
 
   }
 
-  .foot {
-    margin-top: 500px;
-  }
 }
 
 
 :deep(.el-input__wrapper) {
-  flex-grow: 0.3
+  flex-grow: 0;
+  width: 320px;
 }
 :deep(.el-select .el-input__wrapper ) {
-  flex-grow: 0.4;
-  width: 340.5px !important;
+  flex-grow: 0;
+  width: 320px !important;
 }
 
 :deep(.el-table) {
@@ -292,5 +347,20 @@ function reset(){
   color: var(--app-danger);
 }
 
+@media (max-width: 980px) {
+  .container .section {
+    width: min(100% - 24px, 1180px);
+    grid-template-columns: 1fr;
+
+    .sidebarMenu {
+      position: static;
+    }
+  }
+
+  .container .section .right-section .right-tab .toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
 
 </style>

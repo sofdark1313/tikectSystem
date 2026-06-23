@@ -1,116 +1,104 @@
 <template>
   <div class="app-container">
-    <div class="confirm-order">
-      <div class="basic-info1">
-        <div class="top">
-          <span class="title">{{detailList.title}}</span>
-          <span class="local">{{ detailList.areaName }}|{{ detailList.place }}</span>
-          <div class="line"></div>
-          <div class="time"><span>{{ formatDateWithWeekday(detailList.showTime, detailList.showWeekTime) }}</span></div>
-          <div class="money"><span>￥<span v-if="allPrice == ''">{{countPrice}}</span><span v-else>{{allPrice}}</span>票档</span><span >×<span  v-if="allPrice == ''">1</span><span  v-else>{{num}}</span>张</span></div>
-          <div class="order-info">
-            <span>按付款顺序配票，优先连座配票</span>
+    <div class="order-checkout">
+      <section class="checkout-hero">
+        <div class="hero-kicker">订单确认</div>
+        <h1>{{ detailList.title }}</h1>
+        <div class="hero-place">{{ detailList.areaName }} | {{ detailList.place }}</div>
+        <div class="hero-divider"></div>
+        <div class="hero-meta">
+          <div>
+            <span class="meta-label">场次</span>
+            <strong>{{ formatDateWithWeekday(detailList.showTime, detailList.showWeekTime) }}</strong>
           </div>
+          <div>
+            <span class="meta-label">票档</span>
+            <strong>￥<span v-if="allPrice == ''">{{ countPrice }}</span><span v-else>{{ allPrice }}</span> × <span v-if="allPrice == ''">1</span><span v-else>{{ num }}</span>张</strong>
+          </div>
+        </div>
+        <p>按付款顺序配票，优先连座配票</p>
+      </section>
 
-      </div>
-        <div class="bottom">
-          <div class="service-box">
-            <span class="service">服务</span>
-            <div class="service-name" v-if="detailList.permitRefund!=''">
-              <i class="icon-warn" v-if="detailList.permitRefund=='0'"></i><span v-if="detailList.permitRefund=='0'">不支持退</span>
-              <i class="icon-yes-blue" v-if="detailList.permitRefund=='1'"></i><span v-if="detailList.permitRefund=='1'">条件退</span>
-              <i class="icon-yes-blue" v-if="detailList.permitRefund=='2'"></i><span v-if="detailList.permitRefund=='2'">全部退</span>
+      <section class="checkout-card service-card">
+        <div class="section-title">服务</div>
+        <div class="service-tags">
+          <span class="service-tag warn" v-if="detailList.permitRefund=='0'">不支持退</span>
+          <span class="service-tag ok" v-if="detailList.permitRefund=='1'">条件退</span>
+          <span class="service-tag ok" v-if="detailList.permitRefund=='2'">全部退</span>
+          <span class="service-tag warn" v-if="detailList.relNameTicketEntrance=='0'">不实名购票和入场</span>
+          <span class="service-tag ok" v-if="detailList.relNameTicketEntrance=='1'">实名购票和入场</span>
+          <span class="service-tag warn" v-if="detailList.permitChooseSeat=='0'">不支持选座</span>
+          <span class="service-tag ok" v-if="detailList.permitChooseSeat=='1'">支持选座</span>
+          <span class="service-tag ok" v-if="detailList.electronicDeliveryTicket=='1'">电子票</span>
+          <span class="service-tag ok" v-if="detailList.electronicDeliveryTicket=='2'">快递票</span>
+          <span class="service-tag ok" v-if="detailList.electronicInvoice=='1'">电子发票</span>
+        </div>
+      </section>
+
+      <section class="checkout-card audience-card-wrap">
+        <div class="section-heading">
+          <div>
+            <h2>实名观演人</h2>
+            <p>仅需选择一位，入场时需携带对应证件</p>
+          </div>
+          <el-button class="add-user-btn" type="primary" @click="buyTicketInfo">新增</el-button>
+        </div>
+        <div class="audience-list" v-if="ticketInfoArr && ticketInfoArr.length">
+          <div
+              class="audience-card"
+              :class="{ selected: ticketUserIdArr.includes(item.id) }"
+              v-for="item in ticketInfoArr"
+              :key="item.id"
+          >
+            <div class="audience-avatar">{{ item.relName ? item.relName.slice(0, 1) : '*' }}</div>
+            <div class="audience-info" v-if="isSHowInfo">
+              <strong>{{ item.relName }}</strong>
+              <div class="audience-id">
+                <span v-if="item.idType == 1">身份证</span>
+                <span v-if="item.idType == 2">港澳台居民居住证</span>
+                <span v-if="item.idType == 3">港澳居民来往内地通行证</span>
+                <span v-if="item.idType == 4">台湾居民来往内地通行证</span>
+                <span v-if="item.idType == 5">护照</span>
+                <span v-if="item.idType == 6">外国人永久居住证</span>
+                <em>{{ item.idNumber }}</em>
+              </div>
             </div>
-          <div class="service-name" v-if="detailList.relNameTicketEntrance!=''">
-            <i class="icon-warn" v-if="detailList.relNameTicketEntrance=='0'"></i><span
-              v-if="detailList.relNameTicketEntrance=='0'">不实名购票和入场</span>
-            <i class="icon-yes-blue" v-if="detailList.relNameTicketEntrance=='1'"></i><span
-              v-if="detailList.relNameTicketEntrance=='1'">实名购票和入场</span>
-          </div>
-          <div class="service-name"   v-if="detailList.permitChooseSeat!=''">
-            <i class="icon-warn" v-if="detailList.permitChooseSeat=='0'"></i><span
-              v-if="detailList.permitChooseSeat=='0'">不支持选座</span>
-            <i class="icon-yes-blue" v-if="detailList.permitChooseSeat=='1'"></i><span
-              v-if="detailList.permitChooseSeat=='1'">支持选座</span>
-          </div>
-          <div class="service-name" v-if="detailList.electronicDeliveryTicket!=''">
-            <i class="icon-warn" v-if="detailList.electronicDeliveryTicket=='0'"></i><span
-              v-if="detailList.electronicDeliveryTicket=='0'">无票</span>
-            <i class="icon-yes-blue" v-if="detailList.electronicDeliveryTicket=='1'"></i><span
-              v-if="detailList.electronicDeliveryTicket=='1'">电子票</span>
-            <i class="icon-yes-blue" v-if="detailList.electronicDeliveryTicket=='2'"></i><span
-              v-if="detailList.electronicDeliveryTicket=='2'">快递票</span>
-          </div>
-          <div class="service-name"  v-if="detailList.electronicInvoice!=''">
-            <i class="icon-warn" v-if="detailList.electronicInvoice=='0'"></i><span
-              v-if="detailList.electronicInvoice=='0'">纸质发票</span>
-            <i class="icon-yes-blue" v-if="detailList.electronicInvoice=='1'"></i><span
-              v-if="detailList.electronicInvoice=='1'">电子发票</span>
-          </div>
-          </div>
-          <div class="line"></div>
-        </div>
-        <div class="isRealName">
-          <div class="left"><span class="title">实名观演人</span><span class="notice">仅需选择一位，入场时需携带对应证件</span></div>
-          <div class="right"><el-button class="btn" type="primary" circle @click="buyTicketInfo">新增</el-button></div>
-          <div class="ticketInfo" v-if="ticketInfoArr!=''">
-              <div  class="ticket" v-for="item in ticketInfoArr">
-              <div class="info" v-if="isSHowInfo">
-                <span class="title">{{item.relName}}</span>
-               <div class="card">
-                 <span class="cardType" v-if="item.idType == 1">身份证</span>
-                 <span class="cardType" v-if="item.idType == 2">港澳台居民居住证</span>
-                 <span class="cardType" v-if="item.idType == 3">港澳居民来往内地通行证</span>
-                 <span class="cardType" v-if="item.idType == 4">台湾居民来往内地通行证</span>
-                 <span class="cardType" v-if="item.idType == 5">护照</span>
-                 <span class="cardType" v-if="item.idType == 6">外国人永久居住证</span>
-                 <span class="cardId"> {{item.idNumber}}</span>
-               </div>
-              </div>
-                <div class="chx"> <el-checkbox class="checkSelect" :value="item.id" size="large" @change="getSelectTicketUser(item.id, $event)"></el-checkbox></div>
-              </div>
+            <el-checkbox class="audience-check" :value="item.id" size="large" @change="getSelectTicketUser(item.id, $event)"></el-checkbox>
           </div>
         </div>
-        <div class="line"></div>
-        <div class="sendMethod">
-          <div  class="sendMethodTitle">配送方式</div>
-          <div class="ticketType"  v-if="detailList.electronicDeliveryTicket=='1'">电子票 <el-button   class="ticketbtn"  v-if="detailList.electronicDeliveryTicket=='1'">直接入场</el-button></div>
-          <div class="ticketInfo"  v-if="detailList.electronicDeliveryTicket=='1'">支付成功后，无需取票，前往票夹查看入场凭证</div>
-<!--          <div class="ticketType"  v-if="detailList.electronicDeliveryTicket=='2'">快递</div>-->
-<!--          <div class="ticketInfo"  v-if="detailList.electronicDeliveryTicket=='2'"></div>-->
-<!--          <div class="ticketType"  v-if="detailList.electronicDeliveryTicket=='2'">运费</div>-->
-<!--          <div class="ten"  v-if="detailList.electronicDeliveryTicket=='2'">￥10.00</div>-->
+        <div class="audience-empty" v-else>
+          暂无实名观演人，请先新增后再提交订单
         </div>
-        <div class="sendline"></div>
-        <div class="tel">
-          <div class="title">联系方式</div>
-          <div class="telNum">{{telNum}}</div>
+      </section>
+
+      <section class="info-grid">
+        <div class="checkout-card info-card">
+          <h2>配送方式</h2>
+          <strong v-if="detailList.electronicDeliveryTicket=='1'">电子票 <span>直接入场</span></strong>
+          <p v-if="detailList.electronicDeliveryTicket=='1'">支付成功后，无需取票，前往票夹查看入场凭证。</p>
         </div>
-        <div class="sendline"></div>
-        <div class="payMethod">
-          <div class="title">付款确认</div>
-          <div class="payMoney"><span>提交订单后进入确认支付页面，点击按钮即可完成付款</span></div>
+        <div class="checkout-card info-card">
+          <h2>联系方式</h2>
+          <strong>{{ telNum }}</strong>
+          <p>订单状态和票务通知会发送至该联系方式。</p>
         </div>
-        <div class="info">
-          <div class="descript">由于票品为价票券，非普通商品，其背后承载的文化服务具有时效性、稀缺性等特征，一旦订购成功，不支持退换。</div>
-        <div class="price">
-          <span class="num" v-if="allPrice == ''">￥{{ countPrice }}</span>
-          <span class="num" v-else>￥{{ allPrice }}</span>
-          <span class="detail">明细</span>
-<!--          <el-button type="primary" class="dialogShow"-->
-<!--                     @click="dialogShow">点击显示弹框</el-button>-->
-<!--          <el-button type="primary" class="dialogShow"-->
-<!--                     v-loading.fullscreen.lock="loading"-->
-<!--                     element-loading-text="请稍后..."-->
-<!--                     :element-loading-spinner="svg"-->
-<!--                     element-loading-svg-view-box="-10, -10, 50, 50"-->
-<!--                     element-loading-background="rgba(122, 122, 122, 0.8)"-->
-<!--                     @click="dialogLoading">点击loading</el-button>-->
-          <el-button type="primary" class="submit" :loading="submitLoading" :disabled="submitLoading" @click="submitOrder">
-            {{ submitLoading ? '提交中' : '提交订单' }}
-          </el-button>
+        <div class="checkout-card info-card">
+          <h2>付款确认</h2>
+          <strong>简化支付</strong>
+          <p>提交订单后进入确认支付页面，点击按钮即可完成付款。</p>
         </div>
-        </div>
+      </section>
+    </div>
+
+    <div class="checkout-bar">
+      <div class="checkout-note">由于票品为价票券，非普通商品，其背后承载的文化服务具有时效性、稀缺性等特征，一旦订购成功，不支持退换。</div>
+      <div class="checkout-total">
+        <span class="total-price" v-if="allPrice == ''">￥{{ countPrice }}</span>
+        <span class="total-price" v-else>￥{{ allPrice }}</span>
+        <span class="total-detail">明细</span>
+        <el-button type="primary" class="checkout-submit" :loading="submitLoading" :disabled="submitLoading" @click="submitOrder">
+          {{ submitLoading ? '提交中' : '提交订单' }}
+        </el-button>
       </div>
     </div>
     <el-dialog
@@ -1111,6 +1099,733 @@ onBeforeUnmount(() => {
   width: 19px;
   transition: transform .15s ease-in 50ms;
   transform-origin: center;
+}
+
+.app-container {
+  min-height: 100vh;
+  height: auto;
+  padding: 24px 24px 128px;
+}
+
+.confirm-order {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  display: block !important;
+}
+
+.confirm-order .basic-info1 {
+  width: 100%;
+  overflow: visible;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--app-shadow);
+}
+
+.confirm-order .basic-info1 .top {
+  position: static;
+  height: auto;
+  padding: 30px 34px 26px;
+  background:
+      radial-gradient(circle at 88% 20%, rgba(245, 158, 11, .18), transparent 26%),
+      linear-gradient(135deg, #111113, #18181b);
+  border-bottom: 4px solid var(--app-accent);
+}
+
+.confirm-order .basic-info1 .top .title,
+.confirm-order .basic-info1 .top .local,
+.confirm-order .basic-info1 .top .line,
+.confirm-order .basic-info1 .top .time,
+.confirm-order .basic-info1 .top .money,
+.confirm-order .basic-info1 .top .order-info {
+  margin-left: 0;
+  margin-right: 0;
+  max-width: none;
+}
+
+.confirm-order .basic-info1 .top .title {
+  display: block;
+  font-size: 30px;
+  line-height: 1.35;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.confirm-order .basic-info1 .top .local {
+  margin-top: 10px;
+  font-size: 17px;
+  line-height: 26px;
+  color: rgba(255, 255, 255, .78);
+}
+
+.confirm-order .basic-info1 .top .line {
+  margin-top: 20px;
+  width: 100%;
+  height: 1px;
+  background: rgba(245, 158, 11, .72);
+}
+
+.confirm-order .basic-info1 .top .time {
+  margin-top: 20px;
+  font-size: 25px;
+}
+
+.confirm-order .basic-info1 .top .time span {
+  line-height: 32px;
+}
+
+.confirm-order .basic-info1 .top .money {
+  margin-top: 8px;
+  gap: 10px;
+}
+
+.confirm-order .basic-info1 .top .money span {
+  font-size: 20px;
+  line-height: 28px;
+}
+
+.confirm-order .basic-info1 .top .order-info {
+  margin-top: 8px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, .70);
+}
+
+.confirm-order .basic-info1 .bottom {
+  margin-top: 0;
+  padding: 22px 34px 0;
+}
+
+.confirm-order .basic-info1 .bottom .service-box {
+  margin-top: 0;
+  height: auto;
+  line-height: normal;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.confirm-order .basic-info1 .bottom .service-box .service {
+  width: auto;
+  height: auto;
+  line-height: normal;
+  margin-left: 0;
+  margin-right: 4px;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.confirm-order .basic-info1 .bottom .service-box .service-name {
+  margin-left: 0;
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--app-primary-soft);
+  border: 1px solid var(--app-border);
+  color: var(--app-text);
+}
+
+.confirm-order .basic-info1 .bottom .service-box .service-name span {
+  height: auto;
+  line-height: 1;
+  font-size: 14px;
+}
+
+.confirm-order .basic-info1 .bottom .line,
+.confirm-order .basic-info1 > .line,
+.confirm-order .basic-info1 .sendline {
+  margin: 22px 34px;
+  width: auto;
+  height: 1px;
+  background: var(--app-border);
+  opacity: 1;
+}
+
+.confirm-order .basic-info1 .isRealName {
+  margin: 0;
+  padding: 2px 34px 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px 22px;
+  align-items: start;
+}
+
+.confirm-order .basic-info1 .isRealName .left {
+  float: none;
+  margin-left: 0;
+  width: auto;
+  display: block;
+}
+
+.confirm-order .basic-info1 .isRealName .left .title {
+  display: block;
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 900;
+  color: var(--app-text);
+}
+
+.confirm-order .basic-info1 .isRealName .left .notice {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--app-text-muted);
+}
+
+.confirm-order .basic-info1 .isRealName .right {
+  float: none;
+  margin-left: 0;
+}
+
+.confirm-order .basic-info1 .isRealName .right .btn {
+  width: auto;
+  min-width: 92px;
+  height: 40px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #111;
+}
+
+.confirm-order .basic-info1 .isRealName .ticketInfo {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.confirm-order .basic-info1 .isRealName .ticketInfo .ticket {
+  width: 100%;
+  height: auto;
+  min-height: 88px;
+  padding: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff, #fafafa);
+  box-shadow: 0 10px 24px rgba(24, 24, 27, .05);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+}
+
+.confirm-order .basic-info1 .isRealName .ticketInfo .ticket .info {
+  float: none;
+  margin-left: 0;
+  width: auto;
+  display: block;
+}
+
+.confirm-order .basic-info1 .isRealName .ticketInfo .ticket .info .title {
+  display: block;
+  max-width: 100%;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 900;
+  color: var(--app-text);
+}
+
+.confirm-order .basic-info1 .isRealName .ticketInfo .ticket .info .card {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--app-text-muted);
+}
+
+.confirm-order .basic-info1 .isRealName .ticketInfo .ticket .info .card .cardType {
+  width: auto;
+  margin-right: 10px;
+  font-size: 14px;
+  color: var(--app-text-muted);
+}
+
+.confirm-order .basic-info1 .isRealName .ticketInfo .ticket .chx {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirm-order .basic-info1 .sendMethod,
+.confirm-order .basic-info1 .tel,
+.confirm-order .basic-info1 .payMethod {
+  margin: 0 34px;
+  padding: 20px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.confirm-order .basic-info1 .sendMethod .sendMethodTitle,
+.confirm-order .basic-info1 .tel .title,
+.confirm-order .basic-info1 .payMethod .title {
+  display: block;
+  margin: 0 0 12px;
+  font-size: 19px;
+  line-height: 28px;
+  font-weight: 900;
+  color: var(--app-text);
+}
+
+.confirm-order .basic-info1 .sendMethod .ticketType {
+  margin: 0 0 8px;
+  height: auto;
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 800;
+  color: var(--app-text);
+}
+
+.confirm-order .basic-info1 .sendMethod .ticketType .ticketbtn {
+  margin-left: 10px;
+  height: 28px;
+  font-size: 13px;
+  color: #111;
+  border-color: var(--app-accent);
+  background: var(--app-accent-soft);
+  border-radius: 999px;
+}
+
+.confirm-order .basic-info1 .sendMethod .ticketInfo,
+.confirm-order .basic-info1 .payMethod .payMoney span {
+  display: block;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--app-text-muted);
+}
+
+.confirm-order .basic-info1 .tel .telNum {
+  font-size: 18px;
+  line-height: 28px;
+  color: var(--app-text);
+  font-weight: 800;
+}
+
+.confirm-order .basic-info1 .payMethod .payMoney {
+  min-height: auto;
+}
+
+.confirm-order .basic-info1 .info {
+  height: 112px;
+  left: 0;
+  right: 0;
+  padding: 14px 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+}
+
+.confirm-order .basic-info1 .info .descript {
+  margin: 0;
+  width: auto;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--app-text-muted);
+}
+
+.confirm-order .basic-info1 .info .price {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.confirm-order .basic-info1 .info .price .num {
+  font-size: 34px;
+  line-height: 42px;
+  font-weight: 900;
+}
+
+.confirm-order .basic-info1 .info .price .detail {
+  font-size: 15px;
+  color: var(--app-text);
+}
+
+.confirm-order .basic-info1 .info .price .submit {
+  position: static;
+  width: 210px;
+  height: 58px;
+  margin-left: 22px;
+  border-radius: 999px;
+  font-size: 24px;
+  font-weight: 900;
+  box-shadow: 0 18px 36px rgba(245, 158, 11, .24);
+}
+
+:deep(.el-checkbox.el-checkbox--large .el-checkbox__inner) {
+  width: 22px;
+  height: 22px;
+}
+
+:deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
+  background-color: var(--app-accent);
+  border-color: var(--app-accent);
+}
+
+:deep(.el-checkbox__inner::after) {
+  height: 11px;
+  left: 7px;
+  top: 2px;
+  width: 5px;
+}
+
+.order-checkout {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 24px 0 128px;
+}
+
+.checkout-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  padding: 34px 40px 32px;
+  color: #fff;
+  background:
+      radial-gradient(circle at 92% 18%, rgba(245, 158, 11, .22), transparent 28%),
+      linear-gradient(135deg, #111113, #18181b);
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-bottom: 5px solid var(--app-accent);
+  box-shadow: var(--app-shadow);
+}
+
+.checkout-hero .hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #111;
+  background: var(--app-accent);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.checkout-hero h1 {
+  margin: 18px 0 10px;
+  font-size: 32px;
+  line-height: 1.35;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.checkout-hero .hero-place {
+  color: rgba(255, 255, 255, .78);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.checkout-hero .hero-divider {
+  height: 1px;
+  margin: 24px 0;
+  background: rgba(245, 158, 11, .70);
+}
+
+.checkout-hero .hero-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  width: min(760px, 100%);
+}
+
+.checkout-hero .hero-meta > div {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .08);
+}
+
+.checkout-hero .meta-label {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, .56);
+  font-size: 13px;
+}
+
+.checkout-hero strong {
+  font-size: 21px;
+  line-height: 28px;
+}
+
+.checkout-hero p {
+  margin: 16px 0 0;
+  color: rgba(255, 255, 255, .72);
+  font-size: 15px;
+}
+
+.checkout-card {
+  margin-top: 18px;
+  padding: 24px 28px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(24, 24, 27, .08);
+}
+
+.section-title {
+  margin-bottom: 14px;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.service-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.service-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--app-border);
+  background: var(--app-primary-soft);
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.service-tag::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--app-danger);
+}
+
+.service-tag.ok::before {
+  background: var(--app-info);
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.section-heading h2,
+.info-card h2 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 900;
+}
+
+.section-heading p,
+.info-card p {
+  margin: 6px 0 0;
+  color: var(--app-text-muted);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.add-user-btn {
+  flex: 0 0 auto;
+  height: 42px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-accent);
+  color: #111;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.audience-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.audience-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 96px;
+  padding: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff, #fafafa);
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.audience-card.selected {
+  border-color: var(--app-accent);
+  box-shadow: 0 16px 34px rgba(245, 158, 11, .16);
+}
+
+.audience-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(245, 158, 11, .72);
+}
+
+.audience-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #111;
+  background: var(--app-accent);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.audience-info {
+  min-width: 0;
+}
+
+.audience-info strong {
+  display: block;
+  color: var(--app-text);
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 900;
+}
+
+.audience-id {
+  margin-top: 7px;
+  color: var(--app-text-muted);
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audience-id span {
+  margin-right: 10px;
+}
+
+.audience-id em {
+  font-style: normal;
+}
+
+.audience-empty {
+  margin-top: 20px;
+  padding: 24px;
+  border: 1px dashed var(--app-border-strong);
+  border-radius: 8px;
+  color: var(--app-text-muted);
+  text-align: center;
+  background: var(--app-surface-soft);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.info-card {
+  min-height: 150px;
+}
+
+.info-card strong {
+  display: block;
+  margin-top: 14px;
+  color: var(--app-text);
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 900;
+}
+
+.info-card strong span {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  margin-left: 8px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, .42);
+  color: #111;
+  background: var(--app-accent-soft);
+  font-size: 13px;
+}
+
+.checkout-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  min-height: 96px;
+  padding: 16px max(24px, calc((100vw - 1180px) / 2));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  background: rgba(255, 255, 255, .96);
+  border-top: 3px solid var(--app-accent);
+  box-shadow: 0 -18px 46px rgba(24, 24, 27, .14);
+  backdrop-filter: blur(10px);
+}
+
+.checkout-note {
+  max-width: 780px;
+  color: var(--app-text-muted);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.checkout-total {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.total-price {
+  color: var(--app-danger);
+  font-size: 34px;
+  line-height: 42px;
+  font-weight: 900;
+}
+
+.total-detail {
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.checkout-submit {
+  width: 200px;
+  height: 56px;
+  margin-left: 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-accent);
+  color: #111;
+  font-size: 23px;
+  font-weight: 900;
+  box-shadow: 0 18px 36px rgba(245, 158, 11, .24);
+}
+
+@media (max-width: 900px) {
+  .checkout-hero .hero-meta,
+  .info-grid,
+  .checkout-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .checkout-total {
+    justify-content: space-between;
+  }
 }
 
 </style>

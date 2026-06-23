@@ -1,21 +1,27 @@
 <template>
   <!--个人信息-->
   <Header></Header>
-  <div class="red-line"></div>
+  <main class="profile-page">
   <div class="section">
     <MenuSideBar class="sidebarMenu" activeIndex="2"></MenuSideBar>
     <div class="right-section">
-      <div class="breadcrumb"><span>账号设置</span></div>
+      <div class="breadcrumb">
+        <span>账户中心</span>
+        <strong>账号设置</strong>
+      </div>
       <div class="right-tab">
-        <ul class="title">
-          <li class="left">账号设置</li>
-        </ul>
+        <div class="section-title">
+          <h2>安全设置</h2>
+          <p>管理登录密码、绑定信息和实名认证状态。</p>
+        </div>
         <div class="box">
           <div class="account-info" v-for="item in accountLists">
-            <ul>
-              <li :class="item.nameInfoStyle">{{ item.nameInfo }}</li>
-              <li class="detail">{{ item.detailInfo }}</li>
-              <li class="explain">
+            <div class="account-row">
+              <div class="account-name" :class="item.nameInfoStyle">
+                <span>{{ item.nameInfo }}</span>
+              </div>
+              <div class="detail">{{ item.detailInfo || '建议定期检查账户安全状态' }}</div>
+              <div class="explain">
                 <router-link v-if="experienceAccountFlag != 1" :to="item.path"
                              :class="(item.explainInfo =='立即验证'||item.explainInfo =='立即绑定')? 'pathBtn':'btnColor'">
                   {{ item.explainInfo }}
@@ -23,14 +29,15 @@
                 <div class="btnColor" v-if="experienceAccountFlag == 1">
                     体验不支持
                 </div>  
-              </li>
-            </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-  <Footer class="foot"></Footer>
+  </main>
+  <Footer></Footer>
 </template>
 
 <script setup>
@@ -105,158 +112,166 @@ function getIsVaild() {
 </script>
 
 <style scoped lang="scss">
-.red-line {
-  border-bottom: 5px solid var(--app-accent);
+.profile-page {
+  min-height: calc(100vh - 230px);
+  padding: 28px 0 56px;
+  border-top: 5px solid var(--app-accent);
+  background:
+    linear-gradient(180deg, rgba(245, 158, 11, .10), rgba(245, 158, 11, 0) 220px),
+    var(--app-bg);
 }
 
 .section {
-  width: 1000px;
-  margin: 15px auto 0;
+  width: min(1180px, calc(100vw - 64px));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 26px;
+  align-items: start;
 
   .sidebarMenu {
-    //width: 201px;
-    float: left;
+    position: sticky;
+    top: 96px;
   }
 
   .right-section {
-    width: 789px;
-    float: right;
+    min-width: 0;
 
     .breadcrumb {
-      border: 1px solid var(--app-border);
-      height: 38px;
-      overflow: hidden;
-      background: var(--app-primary) repeat-x;
+      min-height: 82px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid rgba(255, 255, 255, .08);
+      background:
+        radial-gradient(circle at 10% 0, rgba(245, 158, 11, .28), transparent 28%),
+        linear-gradient(135deg, #111113, #25252b);
       border-bottom: 3px solid var(--app-accent);
-      padding: 0 15px;
-      line-height: 38px;
+      border-radius: 8px;
+      padding: 18px 22px;
       color: #ffffff;
-      margin-bottom: 15px;
+
+      span {
+        color: var(--app-accent);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      strong {
+        font-size: 22px;
+      }
     }
 
     .right-tab {
-      margin-top: 23px;
+      margin-top: 18px;
 
-      .title {
-        border-bottom: 2px solid var(--app-accent);
-        height: 29px;
+      .section-title {
+        margin-bottom: 14px;
+        padding: 18px 20px;
+        border: 1px solid var(--app-border);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 10px 26px rgba(24, 24, 27, .06);
 
-        li {
-          width: 104px;
-          height: 29px;
-          overflow: hidden;
-          margin-left: 5px;
-
+        h2 {
+          margin: 0;
+          color: var(--app-text);
+          font-size: 20px;
         }
 
-        li.right {
-          float: right;
-          color: #333;
-          font-size: 14px;
-          font-family: "Microsoft YaHei";
-          width: 180px;
-          text-align: right;
-          line-height: 20px;
-
-          span {
-            color: var(--app-danger);
-            font-size: 28px;
-            font-weight: 700;
-            line-height: 25px;
-          }
-        }
-
-        li.left {
-          background: var(--app-primary) no-repeat scroll -139px -122px;
-          border-bottom: 3px solid var(--app-accent);
-          display: block;
-          line-height: 29px;
-          text-align: center;
-          font-size: 12px;
-          padding: 0 2px;
-          background-position: -139px -93px;
-          color: #fff;
-          font-weight: 700;
-          float: left;
+        p {
+          margin: 6px 0 0;
+          color: var(--app-text-muted);
+          font-size: 13px;
         }
       }
     }
 
     .box {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
 
       .account-info {
         border: 1px solid var(--app-border);
         border-radius: 8px;
         background: #fff;
         box-shadow: 0 10px 24px rgba(24, 24, 27, .06);
-        padding: 25px 20px 25px 25px;
-        overflow: hidden;
-        zoom: 1;
-        margin-top: 15px;
+        padding: 20px 22px;
+      }
 
-        ul {
-          list-style: none;
+      .account-row {
+        display: grid;
+        grid-template-columns: 190px minmax(0, 1fr) 110px;
+        gap: 18px;
+        align-items: center;
+      }
 
-          li {
-            float: left;
-          }
+      .account-name {
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-right: 18px;
+        border-right: 1px solid var(--app-border);
+        color: var(--app-text);
+        font-weight: 800;
+        font-size: 17px;
 
-          .name-info-yes {
-            width: 149px;
-            border-right: 1px solid var(--app-border);
-            height: 30px;
-            line-height: 30px;
-            background: url(//assets.tikectsystem.cn/tikectsystem_v2/passport/images/right2.png) no-repeat;
-            padding-left: 55px;
-            font-weight: 700;
-            font-size: 18px;
-            font-family: 'Microsoft YaHei';
-          }
+        &::before {
+          content: "";
+          width: 30px;
+          height: 30px;
+          flex: 0 0 auto;
+          border-radius: 50%;
+          background: var(--app-accent-soft);
+          box-shadow: inset 0 0 0 2px rgba(245, 158, 11, .35);
+        }
 
-          .name-info-no {
-            width: 149px;
-            border-right: 1px solid var(--app-border);
-            height: 30px;
-            line-height: 30px;
-            background: url(//assets.tikectsystem.cn/tikectsystem_v2/passport/images/sec2.png) no-repeat;
-            padding-left: 55px;
-            font-weight: 700;
-            font-size: 18px;
-            font-family: 'Microsoft YaHei';
-          }
+        &.name-info-yes::before {
+          background:
+            linear-gradient(135deg, #22c55e, #16a34a);
+          box-shadow: none;
+        }
 
-          .detail {
-            width: 445px;
-            padding: 0 10px;
-            color: #999;
-            line-height: 16px;
+        &.name-info-no::before {
+          background:
+            linear-gradient(135deg, var(--app-danger), #f97316);
+          box-shadow: none;
+        }
+      }
 
-            span {
-              float: left
-            }
-          }
+      .detail {
+        color: var(--app-text-muted);
+        font-size: 14px;
+        line-height: 1.7;
+      }
 
-          .explain {
-            float: right;
-            width: 90px;
-            text-align: center;
-            line-height: 30px;
+      .explain {
+        text-align: right;
 
-            .pathBtn {
-              background: no-repeat scroll 0 -234px;
-              width: 72px;
-              height: 21px;
-              line-height: 21px;
-              text-align: center;
-              color: var(--app-danger);
-              display: inline-block;
-              font-size: 14px;
-            }
-            .btnColor {
-              color: var(--app-text-muted);
-              font-size: 14px;
-            }
-          }
+        .pathBtn,
+        .btnColor {
+          min-width: 82px;
+          min-height: 32px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 700;
+          text-decoration: none;
+        }
+
+        .pathBtn {
+          color: #111;
+          background: var(--app-accent);
+        }
+
+        .btnColor {
+          color: var(--app-text-muted);
+          border: 1px solid var(--app-border);
         }
       }
 
@@ -265,13 +280,33 @@ function getIsVaild() {
 
 }
 
-.foot {
-  margin-top: 565px;
-}
-
 :deep(.el-input__wrapper) {
   flex-grow: 0.3
 }
 
+@media (max-width: 980px) {
+  .section {
+    width: min(100% - 24px, 1180px);
+    grid-template-columns: 1fr;
+
+    .sidebarMenu {
+      position: static;
+    }
+  }
+
+  .section .right-section .box .account-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+
+    .account-name {
+      border-right: none;
+      padding-right: 0;
+    }
+
+    .explain {
+      text-align: left;
+    }
+  }
+}
 
 </style>

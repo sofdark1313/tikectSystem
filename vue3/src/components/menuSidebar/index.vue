@@ -44,84 +44,90 @@
 </template>
 
 <script setup>
-import {Document, Menu as IconMenu, Location, Setting} from '@element-plus/icons-vue'
 import {ref, defineProps} from 'vue'
-// index: 需要打开的 sub-menu 的 index
-const handleOpen = (key, keyPath) => {
-  console.log(key, keyPath)
-}
-const handleClose = (key, keyPath) => {
-}
 //默认所有项都打开
 const defaultOpened1 = ref(['1'])
 const defaultOpened2 = ref(['1', '2', '3', '4'])
 const props = defineProps({
   activeIndex: String
 });
+const handleOpen = () => {}
+const handleClose = () => {}
 
 
 </script>
 
 <style scoped lang="scss">
 .app-container {
-  //width: 100%;
-  //height: 100%;
-  //position: absolute;
-  //background: #ffffff;
   .sidebar {
-    width: 201px;
+    width: 220px;
   }
-
 }
 
 .el-menu--vertical:not(.el-menu--collapse):not(.el-menu--popup-container) .el-menu-item,
 .el-menu--vertical:not(.el-menu--collapse):not(.el-menu--popup-container) .el-menu-item-group__title,
 .el-menu--vertical:not(.el-menu--collapse):not(.el-menu--popup-container) .el-sub-menu__title {
-  padding-left: 20px;
+  padding-left: 0;
 }
 
 :deep(.menu_border) {
-  border: 1px solid var(--app-border);
+  padding: 10px;
+  border: 1px solid rgba(24, 24, 27, .08);
   border-radius: 0 0 8px 8px;
   overflow: hidden;
   background: #fff;
+  box-shadow: 0 16px 38px rgba(24, 24, 27, .08);
 }
 
 :deep(.el-menu) {
   border-right: none;
+  background: transparent;
 }
 
 :deep(.el-sub-menu .el-menu-item) {
-  height: 32px;
-  line-height: 32px;
+  height: 38px;
+  line-height: 38px;
+  margin: 4px 0;
+  padding: 0 !important;
+  border-radius: 8px;
+  color: var(--app-text-muted);
+  transition: background .18s ease, color .18s ease, transform .18s ease;
 }
 
-:deep(.el-sub-menu .el-menu-item.is-active) {
-
+:deep(.el-sub-menu .el-menu-item a){
+  width: 100%;
+  height: 100%;
+  display: block;
+  padding: 0 14px 0 32px;
+  color: inherit;
+  text-decoration: none;
 }
 
 :deep(.el-sub-menu .el-menu-item:hover),
 :deep(.el-sub-menu .el-menu-item.is-active) {
-  border-left: 3px solid var(--app-accent);
+  border-left: none;
   background: var(--app-accent-soft);
-  height: 32px;
-  margin-left: -1px;
-  position: relative;
-  padding-left: 32px;
   text-decoration: none;
-  color: #303133;
+  color: #7a3f00;
+  transform: translateX(2px);
+}
+
+:deep(.el-sub-menu .el-menu-item.is-active) {
+  font-weight: 800;
+  box-shadow: inset 3px 0 0 var(--app-accent);
 }
 
 :deep(.el-menu .el-sub-menu .el-sub-menu__title) {
-  background: #111113;
-  //border-top: 1px solid #efefef;
-  border-bottom: 1px solid rgba(255, 255, 255, .12);
-  height: 30px;
-  line-height: 30px;
-  padding-left: 20px;
-  font-family: "Microsoft YaHei";
-  color: #fff;
+  height: 36px;
+  line-height: 36px;
+  padding: 0 14px !important;
+  margin: 8px 0 4px;
+  border-radius: 8px;
+  background: var(--app-primary-soft);
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  color: var(--app-text);
   font-weight: 700;
+  font-size: 13px;
 }
 
 /* 隐藏Element Plus侧边菜单展开/折叠箭头 */
@@ -134,26 +140,21 @@ const props = defineProps({
 }
 
 .mb-2 {
-  background: var(--app-primary) no-repeat;
-  border-bottom: 3px solid var(--app-accent);
-  width: 205px;
-  height: 33px;
+  width: 220px;
+  height: 54px;
   position: relative;
-  left: -3px;
-  padding-left: 11px;
-  line-height: 30px;
-  font-family: "Microsoft YaHei";
-  font-size: 14px;
+  margin: 0;
+  padding-left: 18px;
+  line-height: 54px;
+  border-radius: 8px 8px 0 0;
+  background:
+    linear-gradient(135deg, rgba(245, 158, 11, .18), transparent 42%),
+    var(--app-primary);
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  font-size: 15px;
   color: #fff;
   font-weight: 700;
-  margin-bottom: -3px;
-  margin-top: 0px;
-}
-
-:deep(.el-sub-menu .el-menu-item a){
-  width: 100%;
-  height: 100%;
-  display: block;
+  border-bottom: 4px solid var(--app-accent);
 }
 
 </style>
