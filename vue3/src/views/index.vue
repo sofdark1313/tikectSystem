@@ -60,55 +60,98 @@ import Footer from '@/components/footer/index'
 import {getcategoryType, getMainCategory} from '@/api/index'
 //轮播图目前固定一张
 const picArr = [swiperPic1]
+const CATEGORY_CACHE_KEY = 'home-category-list'
+const HOME_LIST_CACHE_KEY_PREFIX = 'home-program-list:'
+const CATEGORY_CACHE_TTL = 5 * 60 * 1000
+const HOME_CACHE_TTL = 30 * 1000
 
 const categoryArr = ref([])
 const programList = ref([])
 const queryParams = ref({
-  "areaId": 0,
-  "parentProgramCategoryIds": []
+  areaId: null,
+  parentProgramCategoryIds: []
 })
-const programListVoList = ref([])
-//     [
-//   {name: '演唱会', setClass: 'sprit1', url: '/allType/index'},
-//   {name: '话剧歌剧', setClass: 'sprit2', url: '/allType/index'},
-//   {name: '体育', setClass: 'sprit3', url: '/allType/index'},
-//   {name: '儿童亲子', setClass: 'sprit4', url: '/allType/index'},
-//   {name: '展览休闲', setClass: 'sprit5', url: '/allType/index'},
-//   {name: '音乐会', setClass: 'sprit6', url: '/allType/index'},
-//   {name: '曲苑杂坛', setClass: 'sprit7', url: '/allType/index'},
-//   {name: '舞蹈芭蕾', setClass: 'sprit8', url: '/allType/index'},
-//   {name: '二次元', setClass: 'sprit9', url: '/allType/index'},
-//   {name: '旅游展览', setClass: 'sprit10', url: '/allType/index'}
-// ]
+let homeLoadTimer = null
+
 //获取中间的类目信息
 onMounted(() => {
   getgetcategoryList()
-
 })
 
 //查询节目类型
 function getgetcategoryList() {
+  const cache = readCache(CATEGORY_CACHE_KEY, CATEGORY_CACHE_TTL)
+  if (cache) {
+    categoryArr.value = cache
+    scheduleMainCategoryList()
+    return
+  }
   getcategoryType({type: 1}).then(response => {
-    categoryArr.value = response.data
-    getMainCategoryList()
+    categoryArr.value = response.data || []
+    writeCache(CATEGORY_CACHE_KEY, categoryArr.value)
+    scheduleMainCategoryList()
   })
 }
 
 function handleUpdate(value) {
-  queryParams.value.areaId = value
+  const areaId = value || null
+  if (queryParams.value.areaId === areaId) {
+    return
+  }
+  queryParams.value.areaId = areaId
+  if (categoryArr.value.length) {
+    if (homeLoadTimer) {
+      clearTimeout(homeLoadTimer)
+      homeLoadTimer = null
+    }
+    getMainCategoryList()
+  }
+}
+
+function scheduleMainCategoryList() {
+  if (queryParams.value.areaId) {
+    getMainCategoryList()
+    return
+  }
+  homeLoadTimer = setTimeout(() => {
+    homeLoadTimer = null
+    getMainCategoryList()
+  }, 180)
 }
 
 function getMainCategoryList() {
-  for (let i = 0; i < 4 && i < categoryArr.value.length; i++) {
-    queryParams.value.parentProgramCategoryIds.push(categoryArr.value[i].id);
+  queryParams.value.parentProgramCategoryIds = categoryArr.value.slice(0, 4).map(item => item.id)
+  const cacheKey = `${HOME_LIST_CACHE_KEY_PREFIX}${queryParams.value.areaId || 'prime'}:${queryParams.value.parentProgramCategoryIds.join(',')}`
+  const cache = readCache(cacheKey, HOME_CACHE_TTL)
+  if (cache) {
+    programList.value = cache
+    return
   }
   getMainCategory(queryParams.value).then(response => {
-    programList.value = response.data
+    programList.value = response.data || []
+    writeCache(cacheKey, programList.value)
   })
 }
 
+function readCache(key, ttl) {
+  try {
+    const cache = JSON.parse(sessionStorage.getItem(key) || 'null')
+    if (!cache || Date.now() - cache.time > ttl) {
+      return null
+    }
+    return cache.data
+  } catch (e) {
+    return null
+  }
+}
 
-
+function writeCache(key, data) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify({time: Date.now(), data}))
+  } catch (e) {
+    // 存储不可用时只跳过前端缓存，不影响首页真实数据请求。
+  }
+}
 </script>
 <style scoped lang="scss">
 .app-container {

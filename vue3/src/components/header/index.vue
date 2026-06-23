@@ -15,7 +15,7 @@
           <Location/>
         </el-icon>
 
-        <el-popover placement="bottom" @click="visible = !visible" style="height: 10px">
+        <el-popover placement="bottom" @show="loadCityOptions" style="height: 10px">
           <template #reference>
             <span style="margin-right: 16px" class="city-location">{{ localName }}<el-icon :size="12"> <CaretBottom/></el-icon></span>
           </template>
@@ -66,14 +66,24 @@
       </div>
       <div class="rightHeader" v-if="isShowHeader">
         <div class="box-left">
-
-          <el-popover :width="100">
+          <el-popover :width="150" popper-class="user-menu-popover">
             <template #reference>
-              <span><img :src="photo" alt="" class="">
-                <router-link to="/login" class="log">{{ isLoginToken }}</router-link></span>
+              <router-link v-if="!isHasToken" to="/login" class="user-trigger">
+                <span class="user-avatar">
+                  <el-icon :size="17"><UserFilled /></el-icon>
+                </span>
+                <span class="user-name">登录</span>
+              </router-link>
+              <button v-else class="user-trigger" type="button">
+                <span class="user-avatar">
+                  <el-icon :size="17"><UserFilled /></el-icon>
+                </span>
+                <span class="user-name">{{ isLoginToken }}</span>
+                <el-icon :size="12" class="user-arrow"><CaretBottom /></el-icon>
+              </button>
             </template>
             <template #default>
-              <ul class="loginInfo">
+              <ul class="loginInfo" v-if="isHasToken">
                 <li>
                   <router-link to="/personInfo/index">个人信息</router-link>
                 </li>
@@ -87,6 +97,7 @@
                   <span class="loginOut">退出登录</span>
                 </li>
               </ul>
+              <router-link v-else to="/login" class="login-popover-entry">去登录</router-link>
             </template>
           </el-popover>
 
@@ -101,7 +112,6 @@
 
 <script setup>
 
-import photo from '@/assets/login/photo.png'
 import {ref, reactive, onMounted, nextTick} from 'vue'
 import {getToken, getUserIdKey, removeToken, removeUserIdKey, removeName} from "../../utils/auth";
 import useUserStore from '@/store/modules/user'
@@ -125,7 +135,7 @@ const localName = ref('')
 const localId = ref('')
 const hotCity = ref([])
 const otherCity = ref([])
-const visible = ref(false)
+const cityOptionsLoaded = ref(false)
 const queryParams = ref({
   content: '',
   pageNumber: 1,
@@ -182,8 +192,6 @@ function getNickName() {
 
 onMounted(() => {
   getCurrent()
-  getHot()
-  getOther()
 })
 
 //当前城市
@@ -200,7 +208,7 @@ function getCurrent() {
 
 //热门城市
 function getHot() {
-  getHotCity().then(response => {
+  return getHotCity().then(response => {
     hotCity.value = response.data
 
   })
@@ -209,8 +217,17 @@ function getHot() {
 
 //其他城市
 function getOther() {
-  getOtherCity().then(response => {
+  return getOtherCity().then(response => {
     otherCity.value = response.data
+  })
+}
+
+function loadCityOptions() {
+  if (cityOptionsLoaded.value) {
+    return
+  }
+  Promise.all([getHot(), getOther()]).then(() => {
+    cityOptionsLoaded.value = true
   })
 }
 
@@ -223,9 +240,7 @@ function getCityInfoList(params) {
     let {name, parentId, id, type} = response.data
     localName.value = name
     localId.value = id
-    getCurrent()
-    getHot()
-    getOther()
+    emits('updateValue', localId.value)
   })
 }
 function getProgramSearchList() {
@@ -250,12 +265,13 @@ function getProgramSearchList() {
   z-index: 1000;
 
   .header {
-    width: 1200px;
+    width: min(1240px, calc(100vw - 64px));
     margin: 0 auto;
     height: 82px;
-    display: flex;
+    display: grid;
+    grid-template-columns: 144px 92px 162px minmax(320px, 440px) auto;
     align-items: center;
-    gap: 20px;
+    gap: 18px;
 
     .link {
       display: inline-flex;
@@ -349,19 +365,21 @@ function getProgramSearchList() {
       float: none;
       position: relative;
       margin-left: 0;
-      line-height: 82px;
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
       white-space: nowrap;
       cursor: pointer;
       color: rgba(255, 255, 255, .72);
 
       .city-location {
-        max-width: 56px;
+        max-width: 68px;
         font-size: 16px;
         color: #fff;
-        display: inline-block;
-        vertical-align: middle;
+        display: inline-flex;
+        align-items: center;
         margin-left: 5px;
-        margin-right: 5px;
+        margin-right: 0;
         //white-space: nowrap;
         //overflow: hidden;
         //text-overflow: ellipsis;
@@ -376,24 +394,30 @@ function getProgramSearchList() {
     }
 
     .recommendHeader {
-      max-width: 220px;
-      height: 100%;
+      height: auto;
       float: none;
       margin: 0;
-      line-height: 82px;
+      line-height: 1;
       overflow: hidden;
-      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
 
       .routeHome {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         font-size: 16px;
-        margin-right: 10px;
-        padding: 0 13px;
+        min-width: 58px;
+        height: 36px;
+        margin-right: 0;
+        padding: 0 14px;
         overflow: hidden;
         color: rgba(255, 255, 255, .74);
         font-weight: 600;
         border-radius: 999px;
-        line-height: 34px;
+        line-height: 1;
 
       }
 
@@ -403,15 +427,19 @@ function getProgramSearchList() {
       }
 
       .routeType {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         font-size: 16px;
         color: rgba(255, 255, 255, .74);
-        margin-right: 10px;
-        padding: 0 13px;
+        min-width: 58px;
+        height: 36px;
+        margin-right: 0;
+        padding: 0 14px;
         overflow: hidden;
         font-weight: 600;
         border-radius: 999px;
-        line-height: 34px;
+        line-height: 1;
 
       }
 
@@ -422,16 +450,16 @@ function getProgramSearchList() {
     }
 
     .searchHeader {
-      width: 420px;
+      width: 100%;
       height: 46px;
       margin-top: 0;
-      margin-left: auto;
+      margin-left: 0;
       line-height: 46px;
       float: none;
       position: relative;
 
       .input-with-search {
-        width: 420px;
+        width: 100%;
         height: 46px;
         position: absolute;
         left: 0;
@@ -478,49 +506,39 @@ function getProgramSearchList() {
     }
 
     .rightHeader {
-      min-width: 55px;
-      height: 100%;
+      min-width: 170px;
+      height: auto;
       position: relative;
       float: none;
-      line-height: 82px;
-      flex: 0 0 auto;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
 
       .box-left {
-        height: 100%;
-        display: inline-block;
-        line-height: 82px;
+        height: auto;
+        display: inline-flex;
+        align-items: center;
+        line-height: 1;
         cursor: pointer;
         position: relative;
-        margin-left: 14px;
+        margin-left: 0;
         color: rgba(255, 255, 255, .84);
 
         &:hover {
           color: var(--app-accent);
         }
 
-        img {
-          width: 26px;
-          z-index: 20000;
-          display: inline-block;
-          margin-right: 4px;
-          vertical-align: middle;
-        }
-
-        .log {
-          max-width: 48px;
-          white-space: nowrap;
-          overflow: hidden; /* 超出容器部分隐藏 */
-          text-overflow: ellipsis;
-        }
-
       }
 
       .box-right {
-        height: 100%;
-        display: inline-block;
-        line-height: 82px;
+        height: auto;
+        display: inline-flex;
+        align-items: center;
+        line-height: 1;
         position: relative;
-        margin-left: 14px;
+        margin-left: 0;
 
         &:hover {
           color: #111;
@@ -533,7 +551,7 @@ function getProgramSearchList() {
           align-items: center;
           justify-content: center;
           min-width: 54px;
-          height: 32px;
+          height: 36px;
           padding: 0 14px;
           background: #fff;
           border-radius: 999px;
@@ -545,20 +563,79 @@ function getProgramSearchList() {
   }
 }
 
+.user-trigger {
+  height: 38px;
+  min-width: 88px;
+  max-width: 128px;
+  padding: 0 12px 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .05);
+  color: rgba(255, 255, 255, .88);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, color .18s ease;
+
+  &:hover {
+    color: #111;
+    border-color: var(--app-accent);
+    background: var(--app-accent);
+  }
+}
+
+.user-avatar {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #111;
+  background: #fff7e6;
+  box-shadow: inset 0 0 0 2px rgba(245, 158, 11, .28);
+}
+
+.user-name {
+  min-width: 28px;
+  max-width: 54px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.user-arrow {
+  flex: 0 0 auto;
+}
+
 .loginInfo {
-  width: 100px;
+  width: 118px;
   list-style-type: none;
-  padding-left: 32px;
+  margin: 0;
+  padding: 6px;
 
   li {
-    height: 50px;
-    line-height: 50px;
+    height: 34px;
+    line-height: 34px;
 
     a {
-      width: 100px;
-      height: 50px;
+      width: 100%;
+      height: 34px;
       display: block;
-      font-size: 16px;
+      padding: 0 10px;
+      border-radius: 8px;
+      font-size: 14px;
+
+      &:hover {
+        background: var(--app-accent-soft);
+        color: #7a3f00;
+      }
     }
   }
 
@@ -566,12 +643,31 @@ function getProgramSearchList() {
     cursor: pointer;
 
     .loginOut {
-      width: 100px;
-      height: 50px;
+      width: 100%;
+      height: 34px;
       display: block;
-      font-size: 16px;
+      padding: 0 10px;
+      border-radius: 8px;
+      font-size: 14px;
+
+      &:hover {
+        background: var(--app-accent-soft);
+        color: #7a3f00;
+      }
     }
   }
+}
+
+.login-popover-entry {
+  width: 100%;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--app-accent);
+  color: #111;
+  font-weight: 800;
 }
 
 

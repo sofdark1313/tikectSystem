@@ -2,7 +2,7 @@
   <!--详情-->
   <Header></Header>
   <div class="app-container">
-    <div class="goods">共 <span>{{ goods }}</span>个商品</div>
+    <div class="goods">共 <span>{{ total || goods }}</span> 个项目</div>
     <div class="box-main">
       <div class="box-main-left">
         <div class="box-tLeft">
@@ -10,11 +10,14 @@
             <el-collapse v-model="activeNames" @change="handleChange">
               <el-collapse-item name="1">
                 <template #title>
-                  <span class="title">城市：</span>
-                  <span>当前选中城市：</span><span class="active">{{ currentCity }}</span>
+                  <span class="title">城市</span>
                 </template>
                 <div class="city">
-                  <ul style="margin-left: 70px">
+                  <div class="current-filter">
+                    <span>当前城市</span>
+                    <strong>{{ currentCity || '全部' }}</strong>
+                  </div>
+                  <ul>
                     <li v-show="isShow" v-for="(item,index) in cityArr.slice(0,22)" :key="item.id"
                         @click="cityClick(item,index)"
                     >
@@ -258,15 +261,27 @@
               <img :src="item.itemPicture" alt="">
             </router-link>
             <div class="search_item_info">
+              <div class="recommend-meta">
+                <span>{{ item.areaName || currentCity }}</span>
+                <span v-if="item.programCategoryName">{{ item.programCategoryName }}</span>
+              </div>
               <router-link :to="{name:'detial',params:{id:item.id}}" class="link__title">
                 {{ item.title }}
               </router-link>
               <div class="search__item__info__venue">{{ item.place }}</div>
               <div class="search__item__info__venue">{{ formatDateWithWeekday(item.showTime, item.showWeekTime) }}</div>
-              <div class="search__item__info__price"><strong>{{ item.minPrice }} 起</strong></div>
+              <div class="search__item__info__price">
+                <strong v-if="item.minPrice && item.maxPrice">{{ item.minPrice }}-{{ item.maxPrice }}元</strong>
+                <strong v-else-if="item.minPrice">{{ item.minPrice }}元起</strong>
+                <strong v-else>售票中</strong>
+              </div>
             </div>
           </li>
         </ul>
+        <div class="recommend-empty" v-if="!recommendList.length">
+          <span>暂无推荐</span>
+          <p>切换城市或分类后再看看。</p>
+        </div>
       </div>
     </div>
     <Footer></Footer>
@@ -309,11 +324,11 @@ const total = ref(0)
 const isShowDate = ref(false)
 const value1 = ref([])
 const timeType = ref(0)
-const cardArr = ref(0)
+const cardArr = ref([])
 const titleIsShow = ref(true)
 const rawHtml = ref('')
 //推荐列表数据
-const recommendList = ref(0)
+const recommendList = ref([])
 const isActive = ref(false)
 const pageParams = ref({
   areaId: undefined,
@@ -388,19 +403,23 @@ const getChildrenTypeList = () => {
 const categoryClick = (item, ind) => {
   proxy.$route.query.name = ''
   activeIndex.value = ind
+  const categoryId = item.id === '' ? undefined : item.id
+  parentProgramCategoryId.value = categoryId
+  pageParams.value.parentProgramCategoryId = categoryId
+  recommendParams.parentProgramCategoryId = categoryId;
   if (item.name == '全部') {
     isActive.value = true
   } else {
     isActive.value = false
   }
-  if (parentProgramCategoryId.value = '') {
+  if (item.id == '') {
     isShowChildren.value = false
+    pageParams.value.programCategoryId = undefined
+    activeChildrenIndex.value = ''
+    getList()
+    getRecommendList()
   } else {
     isShowChildren.value = true
-    parentProgramCategoryId.value = item.id;
-    pageParams.value.parentProgramCategoryId = item.id;
-    //推荐节目列表入参中的父节目类型字段
-    recommendParams.parentProgramCategoryId = item.id;
     if (isActive.value == false) {
         getChildrenTypeList()
     }
@@ -413,9 +432,9 @@ const categoryClick = (item, ind) => {
 const cityClick = (item, index) => {
   activeCityIndex.value = index
   currentCity.value = item.name
-  pageParams.value.areaId = item.id
+  pageParams.value.areaId = item.id === '' ? undefined : item.id
   //推荐节目列表入参中的区域字段
-  recommendParams.areaId = item.id
+  recommendParams.areaId = item.id === '' ? undefined : item.id
   getList()
   getRecommendList()
 }
@@ -487,20 +506,20 @@ const getList = () => {
 //节目推荐列表
 const getRecommendList = () => {
   //如果没有选择父类型，则默认为演唱会
-  if (recommendParams.parentProgramCategoryId == '') {
+  if (recommendParams.parentProgramCategoryId == null || recommendParams.parentProgramCategoryId === '') {
     recommendParams.parentProgramCategoryId = 1
   }
   getProgramRecommendList(recommendParams).then(response => {
-    recommendList.value = response.data.slice(0, 3);
+    recommendList.value = (response.data || []).slice(0, 6);
   })
 }
 
 onMounted(() => {
   pageParams.value.pageNumber = 1
   pageParams.value.pageSize = 10
-  pageParams.value.areaId = currentCity.value
   pageParams.value.timeType = timeType.value
-  pageParams.value.parentProgramCategoryId = proxy.$route.query.id
+  pageParams.value.parentProgramCategoryId = proxy.$route.query.id || undefined
+  recommendParams.parentProgramCategoryId = proxy.$route.query.id || recommendParams.parentProgramCategoryId
   getList()
   getRecommendList()
   emitter.on('searchList', (data) => {
@@ -526,379 +545,416 @@ function removeTag(str, tag) {
 
 <style scoped lang="scss">
 .app-container {
-  width: 1200px;
+  width: min(1320px, calc(100vw - 64px));
+  min-height: calc(100vh - 86px);
   margin: 0 auto;
-  padding: 26px 0 42px;
+  padding: 26px 0 46px;
+}
 
-  .goods {
-    display: inline-flex;
-    align-items: center;
-    height: 34px;
-    line-height: 34px;
-    margin-bottom: 14px;
-    padding: 0 14px;
-    color: rgba(255, 255, 255, .76);
-    background: #111113;
-    border-radius: 999px;
-    font-size: 14px;
+.goods {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  margin-bottom: 14px;
+  padding: 0 14px;
+  color: rgba(255, 255, 255, .78);
+  background: #111113;
+  border-radius: 999px;
+  font-size: 14px;
+  box-shadow: 0 12px 30px rgba(24, 24, 27, .14);
 
-    span {
-      color: var(--app-accent);
-      font-weight: 700;
-    }
+  span {
+    color: var(--app-accent);
+    font-weight: 800;
+  }
+}
+
+.box-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+.box-main-left,
+.box-tLeft {
+  min-width: 0;
+}
+
+.box-type {
+  padding: 18px 26px;
+  border: 1px solid rgba(24, 24, 27, .16);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(245, 158, 11, .20), transparent 25%),
+    linear-gradient(135deg, #111113, #202026);
+  border-radius: 8px;
+  box-shadow: 0 18px 44px rgba(24, 24, 27, .16);
+}
+
+.box-type ul {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.box-type li {
+  list-style: none;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  color: rgba(255, 255, 255, .72);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .18s ease, background .18s ease, border-color .18s ease;
+
+  &:hover {
+    color: #111;
+    background: var(--app-accent);
+  }
+}
+
+.box-type .city {
+  min-width: 0;
+}
+
+.current-filter {
+  min-height: 30px;
+  margin-bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid rgba(245, 158, 11, .28);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, .08);
+
+  span {
+    color: rgba(255, 255, 255, .52);
+    font-size: 12px;
   }
 
-  .box-main {
-    display: flex;
-
-    .box-main-left {
-
-
-      .box-tLeft {
-        width: 928px;
-
-        .box-type {
-          padding: 6px 24px 12px;
-          border: 1px solid rgba(24, 24, 27, .16);
-          min-height: 300px;
-          background: #111113;
-          border-radius: 8px;
-          box-shadow: 0 18px 44px rgba(24, 24, 27, .16);
-
-          div.city {
-            display: inline-block;
-            width: calc(100% - 40px);
-          }
-
-          div {
-            ul {
-              margin: 0;
-              padding: 10px;
-
-              li {
-                //width: 42px;
-                list-style: none;
-                display: inline-block;
-                height: 26px;
-                line-height: 26px;
-                padding: 0 8px;
-                margin-right: 20px;
-                color: rgba(255, 255, 255, .72);
-                border-radius: 999px;
-                white-space: nowrap;
-                cursor: pointer;
-                transition: color .2s ease, background .2s ease;
-
-                &:hover {
-                  color: #111;
-                  background: var(--app-accent);
-                }
-              }
-
-              .liDate {
-                width: 320px;
-                padding: 0px !important;
-                height: 26px;
-                line-height: 26px;
-                float: right;
-              }
-
-            }
-
-          }
-
-          .btn {
-            display: inline-block;
-            width: 40px;
-            height: 100px;
-            line-height: 100px;
-            cursor: pointer;
-          }
-        }
-
-        .box-sort {
-          .box-tabs {
-            ul {
-              margin: 0;
-              padding: 0;
-
-              li {
-                list-style-type: none;
-                position: relative;
-                padding: 25px 0 18px;
-                border-bottom: 1px solid var(--app-border);
-                margin: 0 10px;
-                height: 250px;
-                transition: background .2s ease, transform .2s ease;
-
-                &:hover {
-                  background: var(--app-accent-soft);
-                  transform: translateX(4px);
-                }
-
-                .link {
-                  position: relative;
-                  display: block;
-                  width: 153px;
-                  height: 206px;
-                  overflow: hidden;
-                  margin-right: 20px;
-                  float: left;
-                  border-radius: 8px;
-                  box-shadow: 0 14px 30px rgba(24, 24, 27, .14);
-
-                  img {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    transition: transform .25s ease;
-                    &:hover {
-                      transform: scale(1.04);
-                    }
-                  }
-
-                }
-
-                .item-txt {
-
-                  width: 670px;
-                  line-height: 24px;
-                  float: left;
-
-                  .item-title {
-                    margin-bottom: 6px;
-                    font-size: 16px;
-                    font-weight: 400;
-
-                    span {
-                    }
-
-                    .link-detial {
-                      color: var(--app-text);
-                      text-decoration: none;
-                      outline: 0;
-                      font-weight: 700;
-
-                      &:hover {
-                        color: var(--app-danger);
-                      }
-
-                    }
-                  }
-
-                  .item-content {
-                    margin-bottom: 6px;
-                    overflow: hidden;
-                    white-space: nowrap;
-                    text-overflow: ellipsis;
-                    color: #999;
-                  }
-
-                  .item-tag {
-                  }
-
-                  .item-price {
-                    position: absolute;
-                    bottom: 12px;
-                    color: #999;
-                    overflow: hidden;
-
-                    .price {
-                      color: var(--app-danger);
-                      font-weight: 700;
-                      font-size: 16px;
-                      margin-right: 20px;
-                      font-style: normal;
-                      font-weight: bold;
-                    }
-
-                  }
-                }
-              }
-            }
-
-            .page {
-              margin: 12px 12px 20px 0;
-              float: right;
-            }
-          }
-        }
-      }
-
-    }
-
-    .box-main-right {
-      width: 258px;
-      border: 1px solid #eaeaea;
-      border-color: var(--app-border);
-      border-radius: 8px;
-      background: var(--app-surface);
-      box-shadow: var(--app-shadow);
-      margin-left: 10px;
-      max-height: 514px;
-      float: right;
-
-      .box-like {
-        height: 37px;
-        line-height: 37px;
-        background-color: #111113;
-        border-bottom: 1px solid var(--app-border);
-        font-size: 14px;
-        font-family: Microsoft YaHei;
-        color: #fff;
-        font-weight: 700;
-        padding: 0 15px;
-      }
-
-      .search__box {
-        margin: 0;
-        padding: 0;
-
-        .search__item {
-          display: flex;
-          background-color: #fff;
-          background-color: var(--app-surface);
-          border: none;
-          padding: 15px 15px 0 15px;
-          margin-bottom: 0px;
-          box-shadow: none;
-          transition: background .2s ease;
-
-          &:hover {
-            background: var(--app-primary-soft);
-          }
-
-          img {
-            width: 98px;
-            height: 132px;
-            float: left;
-            border-radius: 8px;
-            object-fit: cover;
-          }
-
-          .search_item_info {
-            .link__title {
-              font-size: 14px;
-            }
-
-            .search__item__info__venue {
-              font-size: 12px;
-            }
-
-            .search__item__info__price {
-              font-size: 12px;
-            }
-          }
-        }
-
-      }
-    }
+  strong {
+    color: var(--app-accent);
+    font-size: 13px;
   }
+}
 
+.box-type .btn {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  color: var(--app-accent);
+  border: 1px solid rgba(245, 158, 11, .30);
+  border-radius: 999px;
+  cursor: pointer;
+}
 
+.box-type .liDate {
+  padding: 0 !important;
 }
 
 .active {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
   background-color: var(--app-accent);
   color: #111 !important;
-  display: inline-block;
-  height: 26px;
-  line-height: 26px;
+  border-radius: 999px;
   white-space: nowrap;
   cursor: pointer;
+  font-weight: 800;
+}
+
+.box-sort {
+  margin-top: 12px;
+}
+
+.box-tabs ul {
+  margin: 0;
+  padding: 0;
+}
+
+.box-tabs li {
+  list-style-type: none;
+  display: grid;
+  grid-template-columns: 154px minmax(0, 1fr);
+  gap: 20px;
+  min-height: 216px;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--app-border);
+  background: #fff;
+  transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
+
+  &:hover {
+    background: linear-gradient(90deg, var(--app-accent-soft), #fff 60%);
+    transform: translateY(-1px);
+  }
+}
+
+.box-tabs li:last-child {
+  border-bottom: none;
+}
+
+.box-tabs .link {
+  width: 154px;
+  height: 206px;
+  display: block;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 14px 30px rgba(24, 24, 27, .14);
+  text-decoration: none;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform .25s ease;
+  }
+
+  &:hover img {
+    transform: scale(1.04);
+  }
+}
+
+.item-txt {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0;
+  line-height: 1.6;
+}
+
+.item-title {
+  margin-bottom: 10px;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.link-detial,
+.link__title {
+  color: inherit;
+  text-decoration: none;
+  outline: 0;
+
+  &:hover {
+    color: var(--app-danger);
+  }
+}
+
+.item-content {
+  margin-bottom: 5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--app-text-muted);
+  font-size: 14px;
+}
+
+.item-price {
+  margin-top: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  color: var(--app-text-muted);
+}
+
+.price {
+  color: var(--app-danger);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.box-main-right {
+  position: sticky;
+  top: 96px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  overflow: hidden;
+}
+
+.box-like {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  background-color: #111113;
+  border-bottom: 3px solid var(--app-accent);
+  font-size: 14px;
+  color: #fff;
+  font-weight: 800;
+}
+
+.search__box {
+  margin: 0;
+  padding: 10px;
+}
+
+.search__item {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--app-surface);
+  border: 1px solid transparent;
+  transition: background .18s ease, transform .18s ease;
+
+  &:hover {
+    background: var(--app-primary-soft);
+    border-color: var(--app-border);
+    transform: translateY(-1px);
+  }
+
+  img {
+    width: 86px;
+    height: 116px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+}
+
+.search_item_info {
+  min-width: 0;
+}
+
+.recommend-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 6px;
+
+  span {
+    max-width: 88px;
+    min-height: 20px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 7px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--app-accent-soft);
+    color: #7a3f00;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+.link__title {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.search__item__info__venue {
+  margin-top: 5px;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.search__item__info__price {
+  margin-top: 6px;
+  color: var(--app-text-muted);
+  font-size: 12px;
+
+  strong {
+    color: var(--app-danger);
+  }
+}
+
+.recommend-empty {
+  padding: 38px 20px;
+  text-align: center;
+  color: var(--app-text-muted);
+
+  span {
+    display: block;
+    color: var(--app-text);
+    font-weight: 800;
+  }
+
+  p {
+    margin: 6px 0 0;
+    font-size: 12px;
+  }
 }
 
 :deep(.el-icon svg) {
   display: none;
 }
 
-:deep(.el-collapse-item__header .title) {
-  width: 50px;
-  height: 26px;
-  line-height: 26px;
-  display: inline-block;
-  color: rgba(255, 255, 255, .62);
-  text-align: center;
+:deep(.el-collapse) {
+  --el-collapse-border-color: transparent;
+  background: transparent;
+  border: none;
 }
-
 
 :deep(.el-collapse-item) {
-  display: flex;
-  flex-direction: row;
-  border-bottom: 1px dotted rgba(255, 255, 255, .18);
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 18px;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .12);
 }
 
-:deep(.el-collapse-item:first-child) {
-  display: block;
+:deep(.el-collapse-item:last-child) {
+  border-bottom: none;
+}
 
+:deep(.el-collapse-item__header) {
+  min-height: 30px;
+  height: auto;
+  align-items: center;
+  background: transparent;
+  color: rgba(255, 255, 255, .72);
+  border: none;
+  line-height: 1;
+  white-space: nowrap;
+}
 
+:deep(.el-collapse-item__header .title) {
+  min-width: 0;
+  margin-right: 0;
+  color: rgba(255, 255, 255, .52);
+  font-weight: 800;
+}
+
+:deep(.el-collapse-item__wrap) {
+  grid-column: 2;
+  background: transparent;
+  border: none;
 }
 
 :deep(.el-collapse-item__content) {
   padding-bottom: 0;
+  color: rgba(255, 255, 255, .72);
 }
 
-:deep(.el-collapse-item__wrap) {
-  border: none;
-}
-
-/* 添加CSS来隐藏日历控件的输入框 */
 :deep(.el-date-editor.el-input, .el-date-editor.el-input__wrapper) {
   display: none;
 }
 
-.search__item {
-  background-color: #fff; /* 白色背景 */
-  border: 1px solid #e0e0e0; /* 边框 */
-  padding: 15px; /* 内边距 */
-  margin-bottom: 10px; /* 每个列表项之间的外边距 */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 阴影效果 */
-}
-
-.link {
-  color: var(--app-primary);
-  text-decoration: none; /* 去除下划线 */
-}
-
-.link__title {
-
-  text-decoration: none; /* 去除下划线 */
-}
-
-.search__item img {
-  width: 100px; /* 图片宽度 */
-  height: auto; /* 图片高度自适应 */
-  margin-right: 15px; /* 图片与文字的间距 */
-}
-
-.search_item_info {
-  display: inline-block; /* 文字信息与图片同行显示 */
-  vertical-align: top; /* 顶部对齐 */
-}
-
-.search__item__info__venue,
-.search__item__info__price {
-  font-size: 14px; /* 字体大小 */
-  color: #666; /* 字体颜色 */
-}
-
-.search__item__info__price strong {
+:deep(em) {
   color: var(--app-danger);
-}
-:deep(em){
- font-weight: bolder;
-  color: var(--app-danger);
-
-}
-
-:deep(.el-collapse) {
-  --el-collapse-border-color: transparent;
-  background: transparent;
-}
-
-:deep(.el-collapse-item__header) {
-  background: transparent;
-  color: rgba(255, 255, 255, .72);
+  font-weight: 900;
 }
 
 :deep(.el-tabs--border-card) {
@@ -914,12 +970,61 @@ function removeTag(str, tag) {
 }
 
 :deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item) {
-  color: rgba(255, 255, 255, .72);
+  height: 42px;
+  color: rgba(255, 255, 255, .74);
   border: none;
+  font-weight: 700;
 }
 
 :deep(.el-tabs--border-card > .el-tabs__header .el-tabs__item.is-active) {
   color: #111;
   background: var(--app-accent);
+}
+
+@media (max-width: 1120px) {
+  .box-main {
+    grid-template-columns: 1fr;
+  }
+
+  .box-main-right {
+    position: static;
+  }
+
+  .search__box {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 8px;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-container {
+    width: min(100% - 24px, 1320px);
+    padding-top: 18px;
+  }
+
+  :deep(.el-collapse-item) {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  :deep(.el-collapse-item__wrap) {
+    grid-column: 1;
+  }
+
+  .box-tabs li {
+    grid-template-columns: 108px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .box-tabs .link {
+    width: 108px;
+    height: 146px;
+  }
+
+  .item-title {
+    font-size: 15px;
+  }
 }
 </style>

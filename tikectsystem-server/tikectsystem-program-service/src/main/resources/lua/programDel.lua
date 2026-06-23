@@ -10,6 +10,7 @@ local program_record_hash_key = KEYS[9]
 local program_record_finish_hash_key = KEYS[10]
 local discard_order_key = KEYS[11]
 local account_order_count_key = KEYS[12]
+local program_home_list_key = KEYS[13]
 
 redis.call('del', program_key)
 redis.call('del', program_group_key)
@@ -45,6 +46,12 @@ redis.call('del', discard_order_key)
 local account_order_count_key_list = redis.call('keys', account_order_count_key)
 if account_order_count_key_list then
     for index, key in ipairs(account_order_count_key_list) do
+        redis.call('del', key)
+    end
+end
+local program_home_list_key_list = redis.call('keys', program_home_list_key)
+if program_home_list_key_list then
+    for index, key in ipairs(program_home_list_key_list) do
         redis.call('del', key)
     end
 end

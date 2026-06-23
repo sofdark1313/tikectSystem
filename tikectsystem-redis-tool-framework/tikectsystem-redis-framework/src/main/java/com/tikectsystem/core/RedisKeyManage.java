@@ -72,6 +72,10 @@ public enum RedisKeyManage {
     PROGRAM_TICKET_REMAIN_NUMBER_HASH_RESOLUTION("d_mai_program_ticket_remain_number_hash_resolution_%s_%s","节目余票数量_节目id_节目票档id","节目余票数量","k"),
     
     PROGRAM_CATEGORY_HASH("d_mai_program_category_hash","节目类型hash集合","节目类型hash集合","k"),
+
+    PROGRAM_HOME_LIST("d_mai_program_home_list_%s","首页节目聚合列表","首页节目聚合列表","k"),
+
+    PROGRAM_HOME_LIST_ALL("d_mai_program_home_list_*","首页节目聚合列表通配key","首页节目聚合列表通配key","k"),
     
     PROGRAM_RECORD("d_mai_program_record_%s","节目记录id","节目记录数据","k"),
     
