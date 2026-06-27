@@ -12,10 +12,22 @@ local record_hash_key = KEYS[5]
 local identifier_id = KEYS[6]
 -- 记录类型 对应的真正数据是 reduce
 local record_type = KEYS[7]
+-- reservation:{orderNumber}，新异步链路用于记录最终锁座快照
+local reservation_key = KEYS[8]
 -- 要购买的票档 包括票档id和票档数量
 local ticket_count_list = cjson.decode(ARGV[1])
 -- 购票人id集合 对应的数据是购票人id集合
 local ticket_user_id_list = cjson.decode(ARGV[3])
+local reservation_meta_json = ARGV[4]
+local reservation_expire_seconds = tonumber(ARGV[5])
+
+if reservation_key and reservation_key ~= '' then
+    local exists_reservation = redis.call('get', reservation_key)
+    if exists_reservation then
+        local reservation = cjson.decode(exists_reservation)
+        return string.format('{"%s": %d, "%s": %s}', 'code', 0, 'purchaseSeatList', cjson.encode(reservation.purchaseSeatList))
+    end
+end
 -- 过滤后符合条件可以购买的座位集合
 local purchase_seat_list = {}
 -- 入参座位价格总和
@@ -268,5 +280,15 @@ local purchase_record = {
     ticketCategoryRecordList = ticket_category_record_list
 }
 redis.call('hset',string.format(record_hash_key,program_id),identifier_id,cjson.encode(purchase_record))
+
+if reservation_key and reservation_key ~= '' and reservation_meta_json and reservation_meta_json ~= '' then
+    local reservation = cjson.decode(reservation_meta_json)
+    reservation.purchaseSeatList = purchase_seat_list
+    if reservation_expire_seconds and reservation_expire_seconds > 0 then
+        redis.call('set', reservation_key, cjson.encode(reservation), 'EX', reservation_expire_seconds)
+    else
+        redis.call('set', reservation_key, cjson.encode(reservation))
+    end
+end
 
 return string.format('{"%s": %d, "%s": %s}', 'code', 0, 'purchaseSeatList', cjson.encode(purchase_seat_list))

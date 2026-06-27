@@ -1,12 +1,16 @@
 package com.tikectsystem.controller;
 
 import com.tikectsystem.common.ApiResponse;
+import com.tikectsystem.dto.OrderRequestResultQueryDto;
 import com.tikectsystem.dto.ProgramOrderCreateDto;
 import com.tikectsystem.enums.ProgramOrderVersion;
+import com.tikectsystem.service.OrderRequestResultService;
 import com.tikectsystem.service.strategy.ProgramOrderContext;
+import com.tikectsystem.vo.OrderRequestResultVo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/program/order")
 @Tag(name = "program-order", description = "节目订单")
 public class ProgramOrderController {
+
+    @Autowired
+    private OrderRequestResultService orderRequestResultService;
     
     @Operation(summary  = "购票V1")
     @PostMapping(value = "/create/v1")
@@ -69,5 +76,11 @@ public class ProgramOrderController {
     public ApiResponse<String> createV41(@Valid @RequestBody ProgramOrderCreateDto programOrderCreateDto) {
         return ApiResponse.ok(ProgramOrderContext.get(ProgramOrderVersion.V41_VERSION.getVersion())
                 .createOrder(programOrderCreateDto));
+    }
+
+    @Operation(summary  = "查询异步下单结果")
+    @PostMapping(value = "/result")
+    public ApiResponse<OrderRequestResultVo> result(@RequestBody OrderRequestResultQueryDto orderRequestResultQueryDto) {
+        return ApiResponse.ok(orderRequestResultService.get(orderRequestResultQueryDto));
     }
 }

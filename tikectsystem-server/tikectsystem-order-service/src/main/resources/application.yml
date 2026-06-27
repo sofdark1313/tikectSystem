@@ -57,7 +57,7 @@ spring:
       #默认的消费组ID
       group-id: create_order_data
       #是否自动提交offset
-      enable-auto-commit: true
+      enable-auto-commit: false
       #提交offset延时
       auto-commit-interval: 200
       # 当kafka中没有初始offset或offset超出范围时将自动重置offset
@@ -68,6 +68,15 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       topic: create_order
+    listener:
+      ack-mode: record
+    producer:
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
       
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml

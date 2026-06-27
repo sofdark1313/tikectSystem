@@ -79,6 +79,14 @@ public interface ProgramClient {
     ApiResponse<Boolean> operateProgramData(ProgramOperateDataDto programOperateDataDto);
 
     /**
+     * 回写异步下单请求结果状态。
+     * @param orderRequestResultUpdateDto 状态更新参数
+     * @return 是否更新成功
+     */
+    @PostMapping(value = "/program/interior/order/request/result/update")
+    ApiResponse<Boolean> updateOrderRequestResult(@Valid @RequestBody OrderRequestResultUpdateDto orderRequestResultUpdateDto);
+
+    /**
      * 查询票档集合(通过节目查询)
      * @param ticketCategoryListByProgramDto 参数
      * @return 结果

@@ -1,33 +1,33 @@
 package com.tikectsystem.enums;
 
 /**
- * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
- * @description: 节目订单枚举
- * @author: 阿星不是程序员
+ * @program: 鏋佸害鐪熷疄杩樺師澶ч害缃戦珮骞跺彂瀹炴垬椤圭洰銆?娣诲姞 闃挎槦涓嶆槸绋嬪簭鍛?寰俊锛屾坊鍔犳椂澶囨敞 澶ч害 鏉ヨ幏鍙栭」鐩殑瀹屾暣璧勬枡
+ * @description: 鑺傜洰璁㈠崟鏋氫妇
+ * @author: 闃挎槦涓嶆槸绋嬪簭鍛?
  **/
 public enum ProgramOrderVersion {
     /**
-     * 版本
+     * 鐗堟湰
      * */
-    V1_VERSION("v1","v1版本",1),
-    
-    V2_VERSION("v2","v2版本",2),
-    
-    V21_VERSION("v2","v21版本",21),
-   
-    V3_VERSION("v3","v3版本",3),
-    
-    V31_VERSION("v3","v31版本",31),
-    
-    V4_VERSION("v4","v4版本",4),
-    
-    V41_VERSION("v4","v41版本",41),
+    V1_VERSION("v1","v1鐗堟湰",1),
+
+    V2_VERSION("v2","v2鐗堟湰",2),
+
+    V21_VERSION("v2","v21鐗堟湰",21),
+
+    V3_VERSION("v3","v3鐗堟湰",3),
+
+    V31_VERSION("v3","v31鐗堟湰",31),
+
+    V4_VERSION("v4","v4鐗堟湰",4),
+
+    V41_VERSION("v41","v41鐗堟湰",41),
     ;
 
     private final String version;
 
     private final String msg;
-    
+
     private final Integer value;
 
     ProgramOrderVersion(String version, String msg, Integer value) {
@@ -39,16 +39,16 @@ public enum ProgramOrderVersion {
     public String getVersion() {
         return version;
     }
-    
+
 
     public String getMsg() {
         return this.msg == null ? "" : this.msg;
     }
-    
+
     public Integer getValue(){
         return value;
     }
-    
+
 
     public static String getMsg(String version) {
         for (ProgramOrderVersion re : ProgramOrderVersion.values()) {

@@ -8,16 +8,12 @@ import com.tikectsystem.initialize.base.AbstractApplicationCommandLineRunnerHand
 import com.tikectsystem.initialize.impl.composite.CompositeContainer;
 import com.tikectsystem.repeatexecutelimit.annotion.RepeatExecuteLimit;
 import com.tikectsystem.service.ProgramOrderService;
-import com.tikectsystem.service.domain.CreateOrderTemporaryData;
-import com.tikectsystem.service.strategy.BaseProgramOrder;
 import com.tikectsystem.service.strategy.ProgramOrderContext;
 import com.tikectsystem.service.strategy.ProgramOrderStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Component;
-
-import static com.tikectsystem.core.DistributedLockConstants.PROGRAM_ORDER_CREATE_V4;
 
 /**
  * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
@@ -32,9 +28,6 @@ public class ProgramOrderV4Strategy extends AbstractApplicationCommandLineRunner
     private ProgramOrderService programOrderService;
     
     @Autowired
-    private BaseProgramOrder baseProgramOrder;
-    
-    @Autowired
     private CompositeContainer compositeContainer;
     
     @RepeatExecuteLimit(
@@ -46,11 +39,7 @@ public class ProgramOrderV4Strategy extends AbstractApplicationCommandLineRunner
     @Override
     public String createOrder(ProgramOrderCreateDto programOrderCreateDto) {
         compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
-        programOrderService.prepareCreateOrderProgramCache(programOrderCreateDto);
-        CreateOrderTemporaryData createOrderTemporaryData = baseProgramOrder.localLockExecute(PROGRAM_ORDER_CREATE_V4,
-                programOrderCreateDto, () -> programOrderService.createOrderOperateProgramCache(programOrderCreateDto));
-        return programOrderService.createByTemporaryDataAsync(programOrderCreateDto, createOrderTemporaryData,
-                ProgramOrderVersion.V4_VERSION.getValue());
+        return programOrderService.acceptOrderRequest(programOrderCreateDto, ProgramOrderVersion.V4_VERSION.getValue());
     }
     
     @Override

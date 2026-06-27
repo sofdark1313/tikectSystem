@@ -23,6 +23,9 @@ public class ProgramOrderCreateDto {
     @Schema(name ="userId", type ="Long", description ="用户id",requiredMode= RequiredMode.REQUIRED)
     @NotNull
     private Long userId;
+
+    @Schema(name ="requestId", type ="String", description ="下单请求幂等号，不传时由服务端生成")
+    private String requestId;
     
     @Schema(name ="ticketUserIdList", type ="List<Long>", description ="购票人id集合",requiredMode= RequiredMode.REQUIRED)
     @NotNull

@@ -29,9 +29,13 @@ import com.tikectsystem.service.domain.CreateOrderTemporaryData;
 import com.tikectsystem.service.executor.ProgramRecordTaskExecutor;
 import com.tikectsystem.service.kafka.CreateOrderMqDomain;
 import com.tikectsystem.service.kafka.CreateOrderSend;
+import com.tikectsystem.service.kafka.OrderKafkaSend;
+import com.tikectsystem.service.kafka.OrderRequestMq;
 import com.tikectsystem.service.lua.ProgramCacheCreateOrderData;
 import com.tikectsystem.service.lua.ProgramCacheCreateOrderResolutionOperate;
 import com.tikectsystem.service.lua.ProgramCacheResolutionOperate;
+import com.tikectsystem.service.lua.ProgramOrderGateOperate;
+import com.tikectsystem.service.lua.ProgramOrderGateResult;
 import com.tikectsystem.service.tool.SeatMatch;
 import com.tikectsystem.util.DateUtils;
 import com.tikectsystem.util.StringUtil;
@@ -58,6 +62,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.tikectsystem.constant.Constant.GLIDE_LINE;
+import static com.tikectsystem.constant.ProgramOrderConstant.DELAY_ORDER_CANCEL_TIME;
+import static com.tikectsystem.constant.ProgramOrderConstant.DELAY_ORDER_CANCEL_TIME_UNIT;
 import static com.tikectsystem.constant.ProgramOrderConstant.ORDER_TABLE_COUNT;
 
 /**
@@ -88,6 +94,18 @@ public class ProgramOrderService {
     private CreateOrderSend createOrderSend;
 
     @Autowired
+    private OrderKafkaSend orderKafkaSend;
+
+    @Autowired
+    private ProgramOrderGateOperate programOrderGateOperate;
+
+    @Autowired
+    private OrderRequestResultService orderRequestResultService;
+
+    @Autowired
+    private com.tikectsystem.redis.RedisCache redisCache;
+
+    @Autowired
     private ProgramService programService;
 
     @Autowired
@@ -104,6 +122,144 @@ public class ProgramOrderService {
 
     @Autowired
     private ProgramRecordTaskExecutor programRecordTaskExecutor;
+
+    /**
+     * V4 新链路入口：轻量准入成功并拿到 order_request Kafka ack 后返回订单编号。
+     * @param programOrderCreateDto 下单参数
+     * @param orderVersion 下单版本
+     * @return 订单编号
+     */
+    public String acceptOrderRequest(ProgramOrderCreateDto programOrderCreateDto, Integer orderVersion) {
+        prepareCreateOrderProgramCache(programOrderCreateDto);
+        String requestId = StringUtil.isEmpty(programOrderCreateDto.getRequestId()) ?
+                String.valueOf(uidGenerator.getUid()) : programOrderCreateDto.getRequestId();
+        programOrderCreateDto.setRequestId(requestId);
+        Long orderNumber = uidGenerator.getOrderNumber(programOrderCreateDto.getUserId(), ORDER_TABLE_COUNT);
+
+        ProgramOrderGateResult gateResult = gateOrderRequest(programOrderCreateDto, requestId, orderNumber);
+        if (!Objects.equals(gateResult.getCode(), BaseCode.SUCCESS.getCode())) {
+            BaseCode baseCode = BaseCode.getRc(gateResult.getCode());
+            throw new TikectsystemFrameException(baseCode == null ? BaseCode.SYSTEM_ERROR : baseCode);
+        }
+        if (!StringUtil.isEmpty(gateResult.getOrderNumber())) {
+            orderNumber = Long.valueOf(gateResult.getOrderNumber());
+        }
+
+        OrderRequestMq orderRequestMq = new OrderRequestMq();
+        orderRequestMq.setRequestId(requestId);
+        orderRequestMq.setOrderNumber(orderNumber);
+        orderRequestMq.setProgramOrderCreateDto(programOrderCreateDto);
+        orderRequestMq.setOrderVersion(orderVersion);
+        orderRequestMq.setCreateTime(DateUtils.now());
+
+        CountDownLatch latch = new CountDownLatch(1);
+        CreateOrderMqDomain createOrderMqDomain = new CreateOrderMqDomain();
+        createOrderMqDomain.orderNumber = String.valueOf(orderNumber);
+        Long finalOrderNumber = orderNumber;
+        orderKafkaSend.sendOrderRequest(String.valueOf(orderNumber), JSON.toJSONString(orderRequestMq), sendResult -> {
+            try {
+                orderRequestResultService.saveProcessing(requestId, finalOrderNumber, programOrderCreateDto.getProgramId(),
+                        programOrderCreateDto.getUserId());
+            } catch (Exception e) {
+                createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(e);
+            } finally {
+                latch.countDown();
+            }
+        }, ex -> {
+            try {
+                releaseGate(programOrderCreateDto, requestId);
+                createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(ex);
+            } catch (Exception e) {
+                createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(e);
+            } finally {
+                latch.countDown();
+            }
+        });
+        awaitKafkaAck(latch);
+        if (Objects.nonNull(createOrderMqDomain.tikectsystemFrameException)) {
+            throw createOrderMqDomain.tikectsystemFrameException;
+        }
+        return String.valueOf(orderNumber);
+    }
+
+    /**
+     * 消费 order_request 后执行最终锁座，并可靠投递 order_create。
+     * @param orderRequestMq 下单受理消息
+     */
+    public void reserveAndSendOrderCreate(OrderRequestMq orderRequestMq) {
+        ProgramOrderCreateDto programOrderCreateDto = orderRequestMq.getProgramOrderCreateDto();
+        CreateOrderTemporaryData createOrderTemporaryData =
+                createOrderOperateProgramCache(programOrderCreateDto, orderRequestMq.getOrderNumber());
+        OrderCreateDto orderCreateDto = buildCreateOrderParamV2(programOrderCreateDto.getProgramId(),
+                programOrderCreateDto.getUserId(), createOrderTemporaryData.getPurchaseSeatList(),
+                orderRequestMq.getOrderVersion(), orderRequestMq.getOrderNumber());
+        OrderCreateMq orderCreateMq = buildOrderCreateMq(orderCreateDto, createOrderTemporaryData.getIdentifierId());
+        sendOrderCreateByMq(orderCreateMq);
+        programRecordTaskExecutor.execute(() -> createProgramRecordTask(orderCreateMq.getProgramId()));
+        String reservationJson = redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_RESERVATION,
+                orderRequestMq.getOrderNumber()), String.class);
+        orderRequestResultService.markReserved(orderRequestMq.getOrderNumber(), reservationJson, getReservationExpireTime());
+    }
+
+    private ProgramOrderGateResult gateOrderRequest(ProgramOrderCreateDto programOrderCreateDto, String requestId,
+                                                    Long orderNumber) {
+        List<String> keys = new ArrayList<>();
+        keys.add(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_GATE_REQUEST, requestId).getRelKey());
+        Long ticketCategoryId = CollectionUtil.isEmpty(programOrderCreateDto.getSeatDtoList()) ?
+                programOrderCreateDto.getTicketCategoryId() : programOrderCreateDto.getSeatDtoList().get(0).getTicketCategoryId();
+        keys.add(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_GATE_INFLIGHT,
+                programOrderCreateDto.getProgramId(), ticketCategoryId).getRelKey());
+        if (CollectionUtil.isNotEmpty(programOrderCreateDto.getSeatDtoList())) {
+            for (SeatDto seatDto : programOrderCreateDto.getSeatDtoList()) {
+                keys.add(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_GATE_SEAT,
+                        programOrderCreateDto.getProgramId() + GLIDE_LINE + seatDto.getId()).getRelKey());
+            }
+        }
+        String type = CollectionUtil.isNotEmpty(programOrderCreateDto.getSeatDtoList()) ? "1" : "2";
+        String[] args = new String[]{type, requestId, String.valueOf(orderNumber), "15", "200"};
+        return programOrderGateOperate.operate(keys, args);
+    }
+
+    private void releaseGate(ProgramOrderCreateDto programOrderCreateDto, String requestId) {
+        redisCache.del(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_GATE_REQUEST, requestId));
+        if (CollectionUtil.isNotEmpty(programOrderCreateDto.getSeatDtoList())) {
+            for (SeatDto seatDto : programOrderCreateDto.getSeatDtoList()) {
+                redisCache.del(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_GATE_SEAT,
+                        programOrderCreateDto.getProgramId() + GLIDE_LINE + seatDto.getId()));
+            }
+            return;
+        }
+        redisCache.incrBy(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_GATE_INFLIGHT,
+                programOrderCreateDto.getProgramId(), programOrderCreateDto.getTicketCategoryId()), -1L);
+    }
+
+    private void awaitKafkaAck(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new TikectsystemFrameException(e);
+        }
+    }
+
+    private void sendOrderCreateByMq(OrderCreateMq orderCreateMq) {
+        CountDownLatch latch = new CountDownLatch(1);
+        CreateOrderMqDomain createOrderMqDomain = new CreateOrderMqDomain();
+        createOrderMqDomain.orderNumber = String.valueOf(orderCreateMq.getOrderNumber());
+        orderKafkaSend.sendOrderCreate(String.valueOf(orderCreateMq.getOrderNumber()), JSON.toJSONString(orderCreateMq),
+                sendResult -> latch.countDown(), ex -> {
+                    createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(ex);
+                    latch.countDown();
+                });
+        awaitKafkaAck(latch);
+        if (Objects.nonNull(createOrderMqDomain.tikectsystemFrameException)) {
+            throw createOrderMqDomain.tikectsystemFrameException;
+        }
+    }
+
+    private Date getReservationExpireTime() {
+        return new Date(System.currentTimeMillis() + DELAY_ORDER_CANCEL_TIME_UNIT.toMillis(DELAY_ORDER_CANCEL_TIME));
+    }
 
     public List<TicketCategoryVo> getTicketCategoryList(ProgramOrderCreateDto programOrderCreateDto, Date showTime) {
         List<TicketCategoryVo> getTicketCategoryVoList = new ArrayList<>();
@@ -262,10 +418,16 @@ public class ProgramOrderService {
     }
 
     public CreateOrderTemporaryData createOrderOperateProgramCache(ProgramOrderCreateDto programOrderCreateDto) {
+        return createOrderOperateProgramCache(programOrderCreateDto, null);
+    }
+
+    public CreateOrderTemporaryData createOrderOperateProgramCache(ProgramOrderCreateDto programOrderCreateDto, Long orderNumber) {
         Long programId = programOrderCreateDto.getProgramId();
         List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
         List<String> keys = new ArrayList<>();
-        String[] data = new String[3];
+        String[] data = new String[5];
+        data[3] = "";
+        data[4] = "0";
         //更新票档数据集合
         JSONArray jsonArray = new JSONArray();
         //添加座位数据集合
@@ -328,10 +490,23 @@ public class ProgramOrderService {
         keys.add(RecordType.REDUCE.getValue() + GLIDE_LINE + identifierId + GLIDE_LINE + programOrderCreateDto.getUserId());
         //记录的类型
         keys.add(RecordType.REDUCE.getValue());
+        if (Objects.nonNull(orderNumber)) {
+            keys.add(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_RESERVATION, orderNumber).getRelKey());
+        }
         data[0] = JSON.toJSONString(jsonArray);
         data[1] = JSON.toJSONString(addSeatDatajsonArray);
         //购票人id集合
         data[2] = JSON.toJSONString(programOrderCreateDto.getTicketUserIdList());
+        if (Objects.nonNull(orderNumber)) {
+            JSONObject reservation = new JSONObject();
+            reservation.put("orderNumber", orderNumber);
+            reservation.put("programId", programId);
+            reservation.put("userId", programOrderCreateDto.getUserId());
+            reservation.put("identifierId", identifierId);
+            reservation.put("expireTime", getReservationExpireTime().getTime());
+            data[3] = JSON.toJSONString(reservation);
+            data[4] = String.valueOf(DELAY_ORDER_CANCEL_TIME_UNIT.toSeconds(DELAY_ORDER_CANCEL_TIME));
+        }
         //执行lua脚本
         ProgramCacheCreateOrderData programCacheCreateOrderData =
                 programCacheCreateOrderResolutionOperate.programCacheOperate(keys, data);
@@ -441,12 +616,18 @@ public class ProgramOrderService {
     }
 
     private OrderCreateDto buildCreateOrderParamV2(Long programId, Long userId, List<PurchaseSeat> purchaseSeatList, Integer orderVersion) {
+        return buildCreateOrderParamV2(programId, userId, purchaseSeatList, orderVersion, null);
+    }
+
+    private OrderCreateDto buildCreateOrderParamV2(Long programId, Long userId, List<PurchaseSeat> purchaseSeatList,
+                                                   Integer orderVersion, Long orderNumber) {
         if (CollectionUtil.isEmpty(purchaseSeatList)) {
             throw new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST);
         }
         ProgramVo programVo = programService.simpleGetProgramAndShowMultipleCache(programId);
         OrderCreateDto orderCreateDto = new OrderCreateDto();
-        orderCreateDto.setOrderNumber(uidGenerator.getOrderNumber(userId, ORDER_TABLE_COUNT));
+        orderCreateDto.setOrderNumber(Objects.nonNull(orderNumber) ? orderNumber :
+                uidGenerator.getOrderNumber(userId, ORDER_TABLE_COUNT));
         orderCreateDto.setProgramId(programId);
         orderCreateDto.setProgramItemPicture(programVo.getItemPicture());
         orderCreateDto.setUserId(userId);

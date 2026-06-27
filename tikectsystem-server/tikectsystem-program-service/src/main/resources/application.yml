@@ -76,10 +76,22 @@ spring:
   kafka:
     bootstrap-servers: 127.0.0.1:9092
     producer:
-      retries: 1
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: program_order_request_data
+      enable-auto-commit: false
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: manual_immediate
     topic: create_order
+    order-request-topic: order_request
 
 bloom-filter:
   name: program-detail-bloom-filter

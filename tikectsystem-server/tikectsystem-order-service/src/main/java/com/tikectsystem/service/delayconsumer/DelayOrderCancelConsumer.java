@@ -35,20 +35,20 @@ import static com.tikectsystem.constant.Constant.TRACE_ID;
 import static com.tikectsystem.service.constant.OrderConstant.DELAY_ORDER_CANCEL_TOPIC;
 
 /**
- * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
- * @description: 延迟订单取消
- * @author: 阿星不是程序员
+ * @program: 鏋佸害鐪熷疄杩樺師澶ч害缃戦珮骞跺彂瀹炴垬椤圭洰銆?娣诲姞 闃挎槦涓嶆槸绋嬪簭鍛?寰俊锛屾坊鍔犳椂澶囨敞 澶ч害 鏉ヨ幏鍙栭」鐩殑瀹屾暣璧勬枡
+ * @description: 寤惰繜璁㈠崟鍙栨秷
+ * @author: 闃挎槦涓嶆槸绋嬪簭鍛?
  **/
 @Slf4j
 @Component
 public class DelayOrderCancelConsumer {
-    
+
     @Autowired
     private OrderService orderService;
-    
+
     @Autowired
     private ApiDataClient apiDataClient;
-    
+
     @Autowired
     private DelayOrderCancelTaskExecutor delayOrderCancelTaskExecutor;
 
@@ -68,12 +68,12 @@ public class DelayOrderCancelConsumer {
         try {
             delayOrderCancelMessageModule = JSON.parseObject(value, DelayOrderCancelMessageModule.class);
         } catch (Exception e) {
-            log.error("延迟订单取消Kafka消息解析失败 value : {}", value, e);
+            log.error("寤惰繜璁㈠崟鍙栨秷Kafka娑堟伅瑙ｆ瀽澶辫触 value : {}", value, e);
             return;
         }
         if (delayOrderCancelMessageModule == null || delayOrderCancelMessageModule.getMessageId() == null ||
                 delayOrderCancelMessageModule.getOrderNumber() == null) {
-            log.error("延迟订单取消Kafka消息格式错误 value : {}", value);
+            log.error("寤惰繜璁㈠崟鍙栨秷Kafka娑堟伅鏍煎紡閿欒 value : {}", value);
             return;
         }
         Long executeTimestamp = delayOrderCancelMessageModule.getExecuteTimestamp();
@@ -84,11 +84,11 @@ public class DelayOrderCancelConsumer {
             return;
         }
         try {
-            log.debug("延迟订单取消Kafka消息等待执行 orderNumber : {}, delayMillis : {}",
+            log.debug("寤惰繜璁㈠崟鍙栨秷Kafka娑堟伅绛夊緟鎵ц orderNumber : {}, delayMillis : {}",
                     delayOrderCancelMessageModule.getOrderNumber(), delayMillis);
             scheduleDelayExecute(value, delayOrderCancelMessageModule, delayMillis, traceContext);
         } catch (Exception e) {
-            log.error("延迟订单取消Kafka消息调度失败 value : {}", value, e);
+            log.error("寤惰繜璁㈠崟鍙栨秷Kafka娑堟伅璋冨害澶辫触 value : {}", value, e);
         }
     }
 
@@ -97,7 +97,7 @@ public class DelayOrderCancelConsumer {
         int pendingCount = pendingDelayOrderCancelCount.incrementAndGet();
         if (pendingCount > Math.max(1, maxPendingDelayTaskCount)) {
             pendingDelayOrderCancelCount.decrementAndGet();
-            log.warn("延迟订单取消本地等待任务过多，交由消息对账补偿重投 orderNumber : {}, pendingCount : {}",
+            log.warn("寤惰繜璁㈠崟鍙栨秷鏈湴绛夊緟浠诲姟杩囧锛屼氦鐢辨秷鎭璐﹁ˉ鍋块噸鎶?orderNumber : {}, pendingCount : {}",
                     messageModule.getOrderNumber(), pendingCount);
             return;
         }
@@ -121,11 +121,11 @@ public class DelayOrderCancelConsumer {
                 try {
                     execute(content);
                 } catch (Exception e) {
-                    log.error("延迟订单取消任务执行失败 content : {}", content, e);
+                    log.error("寤惰繜璁㈠崟鍙栨秷浠诲姟鎵ц澶辫触 content : {}", content, e);
                 }
             }, traceContext, traceContext);
         } catch (Exception e) {
-            log.error("延迟订单取消任务提交失败 content : {}", content, e);
+            log.error("寤惰繜璁㈠崟鍙栨秷浠诲姟鎻愪氦澶辫触 content : {}", content, e);
         }
     }
 
@@ -138,7 +138,7 @@ public class DelayOrderCancelConsumer {
     }
 
     public void execute(String content) {
-        log.debug("延迟订单取消消息进行消费 content : {}", content);
+        log.debug("寤惰繜璁㈠崟鍙栨秷娑堟伅杩涜娑堣垂 content : {}", content);
         if (StringUtil.isEmpty(content)) {
             log.error("延迟订单取消消息不存在");
             return;
@@ -147,33 +147,33 @@ public class DelayOrderCancelConsumer {
         try {
             delayOrderCancelMessageModule = JSON.parseObject(content, DelayOrderCancelMessageModule.class);
         } catch (Exception e) {
-            log.error("延迟订单取消消息解析失败 content : {}", content, e);
+            log.error("寤惰繜璁㈠崟鍙栨秷娑堟伅瑙ｆ瀽澶辫触 content : {}", content, e);
             return;
         }
         if (delayOrderCancelMessageModule == null) {
-            log.error("延迟订单取消消息格式错误 content : {}", content);
+            log.error("寤惰繜璁㈠崟鍙栨秷娑堟伅鏍煎紡閿欒 content : {}", content);
             return;
         }
-        
+
         Long messageTraceId = delayOrderCancelMessageModule.getMessageTraceId();
         Long messageId = delayOrderCancelMessageModule.getMessageId();
         Long programId = delayOrderCancelMessageModule.getProgramId();
         Long orderNumber = delayOrderCancelMessageModule.getOrderNumber();
         if (messageId == null || orderNumber == null) {
-            log.error("延迟订单取消消息缺少必要参数 content : {}", content);
+            log.error("寤惰繜璁㈠崟鍙栨秷娑堟伅缂哄皯蹇呰鍙傛暟 content : {}", content);
             return;
         }
-        
+
         MessageIdDto messageIdDto = new MessageIdDto();
         messageIdDto.setMessageId(messageId);
         ApiResponse<MessageConsumerRecordVo> apiResponse = apiDataClient.getMessageConsumerByMessageId(messageIdDto);
         if (apiResponse == null || !Objects.equals(apiResponse.getCode(),BaseCode.SUCCESS.getCode())) {
-            log.error("查询消息消费记录失败 messageId : {}",messageId);
+            log.error("鏌ヨ娑堟伅娑堣垂璁板綍澶辫触 messageId : {}",messageId);
             return;
         }
-        
+
         MessageConsumerRecordVo existMessageConsumerRecordVo = apiResponse.getData();
-        
+
         if (Objects.nonNull(existMessageConsumerRecordVo) &&
                 Objects.equals(existMessageConsumerRecordVo.getMessageConsumerStatus(),MessageConsumerStatus.CONSUMER_SUCCESS.getCode())) {
             return;
@@ -190,12 +190,12 @@ public class DelayOrderCancelConsumer {
             insertMessageConsumerRecordDto.setMessageContent(content);
             ApiResponse<MessageConsumerRecordVo> insertApiResponse = apiDataClient.insertMessageConsumerRecord(insertMessageConsumerRecordDto);
             if (insertApiResponse == null || !Objects.equals(insertApiResponse.getCode(),BaseCode.SUCCESS.getCode())) {
-                log.error("添加消息消费记录失败 insertMessageConsumerRecordDto : {}", JSON.toJSONString(insertMessageConsumerRecordDto));
+                log.error("娣诲姞娑堟伅娑堣垂璁板綍澶辫触 insertMessageConsumerRecordDto : {}", JSON.toJSONString(insertMessageConsumerRecordDto));
                 return;
             }
             MessageConsumerRecordVo saveMessageConsumerRecordVo = insertApiResponse.getData();
             if (saveMessageConsumerRecordVo == null || saveMessageConsumerRecordVo.getId() == null) {
-                log.error("添加消息消费记录返回数据为空 insertMessageConsumerRecordDto : {}", JSON.toJSONString(insertMessageConsumerRecordDto));
+                log.error("娣诲姞娑堟伅娑堣垂璁板綍杩斿洖鏁版嵁涓虹┖ insertMessageConsumerRecordDto : {}", JSON.toJSONString(insertMessageConsumerRecordDto));
                 return;
             }
             messageConsumerRecordId = saveMessageConsumerRecordVo.getId();
@@ -210,18 +210,18 @@ public class DelayOrderCancelConsumer {
         updateMessageConsumerRecordDto.setId(messageConsumerRecordId);
         updateMessageConsumerRecordDto.setMessageConsumerCount(messageConsumerCount);
         updateMessageConsumerRecordDto.setConsumerTime(DateUtils.now());
-        
+
         try {
             OrderCancelDto orderCancelDto = new OrderCancelDto();
             orderCancelDto.setOrderNumber(orderNumber);
             boolean cancel = orderService.cancel(orderCancelDto);
             if (cancel) {
-                log.info("延迟订单取消成功 orderCancelDto : {}",content);
+                log.info("寤惰繜璁㈠崟鍙栨秷鎴愬姛 orderCancelDto : {}",content);
                 updateMessageConsumerRecordDto.setMessageConsumerStatus(MessageConsumerStatus.CONSUMER_SUCCESS.getCode());
             }else {
-                log.error("延迟订单取消失败 orderCancelDto : {}",content);
+                log.error("寤惰繜璁㈠崟鍙栨秷澶辫触 orderCancelDto : {}",content);
                 updateMessageConsumerRecordDto.setMessageConsumerStatus(MessageConsumerStatus.CONSUMER_FAIL.getCode());
-                updateMessageConsumerRecordDto.setMessageConsumerException("订单取消失败");
+                updateMessageConsumerRecordDto.setMessageConsumerException("璁㈠崟鍙栨秷澶辫触");
             }
         } catch (TikectsystemFrameException e) {
             updateMessageConsumerRecordDto.setMessageConsumerStatus(MessageConsumerStatus.CONSUMER_SUCCESS.getCode());
