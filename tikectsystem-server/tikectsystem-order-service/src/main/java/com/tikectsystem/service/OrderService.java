@@ -647,8 +647,26 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     public void updateProgramRelatedDataResolution(Long programId,Map<Long,List<Long>> seatMap, OrderStatus orderStatus,Long identifierId, Long userId,
                                                    List<SeatIdAndTicketUserIdDomain> seatIdAndTicketUserIdDomainList,
                                                    Integer orderVersion){
+        if (seatMap == null || seatMap.isEmpty()) {
+            throw new TikectsystemFrameException(BaseCode.SEAT_ID_EMPTY);
+        }
+        List<Long> operateSeatIdList = new ArrayList<>();
+        List<TicketCategoryCountDto> ticketCategoryCountDtoList = new ArrayList<>(seatMap.size());
+        seatMap.forEach((ticketCategoryId, seatIdList) -> {
+            if (CollectionUtil.isEmpty(seatIdList)) {
+                return;
+            }
+            operateSeatIdList.addAll(seatIdList);
+            ticketCategoryCountDtoList.add(new TicketCategoryCountDto(ticketCategoryId, (long) seatIdList.size()));
+        });
+        if (CollectionUtil.isEmpty(operateSeatIdList)) {
+            throw new TikectsystemFrameException(BaseCode.SEAT_ID_EMPTY);
+        }
         Map<Long, List<SeatVo>> seatVoMap = new HashMap<>(seatMap.size());
         seatMap.forEach((k,v) -> {
+            if (CollectionUtil.isEmpty(v)) {
+                return;
+            }
             seatVoMap.put(k,redisCache.multiGetForHash(
                     RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_SEAT_LOCK_RESOLUTION_HASH, programId, k),
                     v.stream().map(String::valueOf).collect(Collectors.toList()), SeatVo.class));
@@ -657,11 +675,23 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             throw new TikectsystemFrameException(BaseCode.LOCK_SEAT_LIST_EMPTY);
         }
         JSONArray jsonArray = new JSONArray();
+        for (TicketCategoryCountDto ticketCategoryCountDto : ticketCategoryCountDtoList) {
+            JSONObject ticketCategoryJsonObject = new JSONObject();
+            ticketCategoryJsonObject.put("programTicketRemainNumberHashKey",RedisKeyBuild.createRedisKey(
+                    RedisKeyManage.PROGRAM_TICKET_REMAIN_NUMBER_HASH_RESOLUTION,
+                    programId, ticketCategoryCountDto.getTicketCategoryId()).getRelKey());
+            ticketCategoryJsonObject.put("ticketCategoryId",String.valueOf(ticketCategoryCountDto.getTicketCategoryId()));
+            ticketCategoryJsonObject.put("count",ticketCategoryCountDto.getCount());
+            jsonArray.add(ticketCategoryJsonObject);
+        }
         JSONArray addSeatDatajsonArray = new JSONArray();
-        List<TicketCategoryCountDto> ticketCategoryCountDtoList = new ArrayList<>(seatVoMap.size());
         JSONArray unLockSeatIdjsonArray = new JSONArray();
-        List<Long> unLockSeatIdList = new ArrayList<>();
         seatVoMap.forEach((k,v) -> {
+            if (CollectionUtil.isEmpty(v)) {
+                log.warn("program seat lock cache is empty, programId:{}, ticketCategoryId:{}, seatIds:{}",
+                        programId, k, seatMap.get(k));
+                return;
+            }
             JSONObject unLockSeatIdjsonObject = new JSONObject();
             unLockSeatIdjsonObject.put("programSeatLockHashKey", RedisKeyBuild.createRedisKey(
                     RedisKeyManage.PROGRAM_SEAT_LOCK_RESOLUTION_HASH, programId, k).getRelKey());
@@ -692,18 +722,6 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             }
             seatDatajsonObject.put("seatDataList",seatDataList);
             addSeatDatajsonArray.add(seatDatajsonObject);
-            JSONObject jsonObject = new JSONObject();
-            jsonObject.put("programTicketRemainNumberHashKey",RedisKeyBuild.createRedisKey(
-                    RedisKeyManage.PROGRAM_TICKET_REMAIN_NUMBER_HASH_RESOLUTION, programId, k).getRelKey());
-            jsonObject.put("ticketCategoryId",String.valueOf(k));
-            jsonObject.put("count",v.size());
-            jsonArray.add(jsonObject);
-            TicketCategoryCountDto ticketCategoryCountDto = new TicketCategoryCountDto();
-            ticketCategoryCountDto.setTicketCategoryId(k);
-            ticketCategoryCountDto.setCount((long) v.size());
-            ticketCategoryCountDtoList.add(ticketCategoryCountDto);
-
-            unLockSeatIdList.addAll(v.stream().map(SeatVo::getId).toList());
         });
         List<String> keys = new ArrayList<>();
         keys.add(String.valueOf(orderStatus.getCode()));
@@ -721,7 +739,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
 
         ProgramOperateDataDto programOperateDataDto = new ProgramOperateDataDto();
         programOperateDataDto.setProgramId(programId);
-        programOperateDataDto.setSeatIdList(unLockSeatIdList);
+        programOperateDataDto.setSeatIdList(operateSeatIdList);
         programOperateDataDto.setTicketCategoryCountDtoList(ticketCategoryCountDtoList);
         programOperateDataDto.setOrderVersion(orderVersion);
         //濡傛灉鍒涘缓璁㈠崟鐗堟湰鏄痸1锛寁2锛寁3

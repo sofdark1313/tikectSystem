@@ -756,8 +756,17 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
     @RepeatExecuteLimit(name = REDUCE_REMAIN_NUMBER,keys = {"#reduceRemainNumberDto.programId","#reduceRemainNumberDto.seatIdList"})
     @Transactional(rollbackFor = Exception.class)
     public Boolean operateSeatLockAndTicketCategoryRemainNumber(ReduceRemainNumberDto reduceRemainNumberDto){
+        if (reduceRemainNumberDto == null) {
+            throw new TikectsystemFrameException(BaseCode.PARAMETER_ERROR);
+        }
         List<TicketCategoryCountDto> ticketCategoryCountDtoList = reduceRemainNumberDto.getTicketCategoryCountDtoList();
         List<Long> seatIdList = reduceRemainNumberDto.getSeatIdList();
+        if (CollectionUtil.isEmpty(ticketCategoryCountDtoList)) {
+            throw new TikectsystemFrameException(BaseCode.TICKET_CATEGORY_NOT_EXIST);
+        }
+        if (CollectionUtil.isEmpty(seatIdList)) {
+            throw new TikectsystemFrameException(BaseCode.SEAT_ID_EMPTY);
+        }
         LambdaQueryWrapper<Seat> seatLambdaQueryWrapper =
                 Wrappers.lambdaQuery(Seat.class)
                         .eq(Seat::getProgramId,reduceRemainNumberDto.getProgramId())
@@ -800,7 +809,17 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
     @RepeatExecuteLimit(name = PAY_OR_CANCEL_PROGRAM_ORDER,keys = {"#programOperateDataDto.programId","#programOperateDataDto.seatIdList"})
     @Transactional(rollbackFor = Exception.class)
     public Boolean operateProgramData(ProgramOperateDataDto programOperateDataDto){
+        if (programOperateDataDto == null) {
+            throw new TikectsystemFrameException(BaseCode.PARAMETER_ERROR);
+        }
         List<Long> seatIdList = programOperateDataDto.getSeatIdList();
+        List<TicketCategoryCountDto> ticketCategoryCountDtoList = programOperateDataDto.getTicketCategoryCountDtoList();
+        if (CollectionUtil.isEmpty(seatIdList)) {
+            throw new TikectsystemFrameException(BaseCode.SEAT_ID_EMPTY);
+        }
+        if (CollectionUtil.isEmpty(ticketCategoryCountDtoList)) {
+            throw new TikectsystemFrameException(BaseCode.TICKET_CATEGORY_NOT_EXIST);
+        }
         LambdaQueryWrapper<Seat> seatLambdaQueryWrapper =
                 Wrappers.lambdaQuery(Seat.class)
                         .eq(Seat::getProgramId,programOperateDataDto.getProgramId())
@@ -832,24 +851,26 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
             Seat updateSeat = new Seat();
             updateSeat.setSellStatus(SellStatus.SOLD.getCode());
             seatMapper.update(updateSeat,seatLambdaUpdateWrapper);
-            List<TicketCategoryCountDto> ticketCategoryCountDtoList = programOperateDataDto.getTicketCategoryCountDtoList();
             int updateRemainNumberCount =
                     ticketCategoryMapper.batchUpdateRemainNumber(ticketCategoryCountDtoList,programOperateDataDto.getProgramId());
             if (updateRemainNumberCount != ticketCategoryCountDtoList.size()) {
                 throw new TikectsystemFrameException(BaseCode.UPDATE_TICKET_CATEGORY_COUNT_NOT_CORRECT);
             }
         }else {
-            //如果创建订单版本是v4
-            //验证座位现在的状态，只能是锁定中
-            for (Seat seat : seatList) {
-                if (!Objects.equals(seat.getSellStatus(), SellStatus.LOCK.getCode())) {
-                    throw new TikectsystemFrameException(BaseCode.SEAT_IS_NOT_NOT_LOCK);
-                }
-            }
-
+            //如果创建订单版本是v4，锁座和票档库存扣减以 Redis 为准
+            //数据库座位可能仍是未售或锁定中，已售状态仍要拦截
             Seat updateSeat = new Seat();
             //订单支付成功的操作
             if (Objects.equals(programOperateDataDto.getSellStatus(),SellStatus.SOLD.getCode())) {
+                for (Seat seat : seatList) {
+                    if (Objects.equals(seat.getSellStatus(), SellStatus.SOLD.getCode())) {
+                        throw new TikectsystemFrameException(BaseCode.SEAT_SOLD);
+                    }
+                    if (!Objects.equals(seat.getSellStatus(), SellStatus.NO_SOLD.getCode()) &&
+                            !Objects.equals(seat.getSellStatus(), SellStatus.LOCK.getCode())) {
+                        throw new TikectsystemFrameException(BaseCode.SEAT_IS_NOT_NOT_LOCK);
+                    }
+                }
                 updateSeat.setSellStatus(SellStatus.SOLD.getCode());
                 LambdaUpdateWrapper<Seat> seatLambdaUpdateWrapper =
                         Wrappers.lambdaUpdate(Seat.class)
@@ -858,23 +879,22 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                 seatMapper.update(updateSeat,seatLambdaUpdateWrapper);
             } else if (Objects.equals(programOperateDataDto.getSellStatus(),SellStatus.NO_SOLD.getCode())) {
                 //订单取消的操作
+                for (Seat seat : seatList) {
+                    if (Objects.equals(seat.getSellStatus(), SellStatus.SOLD.getCode())) {
+                        throw new TikectsystemFrameException(BaseCode.SEAT_SOLD);
+                    }
+                    if (!Objects.equals(seat.getSellStatus(), SellStatus.NO_SOLD.getCode()) &&
+                            !Objects.equals(seat.getSellStatus(), SellStatus.LOCK.getCode())) {
+                        throw new TikectsystemFrameException(BaseCode.SEAT_IS_NOT_NOT_LOCK);
+                    }
+                }
                 updateSeat.setSellStatus(SellStatus.NO_SOLD.getCode());
                 LambdaUpdateWrapper<Seat> seatLambdaUpdateWrapper =
                         Wrappers.lambdaUpdate(Seat.class)
                                 .eq(Seat::getProgramId,programOperateDataDto.getProgramId())
                                 .in(Seat::getId, seatIdList);
                 seatMapper.update(updateSeat,seatLambdaUpdateWrapper);
-                List<TicketCategoryCountDto> ticketCategoryCountDtoList = programOperateDataDto.getTicketCategoryCountDtoList();
-                int updateRemainNumberCount = 0;
-                //把库存增加回去
-                for (TicketCategoryCountDto ticketCategoryCountDto : ticketCategoryCountDtoList) {
-                    updateRemainNumberCount = updateRemainNumberCount + ticketCategoryMapper.increaseRemainNumber(
-                            ticketCategoryCountDto.getCount(), ticketCategoryCountDto.getTicketCategoryId(),
-                            programOperateDataDto.getProgramId());
-                }
-                if (updateRemainNumberCount != ticketCategoryCountDtoList.size()) {
-                    throw new TikectsystemFrameException(BaseCode.UPDATE_TICKET_CATEGORY_COUNT_NOT_CORRECT);
-                }
+                // V4 创建订单只扣减 Redis 库存，取消时数据库票档库存不需要再补加。
             }
         }
         return true;

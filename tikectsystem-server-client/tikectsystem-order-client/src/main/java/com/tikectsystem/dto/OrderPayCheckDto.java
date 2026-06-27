@@ -18,7 +18,6 @@ public class OrderPayCheckDto {
     @NotNull
     private Long orderNumber;
     
-    @Schema(name ="payChannelType", type ="Integer", description ="支付方式保留字段，当前本地确认支付不区分渠道", requiredMode= RequiredMode.REQUIRED)
-    @NotNull
+    @Schema(name ="payChannelType", type ="Integer", description ="支付方式保留字段，当前本地确认支付不区分渠道", requiredMode= RequiredMode.NOT_REQUIRED)
     private Integer payChannelType;
 }
