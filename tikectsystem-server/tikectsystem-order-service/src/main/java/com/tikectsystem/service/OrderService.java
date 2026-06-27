@@ -641,11 +641,21 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     public void updateProgramRelatedDataResolution(Long programId,Map<Long,List<Long>> seatMap, OrderStatus orderStatus,Long identifierId, Long userId,
                                                    List<SeatIdAndTicketUserIdDomain> seatIdAndTicketUserIdDomainList,
                                                    Integer orderVersion){
+        updateProgramRelatedDataResolution(programId, seatMap, orderStatus, identifierId, userId,
+                seatIdAndTicketUserIdDomainList, orderVersion, true);
+    }
+
+    private void updateProgramRelatedDataResolution(Long programId,Map<Long,List<Long>> seatMap, OrderStatus orderStatus,Long identifierId, Long userId,
+                                                    List<SeatIdAndTicketUserIdDomain> seatIdAndTicketUserIdDomainList,
+                                                    Integer orderVersion, boolean syncProgramService){
         Map<Long, List<SeatVo>> seatVoMap = new HashMap<>(seatMap.size());
         seatMap.forEach((k,v) -> {
-            seatVoMap.put(k,redisCache.multiGetForHash(
+            List<SeatVo> seatVoList = redisCache.multiGetForHash(
                     RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_SEAT_LOCK_RESOLUTION_HASH, programId, k),
-                    v.stream().map(String::valueOf).collect(Collectors.toList()), SeatVo.class));
+                    v.stream().map(String::valueOf).collect(Collectors.toList()), SeatVo.class);
+            if (CollectionUtil.isNotEmpty(seatVoList)) {
+                seatVoMap.put(k, seatVoList);
+            }
         });
         if (CollectionUtil.isEmpty(seatVoMap)) {
             throw new TikectsystemFrameException(BaseCode.LOCK_SEAT_LIST_EMPTY);
@@ -719,7 +729,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         programOperateDataDto.setTicketCategoryCountDtoList(ticketCategoryCountDtoList);
         programOperateDataDto.setOrderVersion(orderVersion);
         //如果创建订单版本是v1，v2，v3
-        if (!Objects.equals(orderVersion, ProgramOrderVersion.V4_VERSION.getValue())){
+        if (!isCreateOrderCacheFirstVersion(orderVersion)){
             orderProgramCacheResolutionOperate.programCacheReverseOperate(keys,data);
             if (Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode())) {
                 programOperateDataDto.setSellStatus(SellStatus.SOLD.getCode());
@@ -727,8 +737,8 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             }
         }else {
             //如果创建订单版本是v4 更新节目服务的相关数据
-            if (Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode()) ||
-                    Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode())) {
+            if (syncProgramService && (Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode()) ||
+                    Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode()))) {
                 programOperateDataDto.setSellStatus(Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode()) ? SellStatus.SOLD.getCode() : SellStatus.NO_SOLD.getCode());
                 ApiResponse<Boolean> programApiResponse = programClient.operateProgramData(programOperateDataDto);
                 if (programApiResponse == null || !Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
@@ -849,28 +859,111 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 accountOrderCountDto.getProgramId()));
         return accountOrderCountVo;
     }
+
+    public void releaseCreateOrderPreOccupy(OrderCreateMq orderCreateMq) {
+        if (!isCreateOrderCacheFirstVersion(orderCreateMq.getOrderVersion())) {
+            return;
+        }
+        releaseCacheFirstCreateOrderData(orderCreateMq);
+    }
+
+    private void releaseCacheFirstCreateOrderData(OrderCreateMq orderCreateMq) {
+        updateProgramRelatedDataResolution(orderCreateMq.getProgramId(), buildSeatMap(orderCreateMq),
+                OrderStatus.CANCEL, orderCreateMq.getIdentifierId(), orderCreateMq.getUserId(),
+                buildSeatIdAndTicketUserIdDomainList(orderCreateMq), orderCreateMq.getOrderVersion(), false);
+    }
+
+    private void compensateCreateMqFailure(OrderCreateMq orderCreateMq, boolean programDataLocked, Exception createException) {
+        try {
+            if (isCreateOrderCacheFirstVersion(orderCreateMq.getOrderVersion())) {
+                releaseCacheFirstCreateOrderData(orderCreateMq);
+            } else if (programDataLocked) {
+                compensateProgramServiceLockedData(orderCreateMq);
+            }
+        } catch (Exception compensateException) {
+            log.error("create order mq compensation failed, orderNumber : {}, programId : {}",
+                    orderCreateMq.getOrderNumber(), orderCreateMq.getProgramId(), compensateException);
+            createException.addSuppressed(compensateException);
+        }
+    }
+
+    private boolean isCreateOrderCacheFirstVersion(Integer orderVersion) {
+        return Objects.equals(orderVersion, ProgramOrderVersion.V4_VERSION.getValue()) ||
+                Objects.equals(orderVersion, ProgramOrderVersion.V41_VERSION.getValue());
+    }
+
+    private void compensateProgramServiceLockedData(OrderCreateMq orderCreateMq) {
+        ProgramOperateDataDto programOperateDataDto = buildProgramOperateDataDto(orderCreateMq, SellStatus.NO_SOLD.getCode());
+        ApiResponse<Boolean> programApiResponse = programClient.operateProgramData(programOperateDataDto);
+        if (programApiResponse == null || !Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+            throw new TikectsystemFrameException(programApiResponse);
+        }
+    }
+
+    private ProgramOperateDataDto buildProgramOperateDataDto(OrderCreateMq orderCreateMq, Integer sellStatus) {
+        ProgramOperateDataDto programOperateDataDto = new ProgramOperateDataDto();
+        programOperateDataDto.setProgramId(orderCreateMq.getProgramId());
+        programOperateDataDto.setSellStatus(sellStatus);
+        programOperateDataDto.setSeatIdList(buildSeatIdList(orderCreateMq));
+        programOperateDataDto.setTicketCategoryCountDtoList(buildTicketCategoryCountDtoList(orderCreateMq));
+        programOperateDataDto.setOrderVersion(orderCreateMq.getOrderVersion());
+        return programOperateDataDto;
+    }
+
+    private List<Long> buildSeatIdList(OrderCreateMq orderCreateMq) {
+        List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = orderCreateMq.getOrderTicketUserCreateDtoList();
+        List<Long> seatIdList = new ArrayList<>(orderTicketUserCreateDtoList.size());
+        for (OrderTicketUserCreateDto orderTicketUserCreateDto : orderTicketUserCreateDtoList) {
+            seatIdList.add(orderTicketUserCreateDto.getSeatId());
+        }
+        return seatIdList;
+    }
+
+    private List<TicketCategoryCountDto> buildTicketCategoryCountDtoList(OrderCreateMq orderCreateMq) {
+        List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = orderCreateMq.getOrderTicketUserCreateDtoList();
+        Map<Long, Long> countMap = new HashMap<>(orderTicketUserCreateDtoList.size());
+        for (OrderTicketUserCreateDto orderTicketUserCreateDto : orderTicketUserCreateDtoList) {
+            countMap.merge(orderTicketUserCreateDto.getTicketCategoryId(), 1L, Long::sum);
+        }
+        List<TicketCategoryCountDto> ticketCategoryCountDtoList = new ArrayList<>(countMap.size());
+        countMap.forEach((ticketCategoryId, ticketCount) ->
+                ticketCategoryCountDtoList.add(new TicketCategoryCountDto(ticketCategoryId, ticketCount)));
+        return ticketCategoryCountDtoList;
+    }
+
+    private Map<Long, List<Long>> buildSeatMap(OrderCreateMq orderCreateMq) {
+        List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = orderCreateMq.getOrderTicketUserCreateDtoList();
+        Map<Long, List<Long>> seatMap = new HashMap<>(orderTicketUserCreateDtoList.size());
+        for (OrderTicketUserCreateDto orderTicketUserCreateDto : orderTicketUserCreateDtoList) {
+            seatMap.computeIfAbsent(orderTicketUserCreateDto.getTicketCategoryId(), key -> new ArrayList<>())
+                    .add(orderTicketUserCreateDto.getSeatId());
+        }
+        return seatMap;
+    }
+
+    private List<SeatIdAndTicketUserIdDomain> buildSeatIdAndTicketUserIdDomainList(OrderCreateMq orderCreateMq) {
+        List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = orderCreateMq.getOrderTicketUserCreateDtoList();
+        List<SeatIdAndTicketUserIdDomain> seatIdAndTicketUserIdDomainList =
+                new ArrayList<>(orderTicketUserCreateDtoList.size());
+        for (OrderTicketUserCreateDto orderTicketUserCreateDto : orderTicketUserCreateDtoList) {
+            seatIdAndTicketUserIdDomainList.add(new SeatIdAndTicketUserIdDomain(
+                    orderTicketUserCreateDto.getSeatId(), orderTicketUserCreateDto.getTicketUserId()));
+        }
+        return seatIdAndTicketUserIdDomainList;
+    }
     
     
     @RepeatExecuteLimit(name = CREATE_PROGRAM_ORDER_MQ,keys = {"#orderCreateMq.orderNumber"})
     @Transactional(rollbackFor = Exception.class)
     public String createMq(OrderCreateMq orderCreateMq){
-        if (!Objects.equals(orderCreateMq.getOrderVersion(), ProgramOrderVersion.V4_VERSION.getValue())) {
-            List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = orderCreateMq.getOrderTicketUserCreateDtoList();
-            List<Long> seatIdList = new ArrayList<>(orderTicketUserCreateDtoList.size());
-            Map<Long, Long> countMap = new HashMap<>(orderTicketUserCreateDtoList.size());
-            for (OrderTicketUserCreateDto orderTicketUserCreateDto : orderTicketUserCreateDtoList) {
-                seatIdList.add(orderTicketUserCreateDto.getSeatId());
-                countMap.merge(orderTicketUserCreateDto.getTicketCategoryId(), 1L, Long::sum);
-            }
-            List<TicketCategoryCountDto> ticketCountList = new ArrayList<>(countMap.size());
-            countMap.forEach((ticketCategoryId, ticketCount) ->
-                    ticketCountList.add(new TicketCategoryCountDto(ticketCategoryId, ticketCount)));
+        boolean programDataLocked = false;
+        if (!isCreateOrderCacheFirstVersion(orderCreateMq.getOrderVersion())) {
             //修改节目服务中的座位状态和扣减库存
             ReduceRemainNumberDto reduceRemainNumberDto = new ReduceRemainNumberDto();
             reduceRemainNumberDto.setProgramId(orderCreateMq.getProgramId());
             reduceRemainNumberDto.setSellStatus(SellStatus.LOCK.getCode());
-            reduceRemainNumberDto.setSeatIdList(seatIdList);
-            reduceRemainNumberDto.setTicketCategoryCountDtoList(ticketCountList);
+            reduceRemainNumberDto.setSeatIdList(buildSeatIdList(orderCreateMq));
+            reduceRemainNumberDto.setTicketCategoryCountDtoList(buildTicketCategoryCountDtoList(orderCreateMq));
             ApiResponse<Boolean> programApiResponse = programClient.operateSeatLockAndTicketCategoryRemainNumber(reduceRemainNumberDto);
             if (programApiResponse == null || !Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
                 //将因为修改节目服务余票和座位失败，导致丢弃的订单放入redis中
@@ -878,11 +971,20 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                         orderCreateMq.getProgramId()),new DiscardOrder(orderCreateMq, DiscardOrderReason.MODIFY_PROGRAM_REMAIN_NUMBER_SEAT_FAIL.getCode()));
                 throw new TikectsystemFrameException(programApiResponse);
             }
+            programDataLocked = true;
         }
         //真正地创建订单
-        String orderNumber = createByMq(orderCreateMq);
-        redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.ORDER_MQ,orderNumber),orderNumber,1, TimeUnit.MINUTES);
-        return orderNumber;
+        try {
+            String orderNumber = createByMq(orderCreateMq);
+            redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.ORDER_MQ,orderNumber),orderNumber,1, TimeUnit.MINUTES);
+            return orderNumber;
+        } catch (Exception e) {
+            compensateCreateMqFailure(orderCreateMq, programDataLocked, e);
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            }
+            throw new TikectsystemFrameException(e);
+        }
     }
     
     public String getCache(OrderGetDto orderGetDto) {

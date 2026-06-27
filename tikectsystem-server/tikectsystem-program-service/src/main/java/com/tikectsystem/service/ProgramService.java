@@ -819,7 +819,8 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
         }
         Integer orderVersion = programOperateDataDto.getOrderVersion();
         //如果创建订单版本是v1，v2，v3
-        if (!Objects.equals(orderVersion, ProgramOrderVersion.V4_VERSION.getValue())) {
+        if (!isCreateOrderCacheFirstVersion(orderVersion)) {
+            if (Objects.equals(programOperateDataDto.getSellStatus(),SellStatus.SOLD.getCode())) {
             for (Seat seat : seatList) {
                 if (Objects.equals(seat.getSellStatus(), SellStatus.SOLD.getCode())) {
                     throw new TikectsystemFrameException(BaseCode.SEAT_SOLD);
@@ -837,6 +838,29 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                     ticketCategoryMapper.batchUpdateRemainNumber(ticketCategoryCountDtoList,programOperateDataDto.getProgramId());
             if (updateRemainNumberCount != ticketCategoryCountDtoList.size()) {
                 throw new TikectsystemFrameException(BaseCode.UPDATE_TICKET_CATEGORY_COUNT_NOT_CORRECT);
+            }
+            } else if (Objects.equals(programOperateDataDto.getSellStatus(),SellStatus.NO_SOLD.getCode())) {
+                for (Seat seat : seatList) {
+                    if (!Objects.equals(seat.getSellStatus(), SellStatus.LOCK.getCode())) {
+                        throw new TikectsystemFrameException(BaseCode.SEAT_IS_NOT_NOT_LOCK);
+                    }
+                }
+                LambdaUpdateWrapper<Seat> seatLambdaUpdateWrapper =
+                        Wrappers.lambdaUpdate(Seat.class)
+                                .eq(Seat::getProgramId,programOperateDataDto.getProgramId())
+                                .in(Seat::getId, seatIdList);
+                Seat updateSeat = new Seat();
+                updateSeat.setSellStatus(SellStatus.NO_SOLD.getCode());
+                seatMapper.update(updateSeat,seatLambdaUpdateWrapper);
+                int updateRemainNumberCount = 0;
+                for (TicketCategoryCountDto ticketCategoryCountDto : programOperateDataDto.getTicketCategoryCountDtoList()) {
+                    updateRemainNumberCount = updateRemainNumberCount + ticketCategoryMapper.increaseRemainNumber(
+                            ticketCategoryCountDto.getCount(), ticketCategoryCountDto.getTicketCategoryId(),
+                            programOperateDataDto.getProgramId());
+                }
+                if (updateRemainNumberCount != programOperateDataDto.getTicketCategoryCountDtoList().size()) {
+                    throw new TikectsystemFrameException(BaseCode.UPDATE_TICKET_CATEGORY_COUNT_NOT_CORRECT);
+                }
             }
         }else {
             //如果创建订单版本是v4
@@ -878,6 +902,11 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
             }
         }
         return true;
+    }
+
+    private boolean isCreateOrderCacheFirstVersion(Integer orderVersion) {
+        return Objects.equals(orderVersion, ProgramOrderVersion.V4_VERSION.getValue()) ||
+                Objects.equals(orderVersion, ProgramOrderVersion.V41_VERSION.getValue());
     }
 
     private ProgramVo createProgramVo(Long programId){
