@@ -2,12 +2,10 @@ package com.tikectsystem.controller;
 
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.dto.OrderRequestRecoverDto;
-import com.tikectsystem.dto.OrderRequestResultUpdateDto;
 import com.tikectsystem.dto.ProgramOrderCircuitOperateDto;
 import com.tikectsystem.dto.ProgramOrderCircuitQueryDto;
 import com.tikectsystem.dto.ProgramOperateDataDto;
 import com.tikectsystem.dto.ReduceRemainNumberDto;
-import com.tikectsystem.service.OrderRequestResultService;
 import com.tikectsystem.service.ProgramOrderCircuitBreakerService;
 import com.tikectsystem.service.ProgramService;
 import com.tikectsystem.service.kafka.OrderRequestRecoveryService;
@@ -33,9 +31,6 @@ public class ProgramInteriorController {
     private ProgramService programService;
 
     @Autowired
-    private OrderRequestResultService orderRequestResultService;
-
-    @Autowired
     private OrderRequestRecoveryService orderRequestRecoveryService;
 
     @Autowired
@@ -51,12 +46,6 @@ public class ProgramInteriorController {
     @PostMapping(value = "/operate/program/data")
     public ApiResponse<Boolean> operateProgramData(@Valid @RequestBody ProgramOperateDataDto programOperateDataDto) {
         return ApiResponse.ok(programService.operateProgramData(programOperateDataDto));
-    }
-
-    @Operation(summary  = "回写异步下单请求结果")
-    @PostMapping(value = "/order/request/result/update")
-    public ApiResponse<Boolean> updateOrderRequestResult(@Valid @RequestBody OrderRequestResultUpdateDto orderRequestResultUpdateDto) {
-        return ApiResponse.ok(orderRequestResultService.updateStatus(orderRequestResultUpdateDto));
     }
 
     @Operation(summary  = "Redis 故障恢复时回扫 order_request")

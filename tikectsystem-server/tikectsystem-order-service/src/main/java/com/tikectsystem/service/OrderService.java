@@ -28,7 +28,6 @@ import com.tikectsystem.dto.OrderGetDto;
 import com.tikectsystem.dto.OrderListDto;
 import com.tikectsystem.dto.OrderPayCheckDto;
 import com.tikectsystem.dto.OrderPayDto;
-import com.tikectsystem.dto.OrderRequestResultUpdateDto;
 import com.tikectsystem.dto.OrderTicketUserCreateDto;
 import com.tikectsystem.dto.PayDto;
 import com.tikectsystem.dto.ProgramOperateDataDto;
@@ -907,21 +906,9 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         String orderNumber = createByMq(orderCreateMq);
         redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.ORDER_MQ,orderNumber),orderNumber,1, TimeUnit.MINUTES);
         if (Objects.equals(orderCreateMq.getOrderVersion(), ProgramOrderVersion.V4_VERSION.getValue())) {
-            updateOrderRequestResultCreated(orderCreateMq);
             sendDelayOrderCancel(orderCreateMq);
         }
         return orderNumber;
-    }
-
-    private void updateOrderRequestResultCreated(OrderCreateMq orderCreateMq) {
-        OrderRequestResultUpdateDto updateDto = new OrderRequestResultUpdateDto();
-        updateDto.setOrderNumber(orderCreateMq.getOrderNumber());
-        updateDto.setBeforeStatus("RESERVED");
-        updateDto.setStatus("ORDER_CREATED");
-        ApiResponse<Boolean> response = programClient.updateOrderRequestResult(updateDto);
-        if (response == null || !Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode())) {
-            throw new TikectsystemFrameException(response);
-        }
     }
 
     private void sendDelayOrderCancel(OrderCreateMq orderCreateMq) {

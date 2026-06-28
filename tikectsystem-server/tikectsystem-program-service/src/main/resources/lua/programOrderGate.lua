@@ -27,7 +27,7 @@ else
     redis.call('expire', inflight_key, gate_ttl_seconds)
     if inflight > inflight_limit then
         redis.call('decr', inflight_key)
-        return string.format('{"%s": %d}', 'code', 40011)
+        return string.format('{"%s": %d}', 'code', 50012)
     end
 end
 

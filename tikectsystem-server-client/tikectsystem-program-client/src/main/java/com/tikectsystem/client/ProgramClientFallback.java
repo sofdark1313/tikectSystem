@@ -53,11 +53,6 @@ public class ProgramClientFallback implements ProgramClient {
     }
 
     @Override
-    public ApiResponse<Boolean> updateOrderRequestResult(final OrderRequestResultUpdateDto orderRequestResultUpdateDto) {
-        return ApiResponse.error(BaseCode.SYSTEM_ERROR);
-    }
-
-    @Override
     public ApiResponse<List<TicketCategoryDetailVo>> selectListByProgram(TicketCategoryListByProgramDto ticketCategoryListByProgramDto) {
         return ApiResponse.error(BaseCode.SYSTEM_ERROR);
     }

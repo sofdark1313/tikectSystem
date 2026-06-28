@@ -4,11 +4,9 @@ import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.dto.*;
 import com.tikectsystem.vo.ProgramRecordTaskVo;
 import com.tikectsystem.vo.TicketCategoryDetailVo;
-import jakarta.validation.Valid;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
@@ -77,14 +75,6 @@ public interface ProgramClient {
      */
     @PostMapping(value = "/program/interior/operate/program/data")
     ApiResponse<Boolean> operateProgramData(ProgramOperateDataDto programOperateDataDto);
-
-    /**
-     * 回写异步下单请求结果状态。
-     * @param orderRequestResultUpdateDto 状态更新参数
-     * @return 是否更新成功
-     */
-    @PostMapping(value = "/program/interior/order/request/result/update")
-    ApiResponse<Boolean> updateOrderRequestResult(@Valid @RequestBody OrderRequestResultUpdateDto orderRequestResultUpdateDto);
 
     /**
      * 查询票档集合(通过节目查询)

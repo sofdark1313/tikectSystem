@@ -1,12 +1,12 @@
 package com.tikectsystem.service.strategy.impl;
 
-import com.tikectsystem.core.RepeatExecuteLimitConstants;
 import com.tikectsystem.dto.ProgramOrderCreateDto;
+import com.tikectsystem.enums.BaseCode;
 import com.tikectsystem.enums.CompositeCheckType;
 import com.tikectsystem.enums.ProgramOrderVersion;
+import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.initialize.base.AbstractApplicationCommandLineRunnerHandler;
 import com.tikectsystem.initialize.impl.composite.CompositeContainer;
-import com.tikectsystem.repeatexecutelimit.annotion.RepeatExecuteLimit;
 import com.tikectsystem.service.ProgramOrderService;
 import com.tikectsystem.service.strategy.ProgramOrderContext;
 import com.tikectsystem.service.strategy.ProgramOrderStrategy;
@@ -30,15 +30,16 @@ public class ProgramOrderV4Strategy extends AbstractApplicationCommandLineRunner
     @Autowired
     private CompositeContainer compositeContainer;
     
-    @RepeatExecuteLimit(
-            name = RepeatExecuteLimitConstants.CREATE_PROGRAM_ORDER,
-            keys = {"#programOrderCreateDto.userId", "#programOrderCreateDto.programId",
-                    "#programOrderCreateDto.ticketCategoryId", "#programOrderCreateDto.ticketCount",
-                    "#programOrderCreateDto.ticketUserIdList", "#programOrderCreateDto.seatDtoList"},
-            durationTime = 10)
     @Override
     public String createOrder(ProgramOrderCreateDto programOrderCreateDto) {
-        compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
+        try {
+            compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
+        } catch (TikectsystemFrameException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            log.warn("program order pre check failed, programId : {}", programOrderCreateDto.getProgramId(), e);
+            throw new TikectsystemFrameException(BaseCode.PROGRAM_ORDER_CIRCUIT_OPEN);
+        }
         return programOrderService.acceptOrderRequest(programOrderCreateDto, ProgramOrderVersion.V4_VERSION.getValue());
     }
     

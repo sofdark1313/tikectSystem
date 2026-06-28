@@ -1,6 +1,8 @@
 package com.tikectsystem.service.lua;
 
 import com.alibaba.fastjson.JSON;
+import com.tikectsystem.enums.BaseCode;
+import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.redis.RedisCache;
 import com.tikectsystem.util.StringUtil;
 import jakarta.annotation.PostConstruct;
@@ -44,12 +46,12 @@ public class ProgramOrderGateOperate {
      */
     public ProgramOrderGateResult operate(List<String> keys, String[] args) {
         if (redisScript == null) {
-            throw new IllegalStateException("programOrderGate lua script is not initialized");
+            throw new TikectsystemFrameException(BaseCode.PROGRAM_ORDER_CIRCUIT_OPEN);
         }
         Object object = redisCache.getInstance().execute(redisScript, keys, args);
         String result = (String) object;
         if (StringUtil.isEmpty(result)) {
-            throw new IllegalStateException("programOrderGate lua script result is empty");
+            throw new TikectsystemFrameException(BaseCode.PROGRAM_ORDER_CIRCUIT_OPEN);
         }
         return JSON.parseObject(result, ProgramOrderGateResult.class);
     }
