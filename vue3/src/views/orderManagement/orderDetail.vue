@@ -55,13 +55,13 @@
           </template></el-table-column>
         </el-table>
       </div>
-      <ul v-for="item in orderData" class="orderDetialInfo">
+      <ul v-for="item in orderData" class="orderDetialInfo" :key="'order-info-' + item.orderNumber">
         <li>
           <p class="title">配送信息</p>
           <div>配送方式：{{item.distributionMode}}</div>
           <div>取票方式：{{item.takeTicketMode}}</div>
-          <div>收货人：{{item.userAndTicketUserInfoVo.userInfoVo.name}}</div>
-          <div>手机号：{{item.userAndTicketUserInfoVo.userInfoVo.mobile}}</div>
+          <div>收货人：{{getDisplayText(item.userAndTicketUserInfoVo?.userInfoVo?.relName || item.userAndTicketUserInfoVo?.userInfoVo?.name)}}</div>
+          <div>手机号：{{getDisplayText(item.userAndTicketUserInfoVo?.userInfoVo?.mobile)}}</div>
         </li>
         <li>
           <p  class="title">订单信息</p>
@@ -77,13 +77,16 @@
           <div> 商品总价: ￥{{item.orderPrice}}</div>
         </li>
         </ul>
-      <div class="buyCustom" v-for="dict in orderData">
+      <div class="buyCustom" v-for="dict in orderData" :key="'ticket-user-' + dict.orderNumber">
         <p  class="title">购票人</p>
-        <div class="info" v-for="(ticketUserInfo,index) in dict.userAndTicketUserInfoVo.ticketUserInfoVoList" :key="index">
-          <div>购票人姓名: {{ticketUserInfo.relName}}</div>
-          <div>证件类型: {{getIdTypeName(ticketUserInfo.idType)}}</div>
-          <div>证件号码: {{ticketUserInfo.idNumber}}</div>
-        </div>
+        <template v-if="getTicketUserInfoList(dict).length">
+          <div class="info" v-for="(ticketUserInfo,index) in getTicketUserInfoList(dict)" :key="ticketUserInfo.id || index">
+            <div>购票人姓名: {{getDisplayText(getTicketUserName(ticketUserInfo))}}</div>
+            <div>证件类型: {{getDisplayText(getIdTypeName(getTicketUserIdType(ticketUserInfo)))}}</div>
+            <div>证件号码: {{getDisplayText(getTicketUserIdNumber(ticketUserInfo))}}</div>
+          </div>
+        </template>
+        <div v-else class="empty-info">暂无购票人信息</div>
       </div>
     </div>
     <Footer></Footer>
@@ -132,6 +135,46 @@ function getOrderStatus(orderStatus){
   if (orderStatus == 4) {
     return '交易关闭';
   }
+}
+
+function hasDisplayValue(value) {
+  return value !== undefined && value !== null && String(value).trim() !== '';
+}
+
+function getDisplayText(value) {
+  return hasDisplayValue(value) ? value : '-';
+}
+
+function getTicketUserInfoList(order) {
+  const userAndTicketUserInfo = order?.userAndTicketUserInfoVo || {};
+  const ticketUserList = userAndTicketUserInfo.ticketUserInfoVoList ||
+      userAndTicketUserInfo.ticketUserVoList ||
+      order?.ticketUserInfoVoList ||
+      order?.ticketUserVoList ||
+      [];
+
+  if (!Array.isArray(ticketUserList)) {
+    return [];
+  }
+  return ticketUserList.filter(ticketUserInfo => {
+    return ticketUserInfo && (
+        hasDisplayValue(getTicketUserName(ticketUserInfo)) ||
+        hasDisplayValue(getTicketUserIdType(ticketUserInfo)) ||
+        hasDisplayValue(getTicketUserIdNumber(ticketUserInfo))
+    );
+  });
+}
+
+function getTicketUserName(ticketUserInfo) {
+  return ticketUserInfo?.relName || ticketUserInfo?.rel_name || ticketUserInfo?.name;
+}
+
+function getTicketUserIdType(ticketUserInfo) {
+  return ticketUserInfo?.idType || ticketUserInfo?.id_type;
+}
+
+function getTicketUserIdNumber(ticketUserInfo) {
+  return ticketUserInfo?.idNumber || ticketUserInfo?.id_number || ticketUserInfo?.cardNumber;
 }
 </script>
 
@@ -254,7 +297,7 @@ function getOrderStatus(orderStatus){
     }
     .buyCustom{
       width: 100%;
-      height: 180px;
+      min-height: 180px;
       margin-top: 20px;
       margin-bottom: 20px;
       border: 1px solid #f5f7fa;
@@ -271,14 +314,22 @@ function getOrderStatus(orderStatus){
         font-weight: 800;
       }
       .info{
-        width: 20%;
-        height: 150px;
+        width: 25%;
+        min-width: 220px;
+        min-height: 110px;
         margin-top: 10px;
+        display: inline-block;
+        vertical-align: top;
         div{
           padding: 2px 2px 2px 10px;
           font-size: 14px;
           color: var(--app-text-muted);
         }
+      }
+      .empty-info{
+        padding: 12px 20px;
+        color: var(--app-text-muted);
+        font-size: 14px;
       }
     }
   }
@@ -286,8 +337,8 @@ function getOrderStatus(orderStatus){
 }
 
 :deep(.el-table th.el-table__cell) {
-  background: #111113;
-  color: rgba(255, 255, 255, .78);
+  background: #111113 !important;
+  color: rgba(255, 255, 255, .78) !important;
 }
 
 :deep(.el-table--border .el-table__cell) {
@@ -295,4 +346,3 @@ function getOrderStatus(orderStatus){
 }
 
 </style>
-          color: var(--app-text-muted);
