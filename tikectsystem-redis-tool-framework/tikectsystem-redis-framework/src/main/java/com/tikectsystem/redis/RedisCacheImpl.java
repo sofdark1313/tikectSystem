@@ -200,6 +200,15 @@ public class RedisCacheImpl implements RedisCache {
     }
 
     @Override
+    public boolean setIfAbsent(RedisKeyBuild redisKeyBuild, Object object, long ttl, TimeUnit timeUnit) {
+        CacheUtil.checkNotBlank(redisKeyBuild);
+        String key = redisKeyBuild.getRelKey();
+        String json = object instanceof String ? (String) object : JSON.toJSONString(object);
+        Boolean result = redisTemplate.opsForValue().setIfAbsent(key, json, ttl, timeUnit);
+        return Boolean.TRUE.equals(result);
+    }
+
+    @Override
     public Long size(RedisKeyBuild redisKeyBuild) {
         CacheUtil.checkNotBlank(redisKeyBuild);
         String key = redisKeyBuild.getRelKey();

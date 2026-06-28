@@ -230,6 +230,17 @@ public interface RedisCache {
     boolean setIfAbsent(RedisKeyBuild redisKeyBuild, Object object);
 
     /**
+     * 只有在 key 不存在时设置 key 的值，并同时设置过期时间
+     *
+     * @param redisKeyBuild 缓存key
+     * @param object 对象
+     * @param ttl 过期时间
+     * @param timeUnit 时间单位
+     * @return 之前已经存在返回false,不存在返回true
+     */
+    boolean setIfAbsent(RedisKeyBuild redisKeyBuild, Object object, long ttl, TimeUnit timeUnit);
+
+    /**
      * 获取字符串的长度
      *
      * @param redisKeyBuild 缓存key

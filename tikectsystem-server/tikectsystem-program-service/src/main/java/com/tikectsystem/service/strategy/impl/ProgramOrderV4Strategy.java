@@ -1,23 +1,19 @@
 package com.tikectsystem.service.strategy.impl;
 
-import com.tikectsystem.core.RepeatExecuteLimitConstants;
 import com.tikectsystem.dto.ProgramOrderCreateDto;
+import com.tikectsystem.enums.BaseCode;
 import com.tikectsystem.enums.CompositeCheckType;
 import com.tikectsystem.enums.ProgramOrderVersion;
+import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.initialize.base.AbstractApplicationCommandLineRunnerHandler;
 import com.tikectsystem.initialize.impl.composite.CompositeContainer;
-import com.tikectsystem.repeatexecutelimit.annotion.RepeatExecuteLimit;
 import com.tikectsystem.service.ProgramOrderService;
-import com.tikectsystem.service.domain.CreateOrderTemporaryData;
-import com.tikectsystem.service.strategy.BaseProgramOrder;
 import com.tikectsystem.service.strategy.ProgramOrderContext;
 import com.tikectsystem.service.strategy.ProgramOrderStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Component;
-
-import static com.tikectsystem.core.DistributedLockConstants.PROGRAM_ORDER_CREATE_V4;
 
 /**
  * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
@@ -32,25 +28,19 @@ public class ProgramOrderV4Strategy extends AbstractApplicationCommandLineRunner
     private ProgramOrderService programOrderService;
     
     @Autowired
-    private BaseProgramOrder baseProgramOrder;
-    
-    @Autowired
     private CompositeContainer compositeContainer;
     
-    @RepeatExecuteLimit(
-            name = RepeatExecuteLimitConstants.CREATE_PROGRAM_ORDER,
-            keys = {"#programOrderCreateDto.userId", "#programOrderCreateDto.programId",
-                    "#programOrderCreateDto.ticketCategoryId", "#programOrderCreateDto.ticketCount",
-                    "#programOrderCreateDto.ticketUserIdList", "#programOrderCreateDto.seatDtoList"},
-            durationTime = 10)
     @Override
     public String createOrder(ProgramOrderCreateDto programOrderCreateDto) {
-        compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
-        programOrderService.prepareCreateOrderProgramCache(programOrderCreateDto);
-        CreateOrderTemporaryData createOrderTemporaryData = baseProgramOrder.localLockExecute(PROGRAM_ORDER_CREATE_V4,
-                programOrderCreateDto, () -> programOrderService.createOrderOperateProgramCache(programOrderCreateDto));
-        return programOrderService.createByTemporaryDataAsync(programOrderCreateDto, createOrderTemporaryData,
-                ProgramOrderVersion.V4_VERSION.getValue());
+        try {
+            compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(),programOrderCreateDto);
+        } catch (TikectsystemFrameException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            log.warn("program order pre check failed, programId : {}", programOrderCreateDto.getProgramId(), e);
+            throw new TikectsystemFrameException(BaseCode.PROGRAM_ORDER_CIRCUIT_OPEN);
+        }
+        return programOrderService.acceptOrderRequest(programOrderCreateDto, ProgramOrderVersion.V4_VERSION.getValue());
     }
     
     @Override

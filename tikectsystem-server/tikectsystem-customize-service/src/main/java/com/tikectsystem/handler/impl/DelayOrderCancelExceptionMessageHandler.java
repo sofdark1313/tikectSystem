@@ -64,7 +64,7 @@ public class DelayOrderCancelExceptionMessageHandler implements ExceptionMessage
             log.info("延迟订单取消异常消息发送到Kafka topic : {}, 消息体 : {}",
                     messageProducerRecord.getMessageTopic(), messageContent);
             kafkaTemplate.send(messageProducerRecord.getMessageTopic(),
-                    String.valueOf(messageProducerRecord.getMessageId()), messageContent).whenComplete((sendResult, ex) -> {
+                    buildKafkaKey(messageProducerRecord), messageContent).whenComplete((sendResult, ex) -> {
                 if (ex == null) {
                     updateMessageProducerRecord.setMessageSendStatus(MessageSendStatus.SEND_SUCCESS.getCode());
                 }else {
@@ -90,6 +90,13 @@ public class DelayOrderCancelExceptionMessageHandler implements ExceptionMessage
         } catch (Exception e) {
             log.error("更新延迟订单取消消息发送记录失败 message : {}", messageContent, e);
         }
+    }
+
+    private String buildKafkaKey(MessageProducerRecord messageProducerRecord) {
+        if (messageProducerRecord.getMessageKey() != null && !messageProducerRecord.getMessageKey().isEmpty()) {
+            return messageProducerRecord.getMessageKey();
+        }
+        return String.valueOf(messageProducerRecord.getMessageId());
     }
     
     @Override

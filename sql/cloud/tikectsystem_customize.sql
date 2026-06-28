@@ -138,6 +138,7 @@ CREATE TABLE `d_message_producer_record` (
      `message_trace_id` bigint DEFAULT NULL COMMENT '消息的链路id',
      `message_businesses_id` bigint DEFAULT NULL COMMENT '消息业务id',
      `message_id` bigint NOT NULL COMMENT '消息id',
+     `message_key` varchar(128) DEFAULT NULL COMMENT 'Kafka原始消息key',
      `message_topic` varchar(256) DEFAULT NULL COMMENT '消息的topic',
      `message_content` text COMMENT '消息内容',
      `message_send_exception` varchar(256) DEFAULT NULL COMMENT '消息发送失败的异常信息',

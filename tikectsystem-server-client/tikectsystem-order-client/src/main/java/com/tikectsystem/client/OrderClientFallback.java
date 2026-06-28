@@ -3,8 +3,10 @@ package com.tikectsystem.client;
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.dto.AccountOrderCountDto;
 import com.tikectsystem.dto.OrderCreateDto;
+import com.tikectsystem.dto.OrderGetDto;
 import com.tikectsystem.enums.BaseCode;
 import com.tikectsystem.vo.AccountOrderCountVo;
+import com.tikectsystem.vo.OrderGetVo;
 import org.springframework.stereotype.Component;
 
 /**
@@ -22,6 +24,11 @@ public class OrderClientFallback implements OrderClient {
     
     @Override
     public ApiResponse<AccountOrderCountVo> accountOrderCount(final AccountOrderCountDto dto) {
+        return ApiResponse.error(BaseCode.SYSTEM_ERROR);
+    }
+
+    @Override
+    public ApiResponse<OrderGetVo> get(final OrderGetDto dto) {
         return ApiResponse.error(BaseCode.SYSTEM_ERROR);
     }
 }

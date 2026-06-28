@@ -14,6 +14,8 @@ import java.util.List;
 public class ProgramCacheCreateOrderData {
 
     private Integer code;
+
+    private Long identifierId;
     
     private List<PurchaseSeat> purchaseSeatList;
 }

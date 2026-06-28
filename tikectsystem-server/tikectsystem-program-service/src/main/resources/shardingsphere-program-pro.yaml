@@ -80,6 +80,16 @@ rules:
           standard:
             shardingColumn: create_time
             shardingAlgorithmName: tableProgramRecordTaskModModel
+      order_request_result:
+        actualDataNodes: ds_${0..1}.order_request_result_${0..1}
+        databaseStrategy:
+          standard:
+            shardingColumn: order_number
+            shardingAlgorithmName: databaseOrderRequestResultModModel
+        tableStrategy:
+          standard:
+            shardingColumn: order_number
+            shardingAlgorithmName: tableOrderRequestResultModModel
     broadcastTables:
       - d_program_category
     shardingAlgorithms:
@@ -129,6 +139,14 @@ rules:
           sharding-count: 2
       tableProgramRecordTaskModModel:
         type: HASH_MOD
+        props:
+          sharding-count: 2
+      databaseOrderRequestResultModModel:
+        type: MOD
+        props:
+          sharding-count: 2
+      tableOrderRequestResultModModel:
+        type: MOD
         props:
           sharding-count: 2
 props:

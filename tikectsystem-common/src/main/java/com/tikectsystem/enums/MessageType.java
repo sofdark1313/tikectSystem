@@ -13,6 +13,10 @@ public enum MessageType {
      * 消息类型枚举
      * */
     DELAY_ORDER_CANCEL(1,"延迟订单取消"),
+
+    ORDER_REQUEST(2,"下单受理消息"),
+
+    ORDER_CREATE(3,"订单创建消息"),
     ;
 
     private final Integer code;

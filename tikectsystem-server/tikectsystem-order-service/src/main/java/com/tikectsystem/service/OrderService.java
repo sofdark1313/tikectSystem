@@ -20,6 +20,7 @@ import com.tikectsystem.domain.OrderCreateDomain;
 import com.tikectsystem.domain.OrderCreateMq;
 import com.tikectsystem.domain.SeatIdAndTicketUserIdDomain;
 import com.tikectsystem.dto.AccountOrderCountDto;
+import com.tikectsystem.dto.DelayOrderCancelDto;
 import com.tikectsystem.dto.OrderCancelDto;
 import com.tikectsystem.dto.OrderCreateDto;
 import com.tikectsystem.dto.OrderCreateTestDto;
@@ -59,6 +60,7 @@ import com.tikectsystem.redis.RedisKeyBuild;
 import com.tikectsystem.repeatexecutelimit.annotion.RepeatExecuteLimit;
 import com.tikectsystem.request.CustomizeRequestWrapper;
 import com.tikectsystem.service.delaysend.DelayOperateProgramDataSend;
+import com.tikectsystem.service.delaysend.OrderDelayOrderCancelSend;
 import com.tikectsystem.service.properties.OrderProperties;
 import com.tikectsystem.servicelock.LockType;
 import com.tikectsystem.servicelock.annotion.ServiceLock;
@@ -104,67 +106,70 @@ import static com.tikectsystem.core.RepeatExecuteLimitConstants.CANCEL_PROGRAM_O
 import static com.tikectsystem.core.RepeatExecuteLimitConstants.CREATE_PROGRAM_ORDER_MQ;
 
 /**
- * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
- * @description: 订单 service
- * @author: 阿星不是程序员
+ * @program: 鏋佸害鐪熷疄杩樺師澶ч害缃戦珮骞跺彂瀹炴垬椤圭洰銆?娣诲姞 闃挎槦涓嶆槸绋嬪簭鍛?寰俊锛屾坊鍔犳椂澶囨敞 澶ч害 鏉ヨ幏鍙栭」鐩殑瀹屾暣璧勬枡
+ * @description: 璁㈠崟 service
+ * @author: 闃挎槦涓嶆槸绋嬪簭鍛?
  **/
 @Slf4j
 @Service
 public class OrderService extends ServiceImpl<OrderMapper, Order> {
-    
+
     private static final String SIMPLE_PAY_RESULT = "PAY_SUCCESS";
 
     @Autowired
     private UidGenerator uidGenerator;
-    
+
     @Autowired
     private OrderMapper orderMapper;
-    
+
     @Autowired
     private OrderTicketUserMapper orderTicketUserMapper;
-    
+
     @Autowired
     private OrderTicketUserRecordService orderTicketUserRecordService;
-    
+
     @Autowired
     private OrderProgramCacheResolutionOperate orderProgramCacheResolutionOperate;
-    
+
     @Autowired
     private RedisCache redisCache;
-    
+
     @Autowired
     private PayClient payClient;
-    
+
     @Autowired
     private UserClient userClient;
-    
+
     @Autowired
     private OrderProperties orderProperties;
-    
+
     @Lazy
     @Autowired
     private OrderService orderService;
-    
+
     @Autowired
     private ServiceLockTool serviceLockTool;
-    
+
     @Autowired
     private ProgramClient programClient;
-    
+
     @Autowired
     private OrderTicketUserRecordMapper orderTicketUserRecordMapper;
-    
+
     @Autowired
     private OrderProgramMapper orderProgramMapper;
-    
+
     @Autowired
     private DelayOperateProgramDataSend delayOperateProgramDataSend;
+
+    @Autowired
+    private OrderDelayOrderCancelSend orderDelayOrderCancelSend;
 
     @Transactional(rollbackFor = Exception.class)
     public String create(OrderCreateDto orderCreateDto) {
         return doCreate(buildOrderCreateDomain(orderCreateDto));
     }
-    
+
     @Transactional(rollbackFor = Exception.class)
     public String createByMq(OrderCreateMq orderCreateMq) {
         return doCreate(buildOrderCreateDomain(orderCreateMq));
@@ -259,10 +264,10 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     public String doCreate(OrderCreateDomain orderCreateDomain) {
         LambdaQueryWrapper<Order> orderLambdaQueryWrapper =
                 Wrappers.lambdaQuery(Order.class).select(Order::getId).eq(Order::getOrderNumber, orderCreateDomain.getOrderNumber());
-        //如果订单存在了，那么直接拒绝
+        //濡傛灉璁㈠崟瀛樺湪浜嗭紝閭ｄ箞鐩存帴鎷掔粷
         Order oldOrder = orderMapper.selectOne(orderLambdaQueryWrapper);
         if (Objects.nonNull(oldOrder)) {
-            throw new TikectsystemFrameException(BaseCode.ORDER_EXIST);
+            return String.valueOf(orderCreateDomain.getOrderNumber());
         }
         Order order = buildOrder(orderCreateDomain);
         order.setId(uidGenerator.getUid());
@@ -273,9 +278,9 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             throw new TikectsystemFrameException(BaseCode.TICKET_USER_COUNT_UNEQUAL_SEAT_COUNT);
         }
         Date entityCreateTime = DateUtils.now();
-        //购票人订单对象
+        //璐エ浜鸿鍗曞璞?
         List<OrderTicketUser> orderTicketUserList = new ArrayList<>(orderTicketUserCreateDtoList.size());
-        //购票人订单记录对象
+        //璐エ浜鸿鍗曡褰曞璞?
         List<OrderTicketUserRecord> orderTicketUserRecordList = new ArrayList<>(orderTicketUserCreateDtoList.size());
         for (OrderTicketUserCreateDto orderTicketUserCreateDto : orderTicketUserCreateDtoList) {
             OrderTicketUser orderTicketUser = buildOrderTicketUser(orderTicketUserCreateDto);
@@ -294,32 +299,32 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             orderTicketUserRecord.setEditTime(entityCreateTime);
             orderTicketUserRecordList.add(orderTicketUserRecord);
         }
-        //插入主订单
+        //鎻掑叆涓昏鍗?
         orderMapper.insert(order);
-        //插入购票人订单
+        //鎻掑叆璐エ浜鸿鍗?
         int insertOrderTicketUserCount = orderTicketUserMapper.batchInsert(orderTicketUserList);
-        //插入购票人订单记录
+        //鎻掑叆璐エ浜鸿鍗曡褰?
         int insertOrderTicketUserRecordCount = orderTicketUserRecordMapper.batchInsert(orderTicketUserRecordList);
         if (insertOrderTicketUserCount < orderTicketUserList.size() ||
                 insertOrderTicketUserRecordCount < orderTicketUserRecordList.size()) {
             throw new TikectsystemFrameException(BaseCode.SYSTEM_ERROR);
         }
-        //插入订单节目
+        //鎻掑叆璁㈠崟鑺傜洰
         OrderProgram orderProgram = new OrderProgram();
         orderProgram.setId(uidGenerator.getUid());
         orderProgram.setProgramId(order.getProgramId());
         orderProgram.setOrderNumber(order.getOrderNumber());
         orderProgram.setIdentifierId(order.getIdentifierId());
         orderProgramMapper.insert(orderProgram);
-        //用户下此节目的订单数量加1操作
+        //鐢ㄦ埛涓嬫鑺傜洰鐨勮鍗曟暟閲忓姞1鎿嶄綔
         redisCache.incrBy(RedisKeyBuild.createRedisKey(
                 RedisKeyManage.ACCOUNT_ORDER_COUNT,orderCreateDomain.getUserId(),
                 orderCreateDomain.getProgramId()),orderTicketUserCreateDtoList.size());
         return String.valueOf(order.getOrderNumber());
     }
-    
+
     /**
-     * 订单取消，以订单编号加锁
+     * 璁㈠崟鍙栨秷锛屼互璁㈠崟缂栧彿鍔犻攣
      * */
     @RepeatExecuteLimit(name = CANCEL_PROGRAM_ORDER,keys = {"#orderCancelDto.orderNumber"})
     @ServiceLock(name = UPDATE_ORDER_STATUS_LOCK,keys = {"#orderCancelDto.orderNumber"})
@@ -328,7 +333,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         updateOrderRelatedData(orderCancelDto.getOrderNumber(),OrderStatus.CANCEL);
         return true;
     }
-    
+
     @ServiceLock(name = UPDATE_ORDER_STATUS_LOCK,keys = {"#orderPayDto.orderNumber"})
     public String pay(OrderPayDto orderPayDto) {
         Long orderNumber = orderPayDto.getOrderNumber();
@@ -369,7 +374,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         }
         return payResult;
     }
-    
+
     private PayDto getPayDto(OrderPayDto orderPayDto, Long orderNumber) {
         PayDto payDto = new PayDto();
         payDto.setOrderNumber(String.valueOf(orderNumber));
@@ -382,9 +387,9 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         payDto.setReturnUrl(orderProperties.getOrderPayReturnUrl());
         return payDto;
     }
-    
+
     /**
-     * 支付后订单检查，以订单编号加锁，防止多次更新
+     * 鏀粯鍚庤鍗曟鏌ワ紝浠ヨ鍗曠紪鍙峰姞閿侊紝闃叉澶氭鏇存柊
      * */
     @ServiceLock(name = UPDATE_ORDER_STATUS_LOCK,keys = {"#orderPayCheckDto.orderNumber"})
     public OrderPayCheckVo payCheck(OrderPayCheckDto orderPayCheckDto){
@@ -400,29 +405,29 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             return orderPayCheckVo;
         }
 
-        //如果订单已取消则进行退款
+        //濡傛灉璁㈠崟宸插彇娑堝垯杩涜閫€娆?
         if (Objects.equals(order.getOrderStatus(), OrderStatus.CANCEL.getCode())) {
             RefundDto refundDto = new RefundDto();
             refundDto.setOrderNumber(String.valueOf(order.getOrderNumber()));
             refundDto.setAmount(order.getOrderPrice());
             refundDto.setChannel("simple");
-            refundDto.setReason("延迟订单关闭");
+            refundDto.setReason("寤惰繜璁㈠崟鍏抽棴");
             ApiResponse<String> response = payClient.refund(refundDto);
             if (response != null && Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode())) {
-                //调用支付服务退款成功后，把订单更新为已退款状态
+                //璋冪敤鏀粯鏈嶅姟閫€娆炬垚鍔熷悗锛屾妸璁㈠崟鏇存柊涓哄凡閫€娆剧姸鎬?
                 Order updateOrder = new Order();
                 updateOrder.setEditTime(DateUtils.now());
                 updateOrder.setOrderStatus(OrderStatus.REFUND.getCode());
                 orderMapper.update(updateOrder,Wrappers.lambdaUpdate(Order.class).eq(Order::getOrderNumber, order.getOrderNumber()));
             }else {
-                log.error("pay服务退款失败 dto : {} response : {}",JSON.toJSONString(refundDto),JSON.toJSONString(response));
+                log.error("pay鏈嶅姟閫€娆惧け璐?dto : {} response : {}",JSON.toJSONString(refundDto),JSON.toJSONString(response));
             }
             orderPayCheckVo.setOrderStatus(OrderStatus.REFUND.getCode());
             orderPayCheckVo.setCancelOrderTime(DateUtils.now());
             return orderPayCheckVo;
         }
 
-        //调用支付服务查询本地支付账单状态
+        //璋冪敤鏀粯鏈嶅姟鏌ヨ鏈湴鏀粯璐﹀崟鐘舵€?
         TradeCheckDto tradeCheckDto = new TradeCheckDto();
         tradeCheckDto.setOutTradeNo(String.valueOf(orderPayCheckDto.getOrderNumber()));
         tradeCheckDto.setChannel("simple");
@@ -438,15 +443,15 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (tradeCheckVo.isSuccess()) {
             Integer payBillStatus = tradeCheckVo.getPayBillStatus();
             Integer orderStatus = order.getOrderStatus();
-            //如果订单的状态和账单的状态不一致，则在本次检查中补偿更新
+            //濡傛灉璁㈠崟鐨勭姸鎬佸拰璐﹀崟鐨勭姸鎬佷笉涓€鑷达紝鍒欏湪鏈妫€鏌ヤ腑琛ュ伩鏇存柊
             if (!Objects.equals(orderStatus, payBillStatus)) {
                 orderPayCheckVo.setOrderStatus(payBillStatus);
                 try {
-                    //如果账单的状态是支付，那么执行订单支付的操作
+                    //濡傛灉璐﹀崟鐨勭姸鎬佹槸鏀粯锛岄偅涔堟墽琛岃鍗曟敮浠樼殑鎿嶄綔
                     if (Objects.equals(payBillStatus, PayBillStatus.PAY.getCode())) {
                         orderPayCheckVo.setPayOrderTime(DateUtils.now());
                         orderService.updateOrderRelatedData(order.getOrderNumber(),OrderStatus.PAY);
-                        //如果账单的状态是取消，那么执行订单取消的操作
+                        //濡傛灉璐﹀崟鐨勭姸鎬佹槸鍙栨秷锛岄偅涔堟墽琛岃鍗曞彇娑堢殑鎿嶄綔
                     }else if (Objects.equals(payBillStatus, PayBillStatus.CANCEL.getCode())) {
                         orderPayCheckVo.setCancelOrderTime(DateUtils.now());
                         orderService.updateOrderRelatedData(order.getOrderNumber(),OrderStatus.CANCEL);
@@ -463,19 +468,19 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
 
 
     public String alipayNotify(HttpServletRequest request){
-        //将回调中的参数转为Map结构
+        //灏嗗洖璋冧腑鐨勫弬鏁拌浆涓篗ap缁撴瀯
         Map<String, String> params = new HashMap<>(256);
         if (request instanceof CustomizeRequestWrapper) {
             CustomizeRequestWrapper customizeRequestWrapper = (CustomizeRequestWrapper)request;
             String requestBody = customizeRequestWrapper.getRequestBody();
             params = StringUtil.convertQueryStringToMap(requestBody);
         }
-        //获取其中的订单号
+        //鑾峰彇鍏朵腑鐨勮鍗曞彿
         String outTradeNo = params.get("out_trade_no");
         if (StringUtil.isEmpty(outTradeNo)) {
             return "failure";
         }
-        //加锁，防止并发问题
+        //鍔犻攣锛岄槻姝㈠苟鍙戦棶棰?
         RLock lock = serviceLockTool.getLock(LockType.Reentrant, UPDATE_ORDER_STATUS_LOCK,
                 new String[]{outTradeNo});
         lock.lock();
@@ -484,22 +489,22 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             if (Objects.isNull(order)) {
                 throw new TikectsystemFrameException(BaseCode.ORDER_NOT_EXIST);
             }
-            //如果订单已取消则进行退款
+            //濡傛灉璁㈠崟宸插彇娑堝垯杩涜閫€娆?
             if (Objects.equals(order.getOrderStatus(), OrderStatus.CANCEL.getCode())) {
                 RefundDto refundDto = new RefundDto();
                 refundDto.setOrderNumber(outTradeNo);
                 refundDto.setAmount(order.getOrderPrice());
                 refundDto.setChannel("simple");
-                refundDto.setReason("延迟订单关闭");
+                refundDto.setReason("寤惰繜璁㈠崟鍏抽棴");
                 ApiResponse<String> response = payClient.refund(refundDto);
                 if (response != null && Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode())) {
-                    //调用支付服务退款成功后，把订单更新为已退款状态
+                    //璋冪敤鏀粯鏈嶅姟閫€娆炬垚鍔熷悗锛屾妸璁㈠崟鏇存柊涓哄凡閫€娆剧姸鎬?
                     Order updateOrder = new Order();
                     updateOrder.setEditTime(DateUtils.now());
                     updateOrder.setOrderStatus(OrderStatus.REFUND.getCode());
                     orderMapper.update(updateOrder,Wrappers.lambdaUpdate(Order.class).eq(Order::getOrderNumber, outTradeNo));
                 }else {
-                    log.error("pay服务退款失败 dto : {} response : {}",JSON.toJSONString(refundDto),JSON.toJSONString(response));
+                    log.error("pay鏈嶅姟閫€娆惧け璐?dto : {} response : {}",JSON.toJSONString(refundDto),JSON.toJSONString(response));
                 }
                 return ALIPAY_NOTIFY_SUCCESS_RESULT;
             }
@@ -515,60 +520,60 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         }
 
     }
-    
+
     /**
-     * 更新订单和购票人订单状态以及操作缓存数据
+     * 鏇存柊璁㈠崟鍜岃喘绁ㄤ汉璁㈠崟鐘舵€佷互鍙婃搷浣滅紦瀛樻暟鎹?
      * */
     @Transactional(rollbackFor = Exception.class)
     public void updateOrderRelatedData(Long orderNumber,OrderStatus orderStatus){
-        //如果不是取消或者支付操作，则直接抛出异常提示
+        //濡傛灉涓嶆槸鍙栨秷鎴栬€呮敮浠樻搷浣滐紝鍒欑洿鎺ユ姏鍑哄紓甯告彁绀?
         if (!(Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode()) ||
                 Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode()))) {
             throw new TikectsystemFrameException(  BaseCode.OPERATE_ORDER_STATUS_NOT_PERMIT);
         }
-        //查询订单
+        //鏌ヨ璁㈠崟
         LambdaQueryWrapper<Order> orderLambdaQueryWrapper =
                 Wrappers.lambdaQuery(Order.class).eq(Order::getOrderNumber, orderNumber);
         Order order = orderMapper.selectOne(orderLambdaQueryWrapper);
-        //检查订单的状态 已取消、已支付、已退单的状态不再执行
+        //妫€鏌ヨ鍗曠殑鐘舵€?宸插彇娑堛€佸凡鏀粯銆佸凡閫€鍗曠殑鐘舵€佷笉鍐嶆墽琛?
         checkOrderStatus(order);
-        //查询该订单下的购票人订单列表
+        //鏌ヨ璇ヨ鍗曚笅鐨勮喘绁ㄤ汉璁㈠崟鍒楄〃
         LambdaQueryWrapper<OrderTicketUser> orderTicketUserLambdaQueryWrapper =
                 Wrappers.lambdaQuery(OrderTicketUser.class).eq(OrderTicketUser::getOrderNumber, order.getOrderNumber());
         List<OrderTicketUser> orderTicketUserList = orderTicketUserMapper.selectList(orderTicketUserLambdaQueryWrapper);
         if (CollectionUtil.isEmpty(orderTicketUserList)) {
             throw new TikectsystemFrameException(BaseCode.TICKET_USER_ORDER_NOT_EXIST);
         }
-        //将订单更新为取消或者支付状态
+        //灏嗚鍗曟洿鏂颁负鍙栨秷鎴栬€呮敮浠樼姸鎬?
         Order updateOrder = new Order();
         updateOrder.setId(order.getId());
         updateOrder.setOrderStatus(orderStatus.getCode());
-        //将购票人订单更新为取消或者支付状态
+        //灏嗚喘绁ㄤ汉璁㈠崟鏇存柊涓哄彇娑堟垨鑰呮敮浠樼姸鎬?
         OrderTicketUser updateOrderTicketUser = new OrderTicketUser();
         updateOrderTicketUser.setOrderStatus(orderStatus.getCode());
 
-        //如果是支付的话，那么记录的类型就是改变状态
-        //记录类型code
+        //濡傛灉鏄敮浠樼殑璇濓紝閭ｄ箞璁板綍鐨勭被鍨嬪氨鏄敼鍙樼姸鎬?
+        //璁板綍绫诲瀷code
         Integer recordTypeCode = RecordType.CHANGE_STATUS.getCode();
-        //记录类型值
+        //璁板綍绫诲瀷鍊?
         String recordTypeValue = RecordType.CHANGE_STATUS.getValue();
-        //支付状态的操作
+        //鏀粯鐘舵€佺殑鎿嶄綔
         if (Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode())) {
             updateOrder.setPayOrderTime(DateUtils.now());
             updateOrderTicketUser.setPayOrderTime(DateUtils.now());
         } else if (Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode())) {
-            //取消状态的操作
+            //鍙栨秷鐘舵€佺殑鎿嶄綔
             updateOrder.setCancelOrderTime(DateUtils.now());
             updateOrderTicketUser.setCancelOrderTime(DateUtils.now());
-            //如果是取消的话，那么记录的类型就是增加余票
+            //濡傛灉鏄彇娑堢殑璇濓紝閭ｄ箞璁板綍鐨勭被鍨嬪氨鏄鍔犱綑绁?
             recordTypeCode = RecordType.INCREASE.getCode();
             recordTypeValue = RecordType.INCREASE.getValue();
         }
-        //更新订单
+        //鏇存柊璁㈠崟
         LambdaUpdateWrapper<Order> orderLambdaUpdateWrapper =
                 Wrappers.lambdaUpdate(Order.class).eq(Order::getOrderNumber, order.getOrderNumber());
         int updateOrderResult = orderMapper.update(updateOrder,orderLambdaUpdateWrapper);
-        //更新购票人订单
+        //鏇存柊璐エ浜鸿鍗?
         LambdaUpdateWrapper<OrderTicketUser> orderTicketUserLambdaUpdateWrapper =
                 Wrappers.lambdaUpdate(OrderTicketUser.class).eq(OrderTicketUser::getOrderNumber, order.getOrderNumber());
         int updateTicketUserOrderResult =
@@ -579,7 +584,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         List<SeatIdAndTicketUserIdDomain> seatIdAndTicketUserIdDomainList = new ArrayList<>();
         List<OrderTicketUserRecord> orderTicketUserRecordList = new ArrayList<>();
         for (OrderTicketUser orderTicketUser : orderTicketUserList) {
-            //购票人订单记录
+            //璐エ浜鸿鍗曡褰?
             OrderTicketUserRecord orderTicketUserRecord = new OrderTicketUserRecord();
             BeanUtils.copyProperties(orderTicketUser,orderTicketUserRecord);
             orderTicketUserRecord.setId(uidGenerator.getUid());
@@ -588,29 +593,29 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             orderTicketUserRecord.setRecordTypeCode(recordTypeCode);
             orderTicketUserRecord.setRecordTypeValue(recordTypeValue);
             orderTicketUserRecordList.add(orderTicketUserRecord);
-            //购票人订单id和座位id
+            //璐エ浜鸿鍗昳d鍜屽骇浣峣d
             seatIdAndTicketUserIdDomainList.add(new SeatIdAndTicketUserIdDomain(orderTicketUser.getSeatId(),
                     orderTicketUser.getTicketUserId()));
         }
-        //添加购票人订单记录流水
+        //娣诲姞璐エ浜鸿鍗曡褰曟祦姘?
         orderTicketUserRecordService.saveBatch(orderTicketUserRecordList);
-        
-        //如果是取消操作，那么把用户下该节目的订单数量要-1
+
+        //濡傛灉鏄彇娑堟搷浣滐紝閭ｄ箞鎶婄敤鎴蜂笅璇ヨ妭鐩殑璁㈠崟鏁伴噺瑕?1
         if (Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode())) {
             redisCache.incrBy(RedisKeyBuild.createRedisKey(
                     RedisKeyManage.ACCOUNT_ORDER_COUNT,order.getUserId(),order.getProgramId()),-updateTicketUserOrderResult);
         }
         Long programId = order.getProgramId();
-        //将购票人订单集合转换成map结构，key：票档id value：购票人订单
-        Map<Long, List<OrderTicketUser>> orderTicketUserSeatList = 
+        //灏嗚喘绁ㄤ汉璁㈠崟闆嗗悎杞崲鎴恗ap缁撴瀯锛宬ey锛氱エ妗d value锛氳喘绁ㄤ汉璁㈠崟
+        Map<Long, List<OrderTicketUser>> orderTicketUserSeatList =
                 orderTicketUserList.stream().collect(Collectors.groupingBy(OrderTicketUser::getTicketCategoryId));
         Map<Long,List<Long>> seatMap = new HashMap<>(orderTicketUserSeatList.size());
-        //根据orderTicketUserSeatList得到seatMap
-        //seatMap结构 key：票档id  value：座位id集合
+        //鏍规嵁orderTicketUserSeatList寰楀埌seatMap
+        //seatMap缁撴瀯 key锛氱エ妗d  value锛氬骇浣峣d闆嗗悎
         orderTicketUserSeatList.forEach((k,v) -> {
             seatMap.put(k,v.stream().map(OrderTicketUser::getSeatId).collect(Collectors.toList()));
         });
-        //更新缓存和节目库相关数据
+        //鏇存柊缂撳瓨鍜岃妭鐩簱鐩稿叧鏁版嵁
         try {
             updateProgramRelatedDataResolution(programId,seatMap,orderStatus,order.getIdentifierId(),order.getUserId(),
                     seatIdAndTicketUserIdDomainList,order.getOrderVersion());
@@ -622,7 +627,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             }
         }
     }
-    
+
     public void checkOrderStatus(Order order){
         if (Objects.isNull(order)) {
             throw new TikectsystemFrameException(BaseCode.ORDER_NOT_EXIST);
@@ -637,12 +642,30 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             throw new TikectsystemFrameException(BaseCode.ORDER_REFUND);
         }
     }
-    
+
     public void updateProgramRelatedDataResolution(Long programId,Map<Long,List<Long>> seatMap, OrderStatus orderStatus,Long identifierId, Long userId,
                                                    List<SeatIdAndTicketUserIdDomain> seatIdAndTicketUserIdDomainList,
                                                    Integer orderVersion){
+        if (seatMap == null || seatMap.isEmpty()) {
+            throw new TikectsystemFrameException(BaseCode.SEAT_ID_EMPTY);
+        }
+        List<Long> operateSeatIdList = new ArrayList<>();
+        List<TicketCategoryCountDto> ticketCategoryCountDtoList = new ArrayList<>(seatMap.size());
+        seatMap.forEach((ticketCategoryId, seatIdList) -> {
+            if (CollectionUtil.isEmpty(seatIdList)) {
+                return;
+            }
+            operateSeatIdList.addAll(seatIdList);
+            ticketCategoryCountDtoList.add(new TicketCategoryCountDto(ticketCategoryId, (long) seatIdList.size()));
+        });
+        if (CollectionUtil.isEmpty(operateSeatIdList)) {
+            throw new TikectsystemFrameException(BaseCode.SEAT_ID_EMPTY);
+        }
         Map<Long, List<SeatVo>> seatVoMap = new HashMap<>(seatMap.size());
         seatMap.forEach((k,v) -> {
+            if (CollectionUtil.isEmpty(v)) {
+                return;
+            }
             seatVoMap.put(k,redisCache.multiGetForHash(
                     RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_SEAT_LOCK_RESOLUTION_HASH, programId, k),
                     v.stream().map(String::valueOf).collect(Collectors.toList()), SeatVo.class));
@@ -651,11 +674,23 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             throw new TikectsystemFrameException(BaseCode.LOCK_SEAT_LIST_EMPTY);
         }
         JSONArray jsonArray = new JSONArray();
+        for (TicketCategoryCountDto ticketCategoryCountDto : ticketCategoryCountDtoList) {
+            JSONObject ticketCategoryJsonObject = new JSONObject();
+            ticketCategoryJsonObject.put("programTicketRemainNumberHashKey",RedisKeyBuild.createRedisKey(
+                    RedisKeyManage.PROGRAM_TICKET_REMAIN_NUMBER_HASH_RESOLUTION,
+                    programId, ticketCategoryCountDto.getTicketCategoryId()).getRelKey());
+            ticketCategoryJsonObject.put("ticketCategoryId",String.valueOf(ticketCategoryCountDto.getTicketCategoryId()));
+            ticketCategoryJsonObject.put("count",ticketCategoryCountDto.getCount());
+            jsonArray.add(ticketCategoryJsonObject);
+        }
         JSONArray addSeatDatajsonArray = new JSONArray();
-        List<TicketCategoryCountDto> ticketCategoryCountDtoList = new ArrayList<>(seatVoMap.size());
         JSONArray unLockSeatIdjsonArray = new JSONArray();
-        List<Long> unLockSeatIdList = new ArrayList<>();
         seatVoMap.forEach((k,v) -> {
+            if (CollectionUtil.isEmpty(v)) {
+                log.warn("program seat lock cache is empty, programId:{}, ticketCategoryId:{}, seatIds:{}",
+                        programId, k, seatMap.get(k));
+                return;
+            }
             JSONObject unLockSeatIdjsonObject = new JSONObject();
             unLockSeatIdjsonObject.put("programSeatLockHashKey", RedisKeyBuild.createRedisKey(
                     RedisKeyManage.PROGRAM_SEAT_LOCK_RESOLUTION_HASH, programId, k).getRelKey());
@@ -668,7 +703,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 seatHashKeyAdd = RedisKeyBuild.createRedisKey(
                         RedisKeyManage.PROGRAM_SEAT_NO_SOLD_RESOLUTION_HASH, programId, k).getRelKey();
                 for (SeatVo seatVo : v) {
-                    //座位状态要改成未售卖
+                    //搴т綅鐘舵€佽鏀规垚鏈敭鍗?
                     seatVo.setSellStatus(SellStatus.NO_SOLD.getCode());
                 }
             }else if (Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode())) {
@@ -686,24 +721,12 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             }
             seatDatajsonObject.put("seatDataList",seatDataList);
             addSeatDatajsonArray.add(seatDatajsonObject);
-            JSONObject jsonObject = new JSONObject();
-            jsonObject.put("programTicketRemainNumberHashKey",RedisKeyBuild.createRedisKey(
-                    RedisKeyManage.PROGRAM_TICKET_REMAIN_NUMBER_HASH_RESOLUTION, programId, k).getRelKey());
-            jsonObject.put("ticketCategoryId",String.valueOf(k));
-            jsonObject.put("count",v.size());
-            jsonArray.add(jsonObject);
-            TicketCategoryCountDto ticketCategoryCountDto = new TicketCategoryCountDto();
-            ticketCategoryCountDto.setTicketCategoryId(k);
-            ticketCategoryCountDto.setCount((long) v.size());
-            ticketCategoryCountDtoList.add(ticketCategoryCountDto);
-            
-            unLockSeatIdList.addAll(v.stream().map(SeatVo::getId).toList());
         });
         List<String> keys = new ArrayList<>();
         keys.add(String.valueOf(orderStatus.getCode()));
         keys.add(String.valueOf(programId));
         keys.add(RedisKeyBuild.getRedisKey(RedisKeyManage.PROGRAM_RECORD));
-        
+
         String recordTye = Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode()) ? RecordType.INCREASE.getValue() : RecordType.CHANGE_STATUS.getValue();
         keys.add(recordTye + GLIDE_LINE + identifierId + GLIDE_LINE + userId);
         keys.add(recordTye);
@@ -712,13 +735,13 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         data[1] = JSON.toJSONString(addSeatDatajsonArray);
         data[2] = JSON.toJSONString(jsonArray);
         data[3] = JSON.toJSONString(seatIdAndTicketUserIdDomainList);
-        
+
         ProgramOperateDataDto programOperateDataDto = new ProgramOperateDataDto();
         programOperateDataDto.setProgramId(programId);
-        programOperateDataDto.setSeatIdList(unLockSeatIdList);
+        programOperateDataDto.setSeatIdList(operateSeatIdList);
         programOperateDataDto.setTicketCategoryCountDtoList(ticketCategoryCountDtoList);
         programOperateDataDto.setOrderVersion(orderVersion);
-        //如果创建订单版本是v1，v2，v3
+        //濡傛灉鍒涘缓璁㈠崟鐗堟湰鏄痸1锛寁2锛寁3
         if (!Objects.equals(orderVersion, ProgramOrderVersion.V4_VERSION.getValue())){
             orderProgramCacheResolutionOperate.programCacheReverseOperate(keys,data);
             if (Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode())) {
@@ -726,7 +749,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 delayOperateProgramDataSend.sendMessage(JSON.toJSONString(programOperateDataDto));
             }
         }else {
-            //如果创建订单版本是v4 更新节目服务的相关数据
+            //濡傛灉鍒涘缓璁㈠崟鐗堟湰鏄痸4 鏇存柊鑺傜洰鏈嶅姟鐨勭浉鍏虫暟鎹?
             if (Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode()) ||
                     Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode())) {
                 programOperateDataDto.setSellStatus(Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode()) ? SellStatus.SOLD.getCode() : SellStatus.NO_SOLD.getCode());
@@ -743,13 +766,13 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         List<OrderListVo> orderListVos = new ArrayList<>();
         LambdaQueryWrapper<Order> orderLambdaQueryWrapper =
                 Wrappers.lambdaQuery(Order.class).eq(Order::getUserId, orderListDto.getUserId());
-        //查询主订单列表
+        //鏌ヨ涓昏鍗曞垪琛?
         List<Order> orderList = orderMapper.selectList(orderLambdaQueryWrapper);
         if (CollectionUtil.isEmpty(orderList)) {
             return orderListVos;
         }
         orderListVos = BeanUtil.copyToList(orderList, OrderListVo.class);
-        //每个订单下的购票人订单数量统计
+        //姣忎釜璁㈠崟涓嬬殑璐エ浜鸿鍗曟暟閲忕粺璁?
         List<OrderTicketUserAggregate> orderTicketUserAggregateList =
                 orderTicketUserMapper.selectOrderTicketUserAggregate(orderList.stream().map(Order::getOrderNumber).
                         collect(Collectors.toList()));
@@ -763,14 +786,14 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     }
 
     public OrderGetVo get(OrderGetDto orderGetDto) {
-        //查询订单
+        //鏌ヨ璁㈠崟
         LambdaQueryWrapper<Order> orderLambdaQueryWrapper =
                 Wrappers.lambdaQuery(Order.class).eq(Order::getOrderNumber, orderGetDto.getOrderNumber());
         Order order = orderMapper.selectOne(orderLambdaQueryWrapper);
         if (Objects.isNull(order)) {
             throw new TikectsystemFrameException(BaseCode.ORDER_NOT_EXIST);
         }
-        //查询购票人订单
+        //鏌ヨ璐エ浜鸿鍗?
         LambdaQueryWrapper<OrderTicketUser> orderTicketUserLambdaQueryWrapper =
                 Wrappers.lambdaQuery(OrderTicketUser.class).eq(OrderTicketUser::getOrderNumber, order.getOrderNumber());
         List<OrderTicketUser> orderTicketUserList = orderTicketUserMapper.selectList(orderTicketUserLambdaQueryWrapper);
@@ -781,15 +804,15 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         OrderGetVo orderGetVo = new OrderGetVo();
         BeanUtil.copyProperties(order,orderGetVo);
 
-        //组装购票订单信息
+        //缁勮璐エ璁㈠崟淇℃伅
         List<OrderTicketInfoVo> orderTicketInfoVoList = new ArrayList<>();
-        //按照购票订单的金额进行分组
+        //鎸夌収璐エ璁㈠崟鐨勯噾棰濊繘琛屽垎缁?
         Map<BigDecimal, List<OrderTicketUser>> orderTicketUserMap =
                 orderTicketUserList.stream().collect(Collectors.groupingBy(OrderTicketUser::getOrderPrice));
         orderTicketUserMap.forEach((k,v) -> {
             OrderTicketInfoVo orderTicketInfoVo = new OrderTicketInfoVo();
-            String seatInfo = "暂无座位信息";
-            //如果节目是允许选座的，才显示出当时生成订单时产生的座位信息
+            String seatInfo = "鏆傛棤搴т綅淇℃伅";
+            //濡傛灉鑺傜洰鏄厑璁搁€夊骇鐨勶紝鎵嶆樉绀哄嚭褰撴椂鐢熸垚璁㈠崟鏃朵骇鐢熺殑搴т綅淇℃伅
             if (Objects.equals(order.getProgramPermitChooseSeat(),BusinessStatus.YES.getCode())) {
                 seatInfo = v.stream().map(OrderTicketUser::getSeatInfo).collect(Collectors.joining(","));
             }
@@ -803,7 +826,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
 
         orderGetVo.setOrderTicketInfoVoList(orderTicketInfoVoList);
 
-        //查询用户和购票人信息
+        //鏌ヨ鐢ㄦ埛鍜岃喘绁ㄤ汉淇℃伅
         UserGetAndTicketUserListDto userGetAndTicketUserListDto = new UserGetAndTicketUserListDto();
         userGetAndTicketUserListDto.setUserId(order.getUserId());
         ApiResponse<UserGetAndTicketUserListVo> userGetAndTicketUserApiResponse =
@@ -813,26 +836,26 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             throw new TikectsystemFrameException(userGetAndTicketUserApiResponse);
 
         }
-        //验证用户和购票人信息是否存在
+        //楠岃瘉鐢ㄦ埛鍜岃喘绁ㄤ汉淇℃伅鏄惁瀛樺湪
         UserGetAndTicketUserListVo userAndTicketUserListVo =
                 Optional.ofNullable(userGetAndTicketUserApiResponse.getData())
                         .orElseThrow(() -> new TikectsystemFrameException(BaseCode.RPC_RESULT_DATA_EMPTY));
-        //如果用户信息空，抛出异常
+        //濡傛灉鐢ㄦ埛淇℃伅绌猴紝鎶涘嚭寮傚父
         if (Objects.isNull(userAndTicketUserListVo.getUserVo())) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
-        //如果购票人信息空，抛出异常
+        //濡傛灉璐エ浜轰俊鎭┖锛屾姏鍑哄紓甯?
         if (CollectionUtil.isEmpty(userAndTicketUserListVo.getTicketUserVoList())) {
             throw new TikectsystemFrameException(BaseCode.TICKET_USER_EMPTY);
         }
-        //从查询得到的购票人信息中进行过滤出该订单下购票人的信息
+        //浠庢煡璇㈠緱鍒扮殑璐エ浜轰俊鎭腑杩涜杩囨护鍑鸿璁㈠崟涓嬭喘绁ㄤ汉鐨勪俊鎭?
         List<TicketUserVo> filterTicketUserVoList = new ArrayList<>();
         Map<Long, TicketUserVo> ticketUserVoMap = userAndTicketUserListVo.getTicketUserVoList()
                 .stream().collect(Collectors.toMap(TicketUserVo::getId, ticketUserVo -> ticketUserVo, (v1, v2) -> v2));
         for (OrderTicketUser orderTicketUser : orderTicketUserList) {
             filterTicketUserVoList.add(ticketUserVoMap.get(orderTicketUser.getTicketUserId()));
         }
-        //组装数据
+        //缁勮鏁版嵁
         UserInfoVo userInfoVo = new UserInfoVo();
         BeanUtil.copyProperties(userAndTicketUserListVo.getUserVo(),userInfoVo);
         UserAndTicketUserInfoVo userAndTicketUserInfoVo = new UserAndTicketUserInfoVo();
@@ -842,15 +865,15 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
 
         return orderGetVo;
     }
-    
+
     public AccountOrderCountVo accountOrderCount(AccountOrderCountDto accountOrderCountDto) {
         AccountOrderCountVo accountOrderCountVo = new AccountOrderCountVo();
         accountOrderCountVo.setCount(orderMapper.accountOrderCount(accountOrderCountDto.getUserId(),
                 accountOrderCountDto.getProgramId()));
         return accountOrderCountVo;
     }
-    
-    
+
+
     @RepeatExecuteLimit(name = CREATE_PROGRAM_ORDER_MQ,keys = {"#orderCreateMq.orderNumber"})
     @Transactional(rollbackFor = Exception.class)
     public String createMq(OrderCreateMq orderCreateMq){
@@ -865,7 +888,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             List<TicketCategoryCountDto> ticketCountList = new ArrayList<>(countMap.size());
             countMap.forEach((ticketCategoryId, ticketCount) ->
                     ticketCountList.add(new TicketCategoryCountDto(ticketCategoryId, ticketCount)));
-            //修改节目服务中的座位状态和扣减库存
+            //淇敼鑺傜洰鏈嶅姟涓殑搴т綅鐘舵€佸拰鎵ｅ噺搴撳瓨
             ReduceRemainNumberDto reduceRemainNumberDto = new ReduceRemainNumberDto();
             reduceRemainNumberDto.setProgramId(orderCreateMq.getProgramId());
             reduceRemainNumberDto.setSellStatus(SellStatus.LOCK.getCode());
@@ -873,22 +896,32 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             reduceRemainNumberDto.setTicketCategoryCountDtoList(ticketCountList);
             ApiResponse<Boolean> programApiResponse = programClient.operateSeatLockAndTicketCategoryRemainNumber(reduceRemainNumberDto);
             if (programApiResponse == null || !Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
-                //将因为修改节目服务余票和座位失败，导致丢弃的订单放入redis中
+                //灏嗗洜涓轰慨鏀硅妭鐩湇鍔′綑绁ㄥ拰搴т綅澶辫触锛屽鑷翠涪寮冪殑璁㈠崟鏀惧叆redis涓?
                 redisCache.leftPushForList(RedisKeyBuild.createRedisKey(RedisKeyManage.DISCARD_ORDER,
                         orderCreateMq.getProgramId()),new DiscardOrder(orderCreateMq, DiscardOrderReason.MODIFY_PROGRAM_REMAIN_NUMBER_SEAT_FAIL.getCode()));
                 throw new TikectsystemFrameException(programApiResponse);
             }
         }
-        //真正地创建订单
+        // 真正地创建订单
         String orderNumber = createByMq(orderCreateMq);
         redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.ORDER_MQ,orderNumber),orderNumber,1, TimeUnit.MINUTES);
+        if (Objects.equals(orderCreateMq.getOrderVersion(), ProgramOrderVersion.V4_VERSION.getValue())) {
+            sendDelayOrderCancel(orderCreateMq);
+        }
         return orderNumber;
     }
-    
+
+    private void sendDelayOrderCancel(OrderCreateMq orderCreateMq) {
+        DelayOrderCancelDto delayOrderCancelDto = new DelayOrderCancelDto();
+        delayOrderCancelDto.setProgramId(orderCreateMq.getProgramId());
+        delayOrderCancelDto.setOrderNumber(orderCreateMq.getOrderNumber());
+        orderDelayOrderCancelSend.sendMessage(delayOrderCancelDto);
+    }
+
     public String getCache(OrderGetDto orderGetDto) {
         return redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.ORDER_MQ,orderGetDto.getOrderNumber()),String.class);
     }
-    
+
     @RepeatExecuteLimit(name = CANCEL_PROGRAM_ORDER,keys = {"#orderCancelDto.orderNumber"})
     @ServiceLock(name = UPDATE_ORDER_STATUS_LOCK,keys = {"#orderCancelDto.orderNumber"})
     @Transactional(rollbackFor = Exception.class)
@@ -903,8 +936,8 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         }
         return cancel(orderCancelDto);
     }
-    
-    
+
+
     public void delOrderAndOrderTicketUser(){
         orderMapper.relDelOrder();
         orderTicketUserMapper.relDelOrderTicketUser();
@@ -924,13 +957,13 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         orderTicketUserRecord.setSeatId(1L);
         orderTicketUserRecord.setIdentifierId(uidGenerator.getUid());
         orderTicketUserRecordMapper.insert(orderTicketUserRecord);
-        
+
         ProgramRecordTaskAddDto programRecordTaskAddDto = new ProgramRecordTaskAddDto();
         programRecordTaskAddDto.setProgramId(orderCreateTestDto.getProgramId());
         programClient.add(programRecordTaskAddDto);
-        
+
         if ("1".equals(orderCreateTestDto.getHaveException())) {
-            throw new TikectsystemFrameException("模拟异常");
+            throw new TikectsystemFrameException("妯℃嫙寮傚父");
         }
         return true;
     }

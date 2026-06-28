@@ -106,7 +106,7 @@
        style="width: 450px;height:500px;background: #FFE7BA;"
 
     >
-      <div class="content">当前排队人数太多，请稍候再试~</div>
+      <div class="content">{{ dialogMessage }}</div>
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogVisible = false" class="btn1">返回</el-button>
@@ -140,6 +140,7 @@ const num = ref('')
 const telNum = ref('')
 const ticketInfoArr = ref([])
 const dialogVisible = ref(false)
+const dialogMessage = ref('当前排队人数太多，请稍候再试~')
 const isSHowInfo = ref(true)//此处设置是为了解决弹出框显示后此处界面也会显示到上层的问题。注意：关闭弹框的时候这里要设置为true
 const ticketUserIdArr = ref([])
 //票档id
@@ -228,6 +229,32 @@ function submitOrderError() {
   ElMessage.error('提交订单失败，请稍后重试');
 }
 
+function getResponseMessage(response, defaultMessage = '提交订单失败，请稍后重试') {
+  return response && response.message ? response.message : defaultMessage;
+}
+
+function getOrderNumberFromResponse(response) {
+  if (!response || response.data == null) {
+    return null;
+  }
+  if (typeof response.data === 'object') {
+    return response.data.orderNumber || null;
+  }
+  return response.data;
+}
+
+function showOrderCreateFailure(response) {
+  loadingClose();
+  submitLoading.value = false;
+  const code = Number(response && response.code);
+  const message = getResponseMessage(response);
+  if ([10056, 50012, 50013].includes(code)) {
+    dialogShow(message);
+    return;
+  }
+  ElMessage.error(message);
+}
+
 //订单查询轮训
 const startPolling = (orderNumber,startTime) => {
   pollingTimer.value = setInterval(() => {
@@ -238,7 +265,7 @@ const startPolling = (orderNumber,startTime) => {
       //2. loading弹出框关闭
       loadingClose();
       //3. 排队弹框显示
-      dialogShow();
+      dialogShow('订单创建处理中，请稍后查看订单列表或重试');
       return;
     }
     getOrderCache(orderNumber);
@@ -296,12 +323,7 @@ function submitOrder(){
         const orderNumber = response.data;
         goPay(orderNumber)
       }else{
-        // ElMessage({
-        //   message:response.message,
-        //   type: 'error',
-        // })
-        //排队弹框显示
-        dialogShow();
+        showOrderCreateFailure(response);
       }
     }).catch(submitOrderError)
   }else if (createOrderVersion == 2) {
@@ -313,12 +335,7 @@ function submitOrder(){
         const orderNumber = response.data;
         goPay(orderNumber)
       }else{
-        // ElMessage({
-        //   message:response.message,
-        //   type: 'error',
-        // })
-        //排队弹框显示
-        dialogShow();
+        showOrderCreateFailure(response);
       }
     }).catch(submitOrderError)
   }else if (createOrderVersion == 3) {
@@ -330,33 +347,29 @@ function submitOrder(){
         const orderNumber = response.data;
         goPay(orderNumber)
       }else{
-        // ElMessage({
-        //   message:response.message,
-        //   type: 'error',
-        // })
-        //排队弹框显示
-        dialogShow();
+        showOrderCreateFailure(response);
       }
     }).catch(submitOrderError)
   }else if (createOrderVersion == 4) {
     //v4版本的创建订单
 
     orderCreateV4Api(orderCreateParams).then(response => {
-      if (response.code == '0' && response.data != null) {
-        console.log('异步订单创建成功 订单编号',response.data)
+      const orderNumber = getOrderNumberFromResponse(response);
+      if (response.code == '0' && orderNumber != null) {
+        console.log('异步订单创建成功 订单编号',orderNumber)
         //开始定时轮训查询
-        startPolling(response.data,Date.now());
+        startPolling(orderNumber,Date.now());
         // 设置一个10s后停止轮询的定时器
         timeoutTimer.value = setTimeout(() => {
           if (pollingTimer.value) {
             stopPolling();
             loadingClose();
             submitLoading.value = false;
-            dialogShow();
+            dialogShow('订单创建处理中，请稍后查看订单列表或重试');
           }
         }, tenSecond);
       }else{
-        dialogShow();
+        showOrderCreateFailure(response);
       }
     }).catch(submitOrderError)
   }else{
@@ -364,7 +377,8 @@ function submitOrder(){
   }
 }
 //弹出排队框
-function dialogShow(){
+function dialogShow(message = '当前排队人数太多，请稍候再试~'){
+  dialogMessage.value = message
   dialogVisible.value = true
   isSHowInfo.value=false
   submitLoading.value = false

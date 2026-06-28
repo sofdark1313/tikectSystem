@@ -41,6 +41,11 @@ public class MessageRecordVo {
      * 消息id
      */
     private Long messageId;
+
+    /**
+     * Kafka 原始消息 key
+     */
+    private String messageKey;
     
     /**
      * 消息topic
