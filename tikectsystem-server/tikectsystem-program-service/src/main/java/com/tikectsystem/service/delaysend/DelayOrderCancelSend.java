@@ -92,6 +92,7 @@ public class DelayOrderCancelSend {
             insertMessageProducerRecordDto.setMessageTraceId(messageTraceId);
             insertMessageProducerRecordDto.setMessageBusinessesId(delayOrderCancelMessageModule.getProgramId());
             insertMessageProducerRecordDto.setMessageId(messageId);
+            insertMessageProducerRecordDto.setMessageKey(String.valueOf(delayOrderCancelMessageModule.getOrderNumber()));
             insertMessageProducerRecordDto.setMessageTopic(topicName);
             insertMessageProducerRecordDto.setMessageContent(messageContent);
             ApiResponse<MessageProducerRecordVo> insertMessageProducerRecordApiResponse = apiDataClient.insertMessageProducerRecord(insertMessageProducerRecordDto);

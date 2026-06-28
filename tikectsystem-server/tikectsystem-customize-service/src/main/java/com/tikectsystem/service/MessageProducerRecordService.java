@@ -57,6 +57,7 @@ public class MessageProducerRecordService extends ServiceImpl<MessageProducerRec
         messageProducerRecord.setMessageTraceId(insertMessageProducerRecordDto.getMessageTraceId());
         messageProducerRecord.setMessageBusinessesId(insertMessageProducerRecordDto.getMessageBusinessesId());
         messageProducerRecord.setMessageId(insertMessageProducerRecordDto.getMessageId());
+        messageProducerRecord.setMessageKey(insertMessageProducerRecordDto.getMessageKey());
         messageProducerRecord.setMessageTopic(insertMessageProducerRecordDto.getMessageTopic());
         messageProducerRecord.setMessageContent(insertMessageProducerRecordDto.getMessageContent());
         messageProducerRecord.setMessageSendStatus(MessageSendStatus.UNSENT.getCode());

@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -124,6 +125,36 @@ public class OrderRequestResultService {
         }
         OrderRequestResult current = getByOrderNumber(orderRequestResultUpdateDto.getOrderNumber());
         return Objects.nonNull(current) && Objects.equals(current.getResultStatus(), orderRequestResultUpdateDto.getStatus());
+    }
+
+    /**
+     * 将长时间停留在 PROCESSING 的请求过期，避免请求表永久卡在中间态。
+     * @param beforeTime 创建时间早于该时间的请求会被过期
+     * @param limit 单次处理数量
+     * @return 实际过期数量
+     */
+    public int expireStuckProcessing(Date beforeTime, int limit) {
+        List<OrderRequestResult> resultList = orderRequestResultMapper.selectList(
+                Wrappers.lambdaQuery(OrderRequestResult.class)
+                        .select(OrderRequestResult::getOrderNumber)
+                        .eq(OrderRequestResult::getResultStatus, OrderRequestResultStatus.PROCESSING)
+                        .le(OrderRequestResult::getCreateTime, beforeTime)
+                        .last("limit " + limit));
+        int expireCount = 0;
+        for (OrderRequestResult result : resultList) {
+            checkTransition(OrderRequestResultStatus.PROCESSING, OrderRequestResultStatus.EXPIRED);
+            OrderRequestResult update = new OrderRequestResult();
+            update.setResultStatus(OrderRequestResultStatus.EXPIRED);
+            update.setFailCode(OrderRequestResultStatus.EXPIRED);
+            update.setFailMessage("下单请求处理超时");
+            int updateCount = orderRequestResultMapper.update(update, Wrappers.lambdaUpdate(OrderRequestResult.class)
+                    .eq(OrderRequestResult::getOrderNumber, result.getOrderNumber())
+                    .eq(OrderRequestResult::getResultStatus, OrderRequestResultStatus.PROCESSING));
+            if (updateCount > 0) {
+                expireCount++;
+            }
+        }
+        return expireCount;
     }
 
     /**

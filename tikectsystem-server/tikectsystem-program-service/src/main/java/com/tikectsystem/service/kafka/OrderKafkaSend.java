@@ -9,6 +9,7 @@ import com.tikectsystem.dto.UpdateMessageProducerRecordDto;
 import com.tikectsystem.enums.BaseCode;
 import com.tikectsystem.enums.MessageSendStatus;
 import com.tikectsystem.enums.MessageType;
+import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.mq.callback.FailureCallback;
 import com.tikectsystem.mq.callback.SuccessCallback;
 import com.tikectsystem.vo.MessageProducerRecordVo;
@@ -105,18 +106,19 @@ public class OrderKafkaSend {
             insertDto.setMessageTraceId(uidGenerator.getUid());
             insertDto.setMessageBusinessesId(businessId);
             insertDto.setMessageId(messageId);
+            insertDto.setMessageKey(key);
             insertDto.setMessageTopic(topic);
             insertDto.setMessageContent(message);
             ApiResponse<MessageProducerRecordVo> response = apiDataClient.insertMessageProducerRecord(insertDto);
             if (response == null || !Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode()) ||
                     response.getData() == null) {
                 log.error("save kafka producer record failed, type:{}, topic:{}, key:{}", messageType, topic, key);
-                return null;
+                throw new TikectsystemFrameException(BaseCode.SYSTEM_ERROR);
             }
             return response.getData().getId();
         } catch (Exception e) {
             log.error("save kafka producer record error, type:{}, topic:{}, key:{}", messageType, topic, key, e);
-            return null;
+            throw new TikectsystemFrameException(e);
         }
     }
 

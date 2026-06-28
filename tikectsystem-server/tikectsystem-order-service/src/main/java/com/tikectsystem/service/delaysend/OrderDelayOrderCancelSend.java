@@ -11,6 +11,7 @@ import com.tikectsystem.dto.UpdateMessageProducerRecordDto;
 import com.tikectsystem.enums.BaseCode;
 import com.tikectsystem.enums.MessageSendStatus;
 import com.tikectsystem.enums.MessageType;
+import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.module.DelayOrderCancelMessageModule;
 import com.tikectsystem.vo.MessageProducerRecordVo;
 import lombok.extern.slf4j.Slf4j;
@@ -72,11 +73,16 @@ public class OrderDelayOrderCancelSend {
         insertDto.setMessageTraceId(messageTraceId);
         insertDto.setMessageBusinessesId(messageModule.getProgramId());
         insertDto.setMessageId(messageId);
+        insertDto.setMessageKey(String.valueOf(messageModule.getOrderNumber()));
         insertDto.setMessageTopic(topicName);
         insertDto.setMessageContent(messageContent);
         ApiResponse<MessageProducerRecordVo> insertResponse = apiDataClient.insertMessageProducerRecord(insertDto);
-        Long producerRecordId = insertResponse == null || insertResponse.getData() == null ? null :
-                insertResponse.getData().getId();
+        if (insertResponse == null || !BaseCode.SUCCESS.getCode().equals(insertResponse.getCode()) ||
+                insertResponse.getData() == null || insertResponse.getData().getId() == null) {
+            log.error("insert delay order cancel producer record failed, message:{}", messageContent);
+            throw new TikectsystemFrameException(BaseCode.SYSTEM_ERROR);
+        }
+        Long producerRecordId = insertResponse.getData().getId();
 
         kafkaTemplate.send(topicName, String.valueOf(messageModule.getOrderNumber()), messageContent)
                 .whenComplete((sendResult, ex) -> updateMessageProducerRecord(producerRecordId, ex, messageContent));

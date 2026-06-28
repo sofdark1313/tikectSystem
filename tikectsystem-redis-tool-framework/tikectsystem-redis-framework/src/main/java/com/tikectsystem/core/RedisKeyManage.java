@@ -57,6 +57,7 @@ public enum RedisKeyManage {
     DISCARD_ORDER("d_mai_discard_order_%s", "discard order key", "discard order list", "k"),
 
     PROGRAM_ORDER_GATE_REQUEST("d_mai_program_order_gate_request_%s", "order gate request", "order number", "k"),
+    PROGRAM_ORDER_REQUEST_IDEMPOTENT("d_mai_program_order_request_idempotent_%s", "order request idempotent lock", "request id", "k"),
     PROGRAM_ORDER_GATE_INFLIGHT("d_mai_program_order_gate_inflight_%s_%s", "order gate inflight", "inflight count", "k"),
     PROGRAM_ORDER_GATE_SEAT("d_mai_program_order_gate_seat_%s", "order gate seat", "request id", "k"),
     PROGRAM_ORDER_RESERVATION("d_mai_program_order_reservation_%s", "order reservation", "reservation snapshot", "k"),

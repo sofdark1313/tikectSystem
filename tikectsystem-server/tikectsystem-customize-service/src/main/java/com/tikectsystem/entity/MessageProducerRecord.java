@@ -39,6 +39,11 @@ public class MessageProducerRecord extends BaseTableData {
      * 消息id
      */
     private Long messageId;
+
+    /**
+     * Kafka 原始消息 key，用于补偿重发时保持分区键一致
+     */
+    private String messageKey;
     
     /**
      * 消息topic

@@ -80,6 +80,9 @@ public class CreateOrderConsumer {
                 existResponse.getData() != null) {
             return existResponse.getData();
         }
+        if (existResponse != null && !BaseCode.SUCCESS.getCode().equals(existResponse.getCode())) {
+            throw new IllegalStateException("query order_create consumer record failed");
+        }
         InsertMessageConsumerRecordDto insertDto = new InsertMessageConsumerRecordDto();
         insertDto.setMessageType(MessageType.ORDER_CREATE.getCode());
         insertDto.setMessageTraceId(messageId);
@@ -88,9 +91,10 @@ public class CreateOrderConsumer {
         insertDto.setMessageTopic(consumerRecord.topic());
         insertDto.setMessageContent(consumerRecord.value());
         ApiResponse<MessageConsumerRecordVo> insertResponse = apiDataClient.insertMessageConsumerRecord(insertDto);
-        if (insertResponse == null || !BaseCode.SUCCESS.getCode().equals(insertResponse.getCode())) {
+        if (insertResponse == null || !BaseCode.SUCCESS.getCode().equals(insertResponse.getCode()) ||
+                insertResponse.getData() == null) {
             log.error("insert order_create consumer record failed, orderNumber:{}", orderNumber);
-            return null;
+            throw new IllegalStateException("insert order_create consumer record failed");
         }
         return insertResponse.getData();
     }

@@ -79,6 +79,12 @@ public class ProgramOrderService {
 
     private static final long KAFKA_ACK_TIMEOUT_SECONDS = 5L;
 
+    private static final long REQUEST_IDEMPOTENT_LOCK_TTL_SECONDS = 30L;
+
+    private static final int REQUEST_IDEMPOTENT_WAIT_TIMES = 10;
+
+    private static final long REQUEST_IDEMPOTENT_WAIT_MILLIS = 50L;
+
     @Autowired
     private OrderClient orderClient;
 
@@ -142,11 +148,28 @@ public class ProgramOrderService {
         if (Objects.nonNull(existsResult)) {
             return String.valueOf(existsResult.getOrderNumber());
         }
-        Long orderNumber = uidGenerator.getOrderNumber(programOrderCreateDto.getUserId(), ORDER_TABLE_COUNT);
-        OrderRequestResult processingResult = orderRequestResultService.saveProcessing(requestId, orderNumber,
-                programOrderCreateDto.getProgramId(), programOrderCreateDto.getUserId());
-        if (!Objects.equals(processingResult.getOrderNumber(), orderNumber)) {
-            return String.valueOf(processingResult.getOrderNumber());
+        boolean idempotentLockAcquired = acquireRequestIdempotentLock(requestId);
+        if (!idempotentLockAcquired) {
+            OrderRequestResult concurrentResult = waitForRequestResult(requestId);
+            if (Objects.nonNull(concurrentResult)) {
+                return String.valueOf(concurrentResult.getOrderNumber());
+            }
+            throw new TikectsystemFrameException(BaseCode.SYSTEM_ERROR);
+        }
+        Long orderNumber;
+        try {
+            existsResult = orderRequestResultService.getByRequestId(requestId);
+            if (Objects.nonNull(existsResult)) {
+                return String.valueOf(existsResult.getOrderNumber());
+            }
+            orderNumber = uidGenerator.getOrderNumber(programOrderCreateDto.getUserId(), ORDER_TABLE_COUNT);
+            OrderRequestResult processingResult = orderRequestResultService.saveProcessing(requestId, orderNumber,
+                    programOrderCreateDto.getProgramId(), programOrderCreateDto.getUserId());
+            if (!Objects.equals(processingResult.getOrderNumber(), orderNumber)) {
+                return String.valueOf(processingResult.getOrderNumber());
+            }
+        } finally {
+            releaseRequestIdempotentLock(requestId);
         }
 
         ProgramOrderGateResult gateResult = gateOrderRequest(programOrderCreateDto, requestId, orderNumber);
@@ -171,24 +194,31 @@ public class ProgramOrderService {
         CreateOrderMqDomain createOrderMqDomain = new CreateOrderMqDomain();
         createOrderMqDomain.orderNumber = String.valueOf(orderNumber);
         Long finalOrderNumber = orderNumber;
-        orderKafkaSend.sendOrderRequest(String.valueOf(orderNumber), JSON.toJSONString(orderRequestMq), sendResult -> {
-            try {
-                log.debug("order_request kafka send success, orderNumber : {}", finalOrderNumber);
-            } catch (Exception e) {
-                createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(e);
-            } finally {
-                latch.countDown();
-            }
-        }, ex -> {
-            try {
-                releaseGate(programOrderCreateDto, requestId);
-                createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(ex);
-            } catch (Exception e) {
-                createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(e);
-            } finally {
-                latch.countDown();
-            }
-        });
+        try {
+            orderKafkaSend.sendOrderRequest(String.valueOf(orderNumber), JSON.toJSONString(orderRequestMq), sendResult -> {
+                try {
+                    log.debug("order_request kafka send success, orderNumber : {}", finalOrderNumber);
+                } catch (Exception e) {
+                    createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(e);
+                } finally {
+                    latch.countDown();
+                }
+            }, ex -> {
+                try {
+                    releaseGate(programOrderCreateDto, requestId);
+                    createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(ex);
+                } catch (Exception e) {
+                    createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(e);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        } catch (RuntimeException e) {
+            releaseGate(programOrderCreateDto, requestId);
+            orderRequestResultService.markFailed(orderNumber, String.valueOf(BaseCode.SYSTEM_ERROR.getCode()),
+                    e.getMessage());
+            throw e;
+        }
         try {
             awaitKafkaAck(latch);
         } catch (RuntimeException e) {
@@ -203,6 +233,32 @@ public class ProgramOrderService {
             throw createOrderMqDomain.tikectsystemFrameException;
         }
         return String.valueOf(orderNumber);
+    }
+
+    private boolean acquireRequestIdempotentLock(String requestId) {
+        return redisCache.setIfAbsent(RedisKeyBuild.createRedisKey(
+                        RedisKeyManage.PROGRAM_ORDER_REQUEST_IDEMPOTENT, requestId), requestId,
+                REQUEST_IDEMPOTENT_LOCK_TTL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private OrderRequestResult waitForRequestResult(String requestId) {
+        for (int i = 0; i < REQUEST_IDEMPOTENT_WAIT_TIMES; i++) {
+            OrderRequestResult existsResult = orderRequestResultService.getByRequestId(requestId);
+            if (Objects.nonNull(existsResult)) {
+                return existsResult;
+            }
+            try {
+                Thread.sleep(REQUEST_IDEMPOTENT_WAIT_MILLIS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new TikectsystemFrameException(e);
+            }
+        }
+        return orderRequestResultService.getByRequestId(requestId);
+    }
+
+    private void releaseRequestIdempotentLock(String requestId) {
+        redisCache.del(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_REQUEST_IDEMPOTENT, requestId));
     }
 
     /**

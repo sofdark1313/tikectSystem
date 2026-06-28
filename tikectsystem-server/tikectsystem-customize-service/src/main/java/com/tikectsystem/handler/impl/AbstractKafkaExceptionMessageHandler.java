@@ -43,7 +43,7 @@ public abstract class AbstractKafkaExceptionMessageHandler implements ExceptionM
         updateRecord.setSendTime(DateUtils.now());
         try {
             kafkaTemplate.send(messageProducerRecord.getMessageTopic(),
-                    String.valueOf(messageProducerRecord.getMessageId()),
+                    buildKafkaKey(messageProducerRecord),
                     messageProducerRecord.getMessageContent()).whenComplete((sendResult, ex) -> {
                 if (ex == null) {
                     updateRecord.setMessageSendStatus(MessageSendStatus.SEND_SUCCESS.getCode());
@@ -71,6 +71,13 @@ public abstract class AbstractKafkaExceptionMessageHandler implements ExceptionM
         } catch (Exception e) {
             log.error("update kafka producer record failed, message:{}", messageContent, e);
         }
+    }
+
+    private String buildKafkaKey(MessageProducerRecord messageProducerRecord) {
+        if (messageProducerRecord.getMessageKey() != null && !messageProducerRecord.getMessageKey().isEmpty()) {
+            return messageProducerRecord.getMessageKey();
+        }
+        return String.valueOf(messageProducerRecord.getMessageId());
     }
 
     @Override

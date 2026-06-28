@@ -40,6 +40,12 @@ public class InsertMessageProducerRecordDto {
     @Schema(name ="messageId", type ="Long", description ="消息id", requiredMode= RequiredMode.REQUIRED)
     @NotNull
     private Long messageId;
+
+    /**
+     * Kafka 原始消息 key，用于补偿重发时保持分区键一致
+     */
+    @Schema(name ="messageKey", type ="String", description ="Kafka原始消息key")
+    private String messageKey;
     
     /**
      * 消息topic
