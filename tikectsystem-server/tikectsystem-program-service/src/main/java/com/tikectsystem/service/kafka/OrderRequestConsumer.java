@@ -81,6 +81,10 @@ public class OrderRequestConsumer {
             acknowledge(acknowledgment);
             updateConsumerRecordSafely(consumerRecordVo, MessageConsumerStatus.CONSUMER_SUCCESS, null);
         } catch (TikectsystemFrameException e) {
+            if (isCircuitOpen(e)) {
+                updateConsumerRecord(consumerRecordVo, MessageConsumerStatus.CONSUMER_FAIL, e.getMessage());
+                throw e;
+            }
             orderRequestResultService.markFailed(orderRequestMq.getOrderNumber(), String.valueOf(e.getCode()), e.getMessage());
             updateConsumerRecord(consumerRecordVo, MessageConsumerStatus.CONSUMER_SUCCESS, null);
             acknowledge(acknowledgment);
@@ -158,6 +162,11 @@ public class OrderRequestConsumer {
         } catch (RuntimeException e) {
             log.warn("update order_request consumer record failed after offset committed", e);
         }
+    }
+
+    private boolean isCircuitOpen(TikectsystemFrameException exception) {
+        return Objects.equals(exception.getCode(), BaseCode.PROGRAM_ORDER_CIRCUIT_OPEN.getCode()) ||
+                Objects.equals(exception.getCode(), BaseCode.PROGRAM_ORDER_DEGRADE.getCode());
     }
 
     private Long buildMessageId(Long orderNumber, MessageType messageType) {
