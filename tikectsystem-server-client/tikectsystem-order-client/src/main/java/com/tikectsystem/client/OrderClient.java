@@ -3,7 +3,9 @@ package com.tikectsystem.client;
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.dto.AccountOrderCountDto;
 import com.tikectsystem.dto.OrderCreateDto;
+import com.tikectsystem.dto.OrderGetDto;
 import com.tikectsystem.vo.AccountOrderCountVo;
+import com.tikectsystem.vo.OrderGetVo;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,4 +36,12 @@ public interface OrderClient {
      * */
     @PostMapping("/order/account/order/count")
     ApiResponse<AccountOrderCountVo> accountOrderCount(AccountOrderCountDto dto);
+
+    /**
+     * 查询订单详情。
+     * @param dto 参数
+     * @return 订单详情
+     */
+    @PostMapping("/order/get")
+    ApiResponse<OrderGetVo> get(OrderGetDto dto);
 }

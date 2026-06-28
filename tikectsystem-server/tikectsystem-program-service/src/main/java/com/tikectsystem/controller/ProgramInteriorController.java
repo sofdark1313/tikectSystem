@@ -1,11 +1,13 @@
 package com.tikectsystem.controller;
 
 import com.tikectsystem.common.ApiResponse;
+import com.tikectsystem.dto.OrderRequestRecoverDto;
 import com.tikectsystem.dto.OrderRequestResultUpdateDto;
 import com.tikectsystem.dto.ProgramOperateDataDto;
 import com.tikectsystem.dto.ReduceRemainNumberDto;
 import com.tikectsystem.service.OrderRequestResultService;
 import com.tikectsystem.service.ProgramService;
+import com.tikectsystem.service.kafka.OrderRequestRecoveryService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,9 @@ public class ProgramInteriorController {
     @Autowired
     private OrderRequestResultService orderRequestResultService;
 
+    @Autowired
+    private OrderRequestRecoveryService orderRequestRecoveryService;
+
     @Operation(summary  = "扣减库存相关操作")
     @PostMapping(value = "/reduce/remain/number")
     public ApiResponse<Boolean> operateSeatLockAndTicketCategoryRemainNumber(@Valid @RequestBody ReduceRemainNumberDto reduceRemainNumberDto) {
@@ -43,5 +48,11 @@ public class ProgramInteriorController {
     @PostMapping(value = "/order/request/result/update")
     public ApiResponse<Boolean> updateOrderRequestResult(@Valid @RequestBody OrderRequestResultUpdateDto orderRequestResultUpdateDto) {
         return ApiResponse.ok(orderRequestResultService.updateStatus(orderRequestResultUpdateDto));
+    }
+
+    @Operation(summary  = "Redis 故障恢复时回扫 order_request")
+    @PostMapping(value = "/order/request/recover")
+    public ApiResponse<Integer> recoverOrderRequest(@Valid @RequestBody OrderRequestRecoverDto orderRequestRecoverDto) {
+        return ApiResponse.ok(orderRequestRecoveryService.recover(orderRequestRecoverDto));
     }
 }

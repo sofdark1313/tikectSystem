@@ -20,12 +20,17 @@ local ticket_count_list = cjson.decode(ARGV[1])
 local ticket_user_id_list = cjson.decode(ARGV[3])
 local reservation_meta_json = ARGV[4]
 local reservation_expire_seconds = tonumber(ARGV[5])
+local request_identifier_id = nil
+if reservation_meta_json and reservation_meta_json ~= '' then
+    local reservation_meta = cjson.decode(reservation_meta_json)
+    request_identifier_id = reservation_meta.identifierId
+end
 
 if reservation_key and reservation_key ~= '' then
     local exists_reservation = redis.call('get', reservation_key)
     if exists_reservation then
         local reservation = cjson.decode(exists_reservation)
-        return string.format('{"%s": %d, "%s": %s}', 'code', 0, 'purchaseSeatList', cjson.encode(reservation.purchaseSeatList))
+        return string.format('{"%s": %d, "%s": %s, "%s": %s}', 'code', 0, 'purchaseSeatList', cjson.encode(reservation.purchaseSeatList), 'identifierId', cjson.encode(reservation.identifierId))
     end
 end
 -- 过滤后符合条件可以购买的座位集合
@@ -291,4 +296,4 @@ if reservation_key and reservation_key ~= '' and reservation_meta_json and reser
     end
 end
 
-return string.format('{"%s": %d, "%s": %s}', 'code', 0, 'purchaseSeatList', cjson.encode(purchase_seat_list))
+return string.format('{"%s": %d, "%s": %s, "%s": %s}', 'code', 0, 'purchaseSeatList', cjson.encode(purchase_seat_list), 'identifierId', cjson.encode(request_identifier_id))

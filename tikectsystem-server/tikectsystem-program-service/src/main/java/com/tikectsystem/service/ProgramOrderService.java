@@ -12,6 +12,7 @@ import com.tikectsystem.domain.OrderCreateMq;
 import com.tikectsystem.domain.PurchaseSeat;
 import com.tikectsystem.dto.DelayOrderCancelDto;
 import com.tikectsystem.dto.OrderCreateDto;
+import com.tikectsystem.dto.OrderGetDto;
 import com.tikectsystem.dto.OrderTicketUserCreateDto;
 import com.tikectsystem.dto.ProgramOrderCreateDto;
 import com.tikectsystem.dto.SeatDto;
@@ -41,6 +42,7 @@ import com.tikectsystem.service.lua.ProgramOrderGateResult;
 import com.tikectsystem.service.tool.SeatMatch;
 import com.tikectsystem.util.DateUtils;
 import com.tikectsystem.util.StringUtil;
+import com.tikectsystem.vo.OrderGetVo;
 import com.tikectsystem.vo.ProgramVo;
 import com.tikectsystem.vo.SeatVo;
 import com.tikectsystem.vo.TicketCategoryVo;
@@ -266,12 +268,23 @@ public class ProgramOrderService {
      * @param orderRequestMq 下单受理消息
      */
     public void reserveAndSendOrderCreate(OrderRequestMq orderRequestMq) {
+        OrderCreateMq orderCreateMq = reserveOrderRequest(orderRequestMq);
+        if (Objects.isNull(orderCreateMq)) {
+            return;
+        }
+        sendReservedOrderCreate(orderCreateMq);
+    }
+
+    /**
+     * 执行 Redis Lua 最终锁座，成功返回可补发的 order_create 消息。
+     * order_request 的 offset 应以本方法成功作为确认边界。
+     */
+    public OrderCreateMq reserveOrderRequest(OrderRequestMq orderRequestMq) {
         OrderRequestResult requestResult = orderRequestResultService.getByOrderNumber(orderRequestMq.getOrderNumber());
-        if (Objects.isNull(requestResult) ||
-                !Objects.equals(requestResult.getResultStatus(), OrderRequestResultStatus.PROCESSING)) {
+        if (Objects.nonNull(requestResult) && isNoNeedRecoverStatus(requestResult.getResultStatus())) {
             log.warn("ignore order_request message because request status is not processing, orderNumber : {}",
                     orderRequestMq.getOrderNumber());
-            return;
+            return null;
         }
         ProgramOrderCreateDto programOrderCreateDto = orderRequestMq.getProgramOrderCreateDto();
         CreateOrderTemporaryData createOrderTemporaryData =
@@ -279,26 +292,67 @@ public class ProgramOrderService {
         OrderCreateDto orderCreateDto = buildCreateOrderParamV2(programOrderCreateDto.getProgramId(),
                 programOrderCreateDto.getUserId(), createOrderTemporaryData.getPurchaseSeatList(),
                 orderRequestMq.getOrderVersion(), orderRequestMq.getOrderNumber());
-        OrderCreateMq orderCreateMq = buildOrderCreateMq(orderCreateDto, createOrderTemporaryData.getIdentifierId());
+        return buildOrderCreateMq(orderCreateDto, createOrderTemporaryData.getIdentifierId());
+    }
+
+    /**
+     * Redis 已完成锁座后投递 order_create。投递失败不释放锁座，交给恢复扫描回扫 order_request 补发。
+     */
+    public void sendReservedOrderCreate(OrderCreateMq orderCreateMq) {
         String reservationJson = redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_RESERVATION,
-                orderRequestMq.getOrderNumber()), String.class);
+                orderCreateMq.getOrderNumber()), String.class);
         try {
-            orderRequestResultService.markReserved(orderRequestMq.getOrderNumber(), reservationJson, getReservationExpireTime());
+            orderRequestResultService.markReserved(orderCreateMq.getOrderNumber(), reservationJson, getReservationExpireTime());
         } catch (RuntimeException e) {
-            releaseReservation(orderRequestMq.getOrderNumber(), orderCreateMq.getProgramId(),
-                    createOrderTemporaryData.getPurchaseSeatList());
-            throw e;
+            log.warn("mark order_request reserved failed, orderNumber : {}", orderCreateMq.getOrderNumber(), e);
         }
-        try {
-            sendOrderCreateByMq(orderCreateMq);
-        } catch (RuntimeException e) {
-            releaseReservation(orderRequestMq.getOrderNumber(), orderCreateMq.getProgramId(),
-                    createOrderTemporaryData.getPurchaseSeatList());
-            orderRequestResultService.markFailed(orderRequestMq.getOrderNumber(), String.valueOf(BaseCode.SYSTEM_ERROR.getCode()),
-                    e.getMessage());
-            throw e;
-        }
+        sendOrderCreateByMq(orderCreateMq);
         programRecordTaskExecutor.execute(() -> createProgramRecordTask(orderCreateMq.getProgramId()));
+    }
+
+    /**
+     * Redis 故障恢复时回扫 order_request 使用：订单已存在则跳过，否则重新锁座并补发 order_create。
+     */
+    public boolean recoverOrderRequest(OrderRequestMq orderRequestMq) {
+        if (orderRequestMq == null || orderRequestMq.getOrderNumber() == null ||
+                orderRequestMq.getProgramOrderCreateDto() == null) {
+            return false;
+        }
+        if (orderExists(orderRequestMq.getOrderNumber())) {
+            return false;
+        }
+        OrderCreateMq orderCreateMq = reserveOrderRequest(orderRequestMq);
+        if (Objects.isNull(orderCreateMq)) {
+            return false;
+        }
+        sendReservedOrderCreate(orderCreateMq);
+        return true;
+    }
+
+    private boolean isNoNeedRecoverStatus(String resultStatus) {
+        return Objects.equals(resultStatus, OrderRequestResultStatus.ORDER_CREATED) ||
+                Objects.equals(resultStatus, OrderRequestResultStatus.CANCELLED) ||
+                Objects.equals(resultStatus, OrderRequestResultStatus.EXPIRED) ||
+                Objects.equals(resultStatus, OrderRequestResultStatus.FAILED);
+    }
+
+    private boolean orderExists(Long orderNumber) {
+        OrderGetDto orderGetDto = new OrderGetDto();
+        orderGetDto.setOrderNumber(orderNumber);
+        try {
+            ApiResponse<OrderGetVo> response = orderClient.get(orderGetDto);
+            if (response != null && Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode()) &&
+                    response.getData() != null) {
+                return true;
+            }
+            if (response != null && Objects.equals(response.getCode(), BaseCode.ORDER_NOT_EXIST.getCode())) {
+                return false;
+            }
+            throw new TikectsystemFrameException(BaseCode.SYSTEM_ERROR);
+        } catch (RuntimeException e) {
+            log.warn("query order exists failed, orderNumber : {}", orderNumber, e);
+            throw e;
+        }
     }
 
     private ProgramOrderGateResult gateOrderRequest(ProgramOrderCreateDto programOrderCreateDto, String requestId,
@@ -619,6 +673,7 @@ public class ProgramOrderService {
         Long identifierId = uidGenerator.getUid();
         //把记录的标识id放进去
         keys.add(RecordType.REDUCE.getValue() + GLIDE_LINE + identifierId + GLIDE_LINE + programOrderCreateDto.getUserId());
+        keys.add(RecordType.REDUCE.getValue());
         //记录的类型
         keys.add(RecordType.REDUCE.getValue());
         if (Objects.nonNull(orderNumber)) {
@@ -647,6 +702,9 @@ public class ProgramOrderService {
         if (!Objects.equals(programCacheCreateOrderData.getCode(), BaseCode.SUCCESS.getCode())) {
             BaseCode baseCode = BaseCode.getRc(programCacheCreateOrderData.getCode());
             throw new TikectsystemFrameException(baseCode == null ? BaseCode.SYSTEM_ERROR : baseCode);
+        }
+        if (Objects.nonNull(programCacheCreateOrderData.getIdentifierId())) {
+            identifierId = programCacheCreateOrderData.getIdentifierId();
         }
         return new CreateOrderTemporaryData(identifierId, programCacheCreateOrderData.getPurchaseSeatList());
     }

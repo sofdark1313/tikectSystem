@@ -3,6 +3,7 @@ package com.tikectsystem.service.kafka;
 import com.alibaba.fastjson.JSON;
 import com.tikectsystem.client.ApiDataClient;
 import com.tikectsystem.common.ApiResponse;
+import com.tikectsystem.domain.OrderCreateMq;
 import com.tikectsystem.dto.InsertMessageConsumerRecordDto;
 import com.tikectsystem.dto.MessageIdDto;
 import com.tikectsystem.dto.UpdateMessageConsumerRecordDto;
@@ -74,18 +75,29 @@ public class OrderRequestConsumer {
             acknowledge(acknowledgment);
             return;
         }
+        OrderCreateMq orderCreateMq;
         try {
-            programOrderService.reserveAndSendOrderCreate(orderRequestMq);
-            updateConsumerRecord(consumerRecordVo, MessageConsumerStatus.CONSUMER_SUCCESS, null);
+            orderCreateMq = programOrderService.reserveOrderRequest(orderRequestMq);
             acknowledge(acknowledgment);
+            updateConsumerRecordSafely(consumerRecordVo, MessageConsumerStatus.CONSUMER_SUCCESS, null);
         } catch (TikectsystemFrameException e) {
             orderRequestResultService.markFailed(orderRequestMq.getOrderNumber(), String.valueOf(e.getCode()), e.getMessage());
             updateConsumerRecord(consumerRecordVo, MessageConsumerStatus.CONSUMER_SUCCESS, null);
             acknowledge(acknowledgment);
+            return;
         } catch (Exception e) {
             log.error("order_request infrastructure error, orderNumber:{}", orderRequestMq.getOrderNumber(), e);
             updateConsumerRecord(consumerRecordVo, MessageConsumerStatus.CONSUMER_FAIL, e.getMessage());
             throw e;
+        }
+        if (orderCreateMq == null) {
+            return;
+        }
+        try {
+            programOrderService.sendReservedOrderCreate(orderCreateMq);
+        } catch (RuntimeException e) {
+            log.error("order_create send failed after order_request offset committed, wait recovery scan, orderNumber:{}",
+                    orderRequestMq.getOrderNumber(), e);
         }
     }
 
@@ -137,6 +149,15 @@ public class OrderRequestConsumer {
                 consumerRecordVo.getMessageConsumerCount() + 1);
         updateDto.setConsumerTime(DateUtils.now());
         apiDataClient.updateMessageConsumerRecord(updateDto);
+    }
+
+    private void updateConsumerRecordSafely(MessageConsumerRecordVo consumerRecordVo, MessageConsumerStatus status,
+                                            String exceptionMessage) {
+        try {
+            updateConsumerRecord(consumerRecordVo, status, exceptionMessage);
+        } catch (RuntimeException e) {
+            log.warn("update order_request consumer record failed after offset committed", e);
+        }
     }
 
     private Long buildMessageId(Long orderNumber, MessageType messageType) {
