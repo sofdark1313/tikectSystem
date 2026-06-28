@@ -916,6 +916,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     private void updateOrderRequestResultCreated(OrderCreateMq orderCreateMq) {
         OrderRequestResultUpdateDto updateDto = new OrderRequestResultUpdateDto();
         updateDto.setOrderNumber(orderCreateMq.getOrderNumber());
+        updateDto.setBeforeStatus("RESERVED");
         updateDto.setStatus("ORDER_CREATED");
         ApiResponse<Boolean> response = programClient.updateOrderRequestResult(updateDto);
         if (response == null || !Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode())) {

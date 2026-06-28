@@ -21,7 +21,6 @@ public enum ProgramOrderVersion {
 
     V4_VERSION("v4","v4鐗堟湰",4),
 
-    V41_VERSION("v41","v41鐗堟湰",41),
     ;
 
     private final String version;

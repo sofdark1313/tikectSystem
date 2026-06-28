@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS `order_request_result_0` (
   `status` tinyint DEFAULT 1 COMMENT '1 normal 0 deleted',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_order_number` (`order_number`),
-  KEY `idx_request_id` (`request_id`),
+  UNIQUE KEY `uk_request_id` (`request_id`),
   KEY `idx_program_status` (`program_id`, `result_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Order request result';
 

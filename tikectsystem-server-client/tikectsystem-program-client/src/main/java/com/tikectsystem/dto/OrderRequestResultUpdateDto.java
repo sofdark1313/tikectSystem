@@ -26,6 +26,10 @@ public class OrderRequestResultUpdateDto implements Serializable {
     @NotBlank(message = "Result status cannot be blank")
     private String status;
 
+    @Schema(name = "beforeStatus", type = "String", description = "Expected status before update")
+    @NotBlank(message = "Expected status before update cannot be blank")
+    private String beforeStatus;
+
     @Schema(name = "failCode", type = "String", description = "Failure code")
     private String failCode;
 

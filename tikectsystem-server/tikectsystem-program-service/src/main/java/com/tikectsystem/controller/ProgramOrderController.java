@@ -70,14 +70,6 @@ public class ProgramOrderController {
         return ApiResponse.ok(ProgramOrderContext.get(ProgramOrderVersion.V4_VERSION.getVersion())
                 .createOrder(programOrderCreateDto));
     }
-    
-    @Operation(summary  = "购票V4")
-    @PostMapping(value = "/create/v41")
-    public ApiResponse<String> createV41(@Valid @RequestBody ProgramOrderCreateDto programOrderCreateDto) {
-        return ApiResponse.ok(ProgramOrderContext.get(ProgramOrderVersion.V41_VERSION.getVersion())
-                .createOrder(programOrderCreateDto));
-    }
-
     @Operation(summary  = "查询异步下单结果")
     @PostMapping(value = "/result")
     public ApiResponse<OrderRequestResultVo> result(@RequestBody OrderRequestResultQueryDto orderRequestResultQueryDto) {

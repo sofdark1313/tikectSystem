@@ -1,9 +1,19 @@
 package com.tikectsystem.service.kafka;
 
 import com.alibaba.fastjson.JSON;
+import com.tikectsystem.client.ApiDataClient;
+import com.tikectsystem.common.ApiResponse;
+import com.tikectsystem.dto.InsertMessageConsumerRecordDto;
+import com.tikectsystem.dto.MessageIdDto;
+import com.tikectsystem.dto.UpdateMessageConsumerRecordDto;
+import com.tikectsystem.enums.BaseCode;
+import com.tikectsystem.enums.MessageConsumerStatus;
+import com.tikectsystem.enums.MessageType;
 import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.service.OrderRequestResultService;
 import com.tikectsystem.service.ProgramOrderService;
+import com.tikectsystem.util.DateUtils;
+import com.tikectsystem.vo.MessageConsumerRecordVo;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +37,9 @@ public class OrderRequestConsumer {
 
     @Autowired
     private OrderRequestResultService orderRequestResultService;
+
+    @Autowired
+    private ApiDataClient apiDataClient;
 
     /**
      * 消费 order_request，完成最终锁座并投递 order_create。
@@ -54,14 +67,24 @@ public class OrderRequestConsumer {
             acknowledge(acknowledgment);
             return;
         }
+        MessageConsumerRecordVo consumerRecordVo = prepareConsumerRecord(consumerRecord, orderRequestMq.getOrderNumber(),
+                MessageType.ORDER_REQUEST);
+        if (consumerRecordVo != null && Objects.equals(consumerRecordVo.getMessageConsumerStatus(),
+                MessageConsumerStatus.CONSUMER_SUCCESS.getCode())) {
+            acknowledge(acknowledgment);
+            return;
+        }
         try {
             programOrderService.reserveAndSendOrderCreate(orderRequestMq);
+            updateConsumerRecord(consumerRecordVo, MessageConsumerStatus.CONSUMER_SUCCESS, null);
             acknowledge(acknowledgment);
         } catch (TikectsystemFrameException e) {
             orderRequestResultService.markFailed(orderRequestMq.getOrderNumber(), String.valueOf(e.getCode()), e.getMessage());
+            updateConsumerRecord(consumerRecordVo, MessageConsumerStatus.CONSUMER_SUCCESS, null);
             acknowledge(acknowledgment);
         } catch (Exception e) {
             log.error("order_request infrastructure error, orderNumber:{}", orderRequestMq.getOrderNumber(), e);
+            updateConsumerRecord(consumerRecordVo, MessageConsumerStatus.CONSUMER_FAIL, e.getMessage());
             throw e;
         }
     }
@@ -70,5 +93,52 @@ public class OrderRequestConsumer {
         if (Objects.nonNull(acknowledgment)) {
             acknowledgment.acknowledge();
         }
+    }
+
+    private MessageConsumerRecordVo prepareConsumerRecord(ConsumerRecord<String, String> consumerRecord, Long orderNumber,
+                                                          MessageType messageType) {
+        Long messageId = buildMessageId(orderNumber, messageType);
+        MessageIdDto messageIdDto = new MessageIdDto();
+        messageIdDto.setMessageId(messageId);
+        ApiResponse<MessageConsumerRecordVo> existResponse = apiDataClient.getMessageConsumerByMessageId(messageIdDto);
+        if (existResponse != null && Objects.equals(existResponse.getCode(), BaseCode.SUCCESS.getCode()) &&
+                existResponse.getData() != null) {
+            return existResponse.getData();
+        }
+        InsertMessageConsumerRecordDto insertDto = new InsertMessageConsumerRecordDto();
+        insertDto.setMessageType(messageType.getCode());
+        insertDto.setMessageTraceId(messageId);
+        insertDto.setMessageBusinessesId(orderNumber);
+        insertDto.setMessageId(messageId);
+        insertDto.setMessageTopic(consumerRecord.topic());
+        insertDto.setMessageContent(consumerRecord.value());
+        ApiResponse<MessageConsumerRecordVo> insertResponse = apiDataClient.insertMessageConsumerRecord(insertDto);
+        if (insertResponse == null || !Objects.equals(insertResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+            log.error("insert order_request consumer record failed, orderNumber:{}", orderNumber);
+            return null;
+        }
+        return insertResponse.getData();
+    }
+
+    private void updateConsumerRecord(MessageConsumerRecordVo consumerRecordVo, MessageConsumerStatus status,
+                                      String exceptionMessage) {
+        if (consumerRecordVo == null || consumerRecordVo.getId() == null) {
+            return;
+        }
+        UpdateMessageConsumerRecordDto updateDto = new UpdateMessageConsumerRecordDto();
+        updateDto.setId(consumerRecordVo.getId());
+        updateDto.setMessageConsumerStatus(status.getCode());
+        updateDto.setMessageConsumerException(exceptionMessage);
+        updateDto.setMessageConsumerCount(consumerRecordVo.getMessageConsumerCount() == null ? 1 :
+                consumerRecordVo.getMessageConsumerCount() + 1);
+        updateDto.setConsumerTime(DateUtils.now());
+        apiDataClient.updateMessageConsumerRecord(updateDto);
+    }
+
+    private Long buildMessageId(Long orderNumber, MessageType messageType) {
+        if (Objects.equals(messageType, MessageType.ORDER_CREATE)) {
+            return -orderNumber;
+        }
+        return orderNumber;
     }
 }

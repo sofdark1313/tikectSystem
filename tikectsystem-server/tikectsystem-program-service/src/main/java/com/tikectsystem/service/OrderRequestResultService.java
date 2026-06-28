@@ -35,10 +35,14 @@ public class OrderRequestResultService {
      * @param programId 节目编号
      * @param userId 用户编号
      */
-    public void saveProcessing(String requestId, Long orderNumber, Long programId, Long userId) {
-        OrderRequestResult exists = getByOrderNumber(orderNumber);
+    public OrderRequestResult saveProcessing(String requestId, Long orderNumber, Long programId, Long userId) {
+        OrderRequestResult exists = getByRequestId(requestId);
         if (Objects.nonNull(exists)) {
-            return;
+            return exists;
+        }
+        exists = getByOrderNumber(orderNumber);
+        if (Objects.nonNull(exists)) {
+            return exists;
         }
         OrderRequestResult result = new OrderRequestResult();
         result.setId(uidGenerator.getUid());
@@ -48,6 +52,7 @@ public class OrderRequestResultService {
         result.setUserId(userId);
         result.setResultStatus(OrderRequestResultStatus.PROCESSING);
         orderRequestResultMapper.insert(result);
+        return result;
     }
 
     /**
@@ -57,12 +62,22 @@ public class OrderRequestResultService {
      * @param expireTime 过期时间
      */
     public void markReserved(Long orderNumber, String reservationJson, Date expireTime) {
+        OrderRequestResult current = getByOrderNumber(orderNumber);
+        if (Objects.isNull(current) || Objects.equals(current.getResultStatus(), OrderRequestResultStatus.RESERVED) ||
+                Objects.equals(current.getResultStatus(), OrderRequestResultStatus.ORDER_CREATED)) {
+            return;
+        }
+        checkTransition(current.getResultStatus(), OrderRequestResultStatus.RESERVED);
         OrderRequestResult update = new OrderRequestResult();
         update.setResultStatus(OrderRequestResultStatus.RESERVED);
         update.setReservationJson(reservationJson);
         update.setExpireTime(expireTime);
-        orderRequestResultMapper.update(update, Wrappers.lambdaUpdate(OrderRequestResult.class)
-                .eq(OrderRequestResult::getOrderNumber, orderNumber));
+        int count = orderRequestResultMapper.update(update, Wrappers.lambdaUpdate(OrderRequestResult.class)
+                .eq(OrderRequestResult::getOrderNumber, orderNumber)
+                .eq(OrderRequestResult::getResultStatus, current.getResultStatus()));
+        if (count <= 0) {
+            throw new IllegalStateException("order request result reserved status update failed");
+        }
     }
 
     /**
@@ -72,12 +87,22 @@ public class OrderRequestResultService {
      * @param failMessage 失败原因
      */
     public void markFailed(Long orderNumber, String failCode, String failMessage) {
+        OrderRequestResult current = getByOrderNumber(orderNumber);
+        if (Objects.isNull(current) || Objects.equals(current.getResultStatus(), OrderRequestResultStatus.FAILED) ||
+                Objects.equals(current.getResultStatus(), OrderRequestResultStatus.ORDER_CREATED)) {
+            return;
+        }
+        checkTransition(current.getResultStatus(), OrderRequestResultStatus.FAILED);
         OrderRequestResult update = new OrderRequestResult();
         update.setResultStatus(OrderRequestResultStatus.FAILED);
         update.setFailCode(failCode);
         update.setFailMessage(failMessage);
-        orderRequestResultMapper.update(update, Wrappers.lambdaUpdate(OrderRequestResult.class)
-                .eq(OrderRequestResult::getOrderNumber, orderNumber));
+        int count = orderRequestResultMapper.update(update, Wrappers.lambdaUpdate(OrderRequestResult.class)
+                .eq(OrderRequestResult::getOrderNumber, orderNumber)
+                .eq(OrderRequestResult::getResultStatus, current.getResultStatus()));
+        if (count <= 0) {
+            throw new IllegalStateException("order request result failed status update failed");
+        }
     }
 
     /**
@@ -86,12 +111,19 @@ public class OrderRequestResultService {
      * @return 是否更新成功
      */
     public boolean updateStatus(OrderRequestResultUpdateDto orderRequestResultUpdateDto) {
+        checkTransition(orderRequestResultUpdateDto.getBeforeStatus(), orderRequestResultUpdateDto.getStatus());
         OrderRequestResult update = new OrderRequestResult();
         update.setResultStatus(orderRequestResultUpdateDto.getStatus());
         update.setFailCode(orderRequestResultUpdateDto.getFailCode());
         update.setFailMessage(orderRequestResultUpdateDto.getFailMessage());
-        return orderRequestResultMapper.update(update, Wrappers.lambdaUpdate(OrderRequestResult.class)
-                .eq(OrderRequestResult::getOrderNumber, orderRequestResultUpdateDto.getOrderNumber())) > 0;
+        int updateCount = orderRequestResultMapper.update(update, Wrappers.lambdaUpdate(OrderRequestResult.class)
+                .eq(OrderRequestResult::getOrderNumber, orderRequestResultUpdateDto.getOrderNumber())
+                .eq(OrderRequestResult::getResultStatus, orderRequestResultUpdateDto.getBeforeStatus()));
+        if (updateCount > 0) {
+            return true;
+        }
+        OrderRequestResult current = getByOrderNumber(orderRequestResultUpdateDto.getOrderNumber());
+        return Objects.nonNull(current) && Objects.equals(current.getResultStatus(), orderRequestResultUpdateDto.getStatus());
     }
 
     /**
@@ -124,5 +156,37 @@ public class OrderRequestResultService {
     public OrderRequestResult getByOrderNumber(Long orderNumber) {
         return orderRequestResultMapper.selectOne(Wrappers.lambdaQuery(OrderRequestResult.class)
                 .eq(OrderRequestResult::getOrderNumber, orderNumber));
+    }
+
+    /**
+     * 按请求幂等号查询下单请求结果。
+     *
+     * @param requestId 下单请求幂等号
+     * @return 请求结果
+     */
+    public OrderRequestResult getByRequestId(String requestId) {
+        if (StrUtil.isBlank(requestId)) {
+            return null;
+        }
+        return orderRequestResultMapper.selectOne(Wrappers.lambdaQuery(OrderRequestResult.class)
+                .eq(OrderRequestResult::getRequestId, requestId));
+    }
+
+    private void checkTransition(String beforeStatus, String afterStatus) {
+        if (Objects.equals(beforeStatus, afterStatus)) {
+            return;
+        }
+        boolean allowed = Objects.equals(beforeStatus, OrderRequestResultStatus.PROCESSING) &&
+                (Objects.equals(afterStatus, OrderRequestResultStatus.RESERVED) ||
+                        Objects.equals(afterStatus, OrderRequestResultStatus.FAILED) ||
+                        Objects.equals(afterStatus, OrderRequestResultStatus.EXPIRED));
+        allowed = allowed || Objects.equals(beforeStatus, OrderRequestResultStatus.RESERVED) &&
+                (Objects.equals(afterStatus, OrderRequestResultStatus.ORDER_CREATED) ||
+                        Objects.equals(afterStatus, OrderRequestResultStatus.FAILED) ||
+                        Objects.equals(afterStatus, OrderRequestResultStatus.CANCELLED) ||
+                        Objects.equals(afterStatus, OrderRequestResultStatus.EXPIRED));
+        if (!allowed) {
+            throw new IllegalStateException("illegal order request result status transition");
+        }
     }
 }
