@@ -27,7 +27,7 @@
 </template>
 
 <script setup name="PayMethod">
-import {ref,onMounted} from 'vue'
+import {ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {ElMessage} from "element-plus";
 import {getOrderDetailApi, orderPayApi, payCheckApi} from "@/api/order.js";
@@ -36,6 +36,7 @@ const orderNumber = ref('')
 //订单详情数据
 const orderDetailData = ref(null);
 const paying = ref(false);
+const detailRequestId = ref(0);
 const route = useRoute();
 const router = useRouter();
 const PAY_STATUS = 3;
@@ -50,6 +51,9 @@ async function confirmPay() {
   try {
     if (!orderDetailData.value) {
       await getOrderDetail();
+    }
+    if (!orderDetailData.value) {
+      throw new Error('订单信息不存在');
     }
     if (orderDetailData.value.orderStatus == PAY_STATUS) {
       goPaySuccess();
@@ -102,22 +106,35 @@ function goPaySuccess() {
 }
 
 //跳转后的接收值
-onMounted(() => {
-  getOrderDetail().catch(() => {})
-})
+watch(() => route.query.orderNumber, () => {
+  getOrderDetail().catch(error => {
+    if (error && error.message) {
+      ElMessage.error(error.message);
+    }
+  })
+}, {immediate: true})
 //订单详情方法
 function getOrderDetail() {
-  orderNumber.value = route.query.orderNumber || history.state.orderNumber || localStorage.getItem('orderNumber');
-  if (orderNumber.value == '' || orderNumber.value == null) {
+  const currentOrderNumber = route.query.orderNumber ? String(route.query.orderNumber) : '';
+  orderNumber.value = currentOrderNumber;
+  orderDetailData.value = null;
+  if (currentOrderNumber == '' || currentOrderNumber == null) {
     router.replace({path:'/orderManagement/index'})
     return Promise.reject(new Error('订单号不存在'));
   }
-  const orderDetailParams = {'orderNumber': orderNumber.value}
+  const requestId = detailRequestId.value + 1;
+  detailRequestId.value = requestId;
+  const orderDetailParams = {'orderNumber': currentOrderNumber}
   //传值-订单号
-  localStorage.setItem('orderNumber',orderNumber.value)
   return getOrderDetailApi(orderDetailParams).then(response => {
+    if (detailRequestId.value !== requestId) {
+      return;
+    }
     if (response.code != '0' || !response.data) {
       throw new Error(response.message || '订单不存在');
+    }
+    if (String(response.data.orderNumber) !== currentOrderNumber) {
+      throw new Error('订单详情与当前订单不一致');
     }
     orderDetailData.value = response.data;
   })

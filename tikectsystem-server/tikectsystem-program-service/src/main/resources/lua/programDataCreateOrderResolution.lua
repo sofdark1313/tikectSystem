@@ -85,7 +85,7 @@ if (type == 1) then
         -- 票档数量的key
         local ticket_remain_number_hash_key = ticket_count.programTicketRemainNumberHashKey
         -- 入参座位的票档id
-        local ticket_category_id = ticket_count.ticketCategoryId
+        local ticket_category_id = tostring(ticket_count.ticketCategoryId)
         -- 入参座位的票档数量
         local count = ticket_count.ticketCount
         -- 从缓存中获取相应票档数量
@@ -115,12 +115,13 @@ if (type == 1) then
     for index, seatData in pairs(seat_data_list) do
         -- 没有售卖的座位key
         local seat_no_sold_hash_key = seatData.seatNoSoldHashKey;
+        local ticket_category_id = tostring(seatData.ticketCategoryId)
         -- 入参座位集合
         local seat_dto_list = cjson.decode(seatData.seatDataList)
         for index2,seat_dto in ipairs(seat_dto_list) do
             seat_index = seat_index + 1
             -- 入参座位id
-            local id = seat_dto.id
+            local id = tostring(seat_dto.id)
             -- 入参座位价格
             local seat_dto_price = seat_dto.price
             -- 根据座位id从缓存中没有售卖的座位
@@ -130,6 +131,8 @@ if (type == 1) then
                 return string.format('{"%s": %d}', 'code', 40001)
             end
             local seat_vo = cjson.decode(seat_vo_str)
+            seat_vo.id = id
+            seat_vo.ticketCategoryId = ticket_category_id
             -- 如果从缓存查询的座位状态是锁定的，直接返回
             if (seat_vo.sellStatus == 2) then
                 return string.format('{"%s": %d}', 'code', 40002)
@@ -175,7 +178,7 @@ if (type == 2) then
         -- 票档数量的key
         local ticket_remain_number_hash_key = ticket_count.programTicketRemainNumberHashKey
         -- 入参选择的票档id
-        local ticket_category_id = ticket_count.ticketCategoryId
+        local ticket_category_id = tostring(ticket_count.ticketCategoryId)
         -- 入参选择的票档数量
         local count = ticket_count.ticketCount
         -- 从缓存中获取相应票档数量
@@ -201,11 +204,14 @@ if (type == 2) then
         
         local seat_no_sold_hash_key = ticket_count.seatNoSoldHashKey
         -- 获取没有售卖的座位集合
-        local seat_vo_no_sold_str_list = redis.call('hvals',seat_no_sold_hash_key)
+        local seat_vo_no_sold_str_list = redis.call('hgetall',seat_no_sold_hash_key)
         local filter_seat_vo_no_sold_list = {}
         -- 这里遍历的原因，座位集合是以hash存储在缓存中，而每个座位是字符串，要把字符串转成对象
-        for index,seat_vo_no_sold_str in ipairs(seat_vo_no_sold_str_list) do
-            local seat_vo_no_sold = cjson.decode(seat_vo_no_sold_str)
+        for index = 1, #seat_vo_no_sold_str_list, 2 do
+            local seat_id = tostring(seat_vo_no_sold_str_list[index])
+            local seat_vo_no_sold = cjson.decode(seat_vo_no_sold_str_list[index + 1])
+            seat_vo_no_sold.id = seat_id
+            seat_vo_no_sold.ticketCategoryId = ticket_category_id
             table.insert(filter_seat_vo_no_sold_list,seat_vo_no_sold)
         end
         -- 利用算法自动根据人数和票档进行分配相邻座位
@@ -261,7 +267,7 @@ for index,ticket_count in ipairs(ticket_count_list) do
     -- 票档数量的key
     local ticket_remain_number_hash_key = ticket_count.programTicketRemainNumberHashKey
     -- 票档id
-    local ticket_category_id = ticket_count.ticketCategoryId
+    local ticket_category_id = tostring(ticket_count.ticketCategoryId)
     -- 票档数量
     local count = ticket_count.ticketCount
     redis.call('hincrby',ticket_remain_number_hash_key,ticket_category_id,"-" .. count)

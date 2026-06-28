@@ -461,8 +461,11 @@ public class ProgramOrderService {
     private void releaseReservation(Long orderNumber, Long programId, List<PurchaseSeat> fallbackPurchaseSeatList) {
         List<PurchaseSeat> purchaseSeatList = fallbackPurchaseSeatList;
         Long releaseProgramId = programId;
-        String reservationJson = redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_RESERVATION,
-                orderNumber), String.class);
+        String reservationJson = null;
+        if (Objects.nonNull(orderNumber)) {
+            reservationJson = redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_RESERVATION,
+                    orderNumber), String.class);
+        }
         if (!StringUtil.isEmpty(reservationJson)) {
             try {
                 JSONObject reservation = JSON.parseObject(reservationJson);
@@ -483,7 +486,9 @@ public class ProgramOrderService {
             releaseSeatList.add(buildSeatVo(purchaseSeat));
         }
         updateProgramCacheDataResolution(releaseProgramId, releaseSeatList, OrderStatus.CANCEL);
-        redisCache.del(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_RESERVATION, orderNumber));
+        if (Objects.nonNull(orderNumber)) {
+            redisCache.del(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_RESERVATION, orderNumber));
+        }
     }
 
     public List<TicketCategoryVo> getTicketCategoryList(ProgramOrderCreateDto programOrderCreateDto, Date showTime) {
@@ -672,7 +677,7 @@ public class ProgramOrderService {
                 jsonObject.put("programTicketRemainNumberHashKey", RedisKeyBuild.createRedisKey(
                         RedisKeyManage.PROGRAM_TICKET_REMAIN_NUMBER_HASH_RESOLUTION, programId, ticketCategoryId).getRelKey());
                 //票档id
-                jsonObject.put("ticketCategoryId", ticketCategoryId);
+                jsonObject.put("ticketCategoryId", String.valueOf(ticketCategoryId));
                 //扣减余票数量
                 jsonObject.put("ticketCount", ticketCount);
                 jsonArray.add(jsonObject);
@@ -682,7 +687,8 @@ public class ProgramOrderService {
                 seatDatajsonObject.put("seatNoSoldHashKey", RedisKeyBuild.createRedisKey(
                         RedisKeyManage.PROGRAM_SEAT_NO_SOLD_RESOLUTION_HASH, programId, ticketCategoryId).getRelKey());
                 //座位数据
-                seatDatajsonObject.put("seatDataList", JSON.toJSONString(entry.getValue()));
+                seatDatajsonObject.put("ticketCategoryId", String.valueOf(ticketCategoryId));
+                seatDatajsonObject.put("seatDataList", JSON.toJSONString(buildLuaSeatDtoList(entry.getValue())));
                 addSeatDatajsonArray.add(seatDatajsonObject);
             }
         } else {
@@ -694,7 +700,7 @@ public class ProgramOrderService {
             jsonObject.put("programTicketRemainNumberHashKey", RedisKeyBuild.createRedisKey(
                     RedisKeyManage.PROGRAM_TICKET_REMAIN_NUMBER_HASH_RESOLUTION, programId, ticketCategoryId).getRelKey());
             //票档id
-            jsonObject.put("ticketCategoryId", ticketCategoryId);
+            jsonObject.put("ticketCategoryId", String.valueOf(ticketCategoryId));
             //扣减余票数量
             jsonObject.put("ticketCount", ticketCount);
             //未售卖座位的hash的key
@@ -722,13 +728,14 @@ public class ProgramOrderService {
         data[0] = JSON.toJSONString(jsonArray);
         data[1] = JSON.toJSONString(addSeatDatajsonArray);
         //购票人id集合
-        data[2] = JSON.toJSONString(programOrderCreateDto.getTicketUserIdList());
+        data[2] = JSON.toJSONString(programOrderCreateDto.getTicketUserIdList()
+                .stream().map(String::valueOf).collect(Collectors.toList()));
         if (Objects.nonNull(orderNumber)) {
             JSONObject reservation = new JSONObject();
-            reservation.put("orderNumber", orderNumber);
-            reservation.put("programId", programId);
-            reservation.put("userId", programOrderCreateDto.getUserId());
-            reservation.put("identifierId", identifierId);
+            reservation.put("orderNumber", String.valueOf(orderNumber));
+            reservation.put("programId", String.valueOf(programId));
+            reservation.put("userId", String.valueOf(programOrderCreateDto.getUserId()));
+            reservation.put("identifierId", String.valueOf(identifierId));
             reservation.put("expireTime", getReservationExpireTime().getTime());
             data[3] = JSON.toJSONString(reservation);
             data[4] = String.valueOf(DELAY_ORDER_CANCEL_TIME_UNIT.toSeconds(DELAY_ORDER_CANCEL_TIME));
@@ -746,7 +753,118 @@ public class ProgramOrderService {
         if (Objects.nonNull(programCacheCreateOrderData.getIdentifierId())) {
             identifierId = programCacheCreateOrderData.getIdentifierId();
         }
-        return new CreateOrderTemporaryData(identifierId, programCacheCreateOrderData.getPurchaseSeatList());
+        List<PurchaseSeat> purchaseSeatList = programCacheCreateOrderData.getPurchaseSeatList();
+        try {
+            rebindTicketUserIds(programOrderCreateDto, purchaseSeatList);
+            validatePurchaseSeats(programOrderCreateDto, purchaseSeatList);
+        } catch (RuntimeException e) {
+            releaseReservation(orderNumber, programId, purchaseSeatList);
+            throw e;
+        }
+        return new CreateOrderTemporaryData(identifierId, purchaseSeatList);
+    }
+
+    private JSONArray buildLuaSeatDtoList(List<SeatDto> seatDtoList) {
+        JSONArray seatArray = new JSONArray();
+        for (SeatDto seatDto : seatDtoList) {
+            JSONObject seat = new JSONObject();
+            seat.put("id", String.valueOf(seatDto.getId()));
+            seat.put("ticketCategoryId", String.valueOf(seatDto.getTicketCategoryId()));
+            seat.put("rowCode", seatDto.getRowCode());
+            seat.put("colCode", seatDto.getColCode());
+            seat.put("price", seatDto.getPrice());
+            seatArray.add(seat);
+        }
+        return seatArray;
+    }
+
+    private void validatePurchaseSeats(ProgramOrderCreateDto programOrderCreateDto, List<PurchaseSeat> purchaseSeatList) {
+        if (CollectionUtil.isEmpty(purchaseSeatList)) {
+            throw new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST);
+        }
+        List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
+        if (CollectionUtil.isEmpty(seatDtoList)) {
+            validateAutoMatchPurchaseSeats(programOrderCreateDto, purchaseSeatList);
+            return;
+        }
+        if (purchaseSeatList.size() != seatDtoList.size()) {
+            throw new TikectsystemFrameException(BaseCode.TICKET_USER_COUNT_UNEQUAL_SEAT_COUNT);
+        }
+        Map<Long, SeatDto> seatDtoMap = seatDtoList.stream()
+                .collect(Collectors.toMap(SeatDto::getId, seatDto -> seatDto, (v1, v2) -> v2));
+        for (PurchaseSeat purchaseSeat : purchaseSeatList) {
+            if (Objects.isNull(purchaseSeat) || Objects.isNull(purchaseSeat.getId())) {
+                throw new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST);
+            }
+            SeatDto sourceSeatDto = seatDtoMap.get(purchaseSeat.getId());
+            if (Objects.isNull(sourceSeatDto)) {
+                log.warn("purchase seat id mismatch after lua, programId:{}, sourceSeatIds:{}, purchaseSeat:{}",
+                        programOrderCreateDto.getProgramId(), seatDtoMap.keySet(), JSON.toJSONString(purchaseSeat));
+                throw new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST);
+            }
+            if (!Objects.equals(sourceSeatDto.getTicketCategoryId(), purchaseSeat.getTicketCategoryId())) {
+                log.warn("purchase seat ticket category mismatch after lua, programId:{}, seatId:{}, sourceTicketCategoryId:{}, purchaseTicketCategoryId:{}",
+                        programOrderCreateDto.getProgramId(), purchaseSeat.getId(), sourceSeatDto.getTicketCategoryId(),
+                        purchaseSeat.getTicketCategoryId());
+                throw new TikectsystemFrameException(BaseCode.PRICE_ERROR);
+            }
+        }
+    }
+
+    private void validateAutoMatchPurchaseSeats(ProgramOrderCreateDto programOrderCreateDto,
+                                                List<PurchaseSeat> purchaseSeatList) {
+        Long ticketCategoryId = programOrderCreateDto.getTicketCategoryId();
+        Integer ticketCount = programOrderCreateDto.getTicketCount();
+        if (purchaseSeatList.size() != ticketCount) {
+            throw new TikectsystemFrameException(BaseCode.TICKET_USER_COUNT_UNEQUAL_SEAT_COUNT);
+        }
+        ProgramShowTime programShowTime =
+                programShowTimeService.selectProgramShowTimeByProgramIdMultipleCache(programOrderCreateDto.getProgramId());
+        TicketCategoryVo ticketCategoryVo = getTicketCategoryList(programOrderCreateDto, programShowTime.getShowTime())
+                .stream()
+                .filter(ticketCategory -> Objects.equals(ticketCategory.getId(), ticketCategoryId))
+                .findFirst()
+                .orElseThrow(() -> new TikectsystemFrameException(BaseCode.TICKET_CATEGORY_NOT_EXIST_V2));
+        if (Objects.isNull(ticketCategoryVo.getPrice())) {
+            throw new TikectsystemFrameException(BaseCode.PRICE_ERROR);
+        }
+        for (PurchaseSeat purchaseSeat : purchaseSeatList) {
+            if (Objects.isNull(purchaseSeat) || Objects.isNull(purchaseSeat.getTicketCategoryId()) ||
+                    Objects.isNull(purchaseSeat.getPrice())) {
+                throw new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST);
+            }
+            if (!Objects.equals(ticketCategoryId, purchaseSeat.getTicketCategoryId())) {
+                log.warn("auto match ticket category mismatch after lua, programId:{}, sourceTicketCategoryId:{}, purchaseSeat:{}",
+                        programOrderCreateDto.getProgramId(), ticketCategoryId, JSON.toJSONString(purchaseSeat));
+                throw new TikectsystemFrameException(BaseCode.PRICE_ERROR);
+            }
+            if (ticketCategoryVo.getPrice().compareTo(purchaseSeat.getPrice()) != 0) {
+                log.warn("auto match price mismatch after lua, programId:{}, ticketCategoryId:{}, categoryPrice:{}, seatPrice:{}, seatId:{}",
+                        programOrderCreateDto.getProgramId(), ticketCategoryId, ticketCategoryVo.getPrice(),
+                        purchaseSeat.getPrice(), purchaseSeat.getId());
+                throw new TikectsystemFrameException(BaseCode.PRICE_ERROR);
+            }
+        }
+    }
+
+    private void rebindTicketUserIds(ProgramOrderCreateDto programOrderCreateDto, List<PurchaseSeat> purchaseSeatList) {
+        List<Long> ticketUserIdList = programOrderCreateDto.getTicketUserIdList();
+        if (CollectionUtil.isEmpty(ticketUserIdList) || CollectionUtil.isEmpty(purchaseSeatList) ||
+                ticketUserIdList.size() != purchaseSeatList.size()) {
+            throw new TikectsystemFrameException(BaseCode.TICKET_USER_COUNT_UNEQUAL_SEAT_COUNT);
+        }
+        for (int i = 0; i < purchaseSeatList.size(); i++) {
+            PurchaseSeat purchaseSeat = purchaseSeatList.get(i);
+            if (Objects.isNull(purchaseSeat)) {
+                throw new TikectsystemFrameException(BaseCode.SEAT_NOT_EXIST);
+            }
+            Long sourceTicketUserId = ticketUserIdList.get(i);
+            if (!Objects.equals(purchaseSeat.getTicketUserId(), sourceTicketUserId)) {
+                log.warn("rebinding ticketUserId after lua, programId:{}, seatId:{}, luaTicketUserId:{}, sourceTicketUserId:{}",
+                        programOrderCreateDto.getProgramId(), purchaseSeat.getId(), purchaseSeat.getTicketUserId(), sourceTicketUserId);
+                purchaseSeat.setTicketUserId(sourceTicketUserId);
+            }
+        }
     }
 
     private String doCreate(ProgramOrderCreateDto programOrderCreateDto, List<SeatVo> purchaseSeatList, Integer orderVersion) {

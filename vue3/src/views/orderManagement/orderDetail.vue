@@ -253,10 +253,12 @@ function getOrderStatus(orderStatus){
       }
     }
     .buyCustom{
+      box-sizing: border-box;
       width: 100%;
-      height: 180px;
+      min-height: 180px;
       margin-top: 20px;
       margin-bottom: 20px;
+      padding: 0 12px 16px;
       border: 1px solid #f5f7fa;
       border-color: var(--app-border);
       background: #fff;
@@ -271,8 +273,11 @@ function getOrderStatus(orderStatus){
         font-weight: 800;
       }
       .info{
-        width: 20%;
-        height: 150px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px 12px;
+        width: 100%;
+        min-height: 44px;
         margin-top: 10px;
         div{
           padding: 2px 2px 2px 10px;

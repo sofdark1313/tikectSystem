@@ -116,6 +116,8 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
 
     private static final String SIMPLE_PAY_RESULT = "PAY_SUCCESS";
 
+    private static final long TICKET_USER_ID_ROUNDING_TOLERANCE = 1024L;
+
     @Autowired
     private UidGenerator uidGenerator;
 
@@ -355,7 +357,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (orderPayDto.getPrice().compareTo(order.getOrderPrice()) != 0) {
             throw new TikectsystemFrameException(BaseCode.PAY_PRICE_NOT_EQUAL_ORDER_PRICE);
         }
-        PayDto payDto = getPayDto(orderPayDto, orderNumber);
+        PayDto payDto = getPayDto(orderPayDto, order);
         ApiResponse<String> payResponse = payClient.commonPay(payDto);
         if (payResponse == null) {
             throw new TikectsystemFrameException(BaseCode.PAY_ERROR);
@@ -375,14 +377,14 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         return payResult;
     }
 
-    private PayDto getPayDto(OrderPayDto orderPayDto, Long orderNumber) {
+    private PayDto getPayDto(OrderPayDto orderPayDto, Order order) {
         PayDto payDto = new PayDto();
-        payDto.setOrderNumber(String.valueOf(orderNumber));
+        payDto.setOrderNumber(String.valueOf(order.getOrderNumber()));
         payDto.setPayBillType(orderPayDto.getPayBillType());
-        payDto.setSubject(orderPayDto.getSubject());
+        payDto.setSubject(order.getProgramTitle());
         payDto.setChannel("simple");
         payDto.setPlatform(orderPayDto.getPlatform());
-        payDto.setPrice(orderPayDto.getPrice());
+        payDto.setPrice(order.getOrderPrice());
         payDto.setNotifyUrl(orderProperties.getOrderPayNotifyUrl());
         payDto.setReturnUrl(orderProperties.getOrderPayReturnUrl());
         return payDto;
@@ -849,11 +851,18 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             throw new TikectsystemFrameException(BaseCode.TICKET_USER_EMPTY);
         }
         //浠庢煡璇㈠緱鍒扮殑璐エ浜轰俊鎭腑杩涜杩囨护鍑鸿璁㈠崟涓嬭喘绁ㄤ汉鐨勪俊鎭?
-        List<TicketUserVo> filterTicketUserVoList = new ArrayList<>();
-        Map<Long, TicketUserVo> ticketUserVoMap = userAndTicketUserListVo.getTicketUserVoList()
+        List<TicketUserVo> ticketUserVoList = userAndTicketUserListVo.getTicketUserVoList();
+        List<TicketUserVo> filterTicketUserVoList = new ArrayList<>(orderTicketUserList.size());
+        Map<Long, TicketUserVo> ticketUserVoMap = ticketUserVoList
                 .stream().collect(Collectors.toMap(TicketUserVo::getId, ticketUserVo -> ticketUserVo, (v1, v2) -> v2));
         for (OrderTicketUser orderTicketUser : orderTicketUserList) {
-            filterTicketUserVoList.add(ticketUserVoMap.get(orderTicketUser.getTicketUserId()));
+            TicketUserVo ticketUserVo = resolveOrderTicketUser(orderTicketUser, ticketUserVoList, ticketUserVoMap);
+            if (Objects.isNull(ticketUserVo)) {
+                log.warn("order ticket user missing, orderNumber:{}, userId:{}, ticketUserId:{}",
+                        order.getOrderNumber(), order.getUserId(), orderTicketUser.getTicketUserId());
+                continue;
+            }
+            filterTicketUserVoList.add(ticketUserVo);
         }
         //缁勮鏁版嵁
         UserInfoVo userInfoVo = new UserInfoVo();
@@ -864,6 +873,45 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         orderGetVo.setUserAndTicketUserInfoVo(userAndTicketUserInfoVo);
 
         return orderGetVo;
+    }
+
+    private TicketUserVo resolveOrderTicketUser(OrderTicketUser orderTicketUser,
+                                                List<TicketUserVo> ticketUserVoList,
+                                                Map<Long, TicketUserVo> ticketUserVoMap) {
+        Long ticketUserId = orderTicketUser.getTicketUserId();
+        TicketUserVo exactTicketUserVo = ticketUserVoMap.get(ticketUserId);
+        if (Objects.nonNull(exactTicketUserVo)) {
+            return exactTicketUserVo;
+        }
+        TicketUserVo closestTicketUserVo = null;
+        long closestDiff = Long.MAX_VALUE;
+        boolean ambiguousClosest = false;
+        for (TicketUserVo ticketUserVo : ticketUserVoList) {
+            if (Objects.isNull(ticketUserVo.getId()) || Objects.isNull(ticketUserId)) {
+                continue;
+            }
+            long diff = Math.abs(ticketUserVo.getId() - ticketUserId);
+            if (diff < closestDiff) {
+                closestDiff = diff;
+                closestTicketUserVo = ticketUserVo;
+                ambiguousClosest = false;
+            } else if (diff == closestDiff) {
+                ambiguousClosest = true;
+            }
+        }
+        if (!ambiguousClosest && Objects.nonNull(closestTicketUserVo) &&
+                closestDiff <= TICKET_USER_ID_ROUNDING_TOLERANCE) {
+            log.warn("order ticket user id rounded, orderNumber:{}, sourceTicketUserId:{}, matchedTicketUserId:{}",
+                    orderTicketUser.getOrderNumber(), ticketUserId, closestTicketUserVo.getId());
+            return closestTicketUserVo;
+        }
+        if (ticketUserVoList.size() == 1) {
+            TicketUserVo onlyTicketUserVo = ticketUserVoList.get(0);
+            log.warn("order ticket user fallback to only user ticket, orderNumber:{}, sourceTicketUserId:{}, matchedTicketUserId:{}",
+                    orderTicketUser.getOrderNumber(), ticketUserId, onlyTicketUserVo.getId());
+            return onlyTicketUserVo;
+        }
+        return null;
     }
 
     public AccountOrderCountVo accountOrderCount(AccountOrderCountDto accountOrderCountDto) {
