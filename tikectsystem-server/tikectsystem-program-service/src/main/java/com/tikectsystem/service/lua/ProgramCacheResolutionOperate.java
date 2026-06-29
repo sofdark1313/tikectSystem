@@ -23,23 +23,27 @@ public class ProgramCacheResolutionOperate {
     @Autowired
     private RedisCache redisCache;
     
-    private DefaultRedisScript<Integer> redisScript;
+    private DefaultRedisScript<Long> redisScript;
     
     @PostConstruct
     public void init(){
         try {
             redisScript = new DefaultRedisScript<>();
             redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/programDataResolution.lua")));
-            redisScript.setResultType(Integer.class);
+            redisScript.setResultType(Long.class);
         } catch (Exception e) {
             log.error("redisScript init lua error",e);
         }
     }
     
-    public void programCacheOperate(List<String> keys, String[] args){
+    public Integer programCacheOperate(List<String> keys, String[] args){
         if (redisScript == null) {
             throw new IllegalStateException("programDataResolution lua script is not initialized");
         }
-        redisCache.getInstance().execute(redisScript, keys, args);
+        Object object = redisCache.getInstance().execute(redisScript, keys, args);
+        if (!(object instanceof Number)) {
+            throw new IllegalStateException("programDataResolution lua script result is not numeric");
+        }
+        return ((Number) object).intValue();
     }
 }

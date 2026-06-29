@@ -6,7 +6,7 @@ local strict_move_map = {}
 for index, increase_data in ipairs(ticket_category_list) do
     local ticket_category_id = tostring(increase_data.ticketCategoryId)
     local increase_count = tonumber(increase_data.count)
-    if increase_count < 0 then
+    if increase_count and increase_count < 0 then
         strict_move_map[ticket_category_id] = true
     end
 end

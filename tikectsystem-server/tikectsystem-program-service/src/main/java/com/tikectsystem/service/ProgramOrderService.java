@@ -932,7 +932,11 @@ public class ProgramOrderService {
                 throw new TikectsystemFrameException(BaseCode.SEAT_OCCUPY);
             }
         }
-        updateProgramCacheDataResolution(programOrderCreateDto.getProgramId(), purchaseSeatList, OrderStatus.NO_PAY);
+        Integer movedSeatCount =
+                updateProgramCacheDataResolution(programOrderCreateDto.getProgramId(), purchaseSeatList, OrderStatus.NO_PAY);
+        if (!Objects.equals(movedSeatCount, purchaseSeatList.size())) {
+            throw new TikectsystemFrameException(BaseCode.SEAT_OCCUPY);
+        }
         return doCreate(programOrderCreateDto, purchaseSeatList, orderVersion);
     }
 
@@ -1439,7 +1443,7 @@ public class ProgramOrderService {
         return seatVo;
     }
 
-    private void updateProgramCacheDataResolution(Long programId, List<SeatVo> seatVoList, OrderStatus orderStatus) {
+    private Integer updateProgramCacheDataResolution(Long programId, List<SeatVo> seatVoList, OrderStatus orderStatus) {
         //如果要操作的订单状态不是未支付和取消，那么直接拒绝
         if (!(Objects.equals(orderStatus.getCode(), OrderStatus.NO_PAY.getCode()) ||
                 Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode()))) {
@@ -1532,6 +1536,6 @@ public class ProgramOrderService {
         //要进行添加座位的相关数据
         data[2] = JSON.toJSONString(addSeatDatajsonArray);
         //执行lua脚本
-        programCacheResolutionOperate.programCacheOperate(keys, data);
+        return programCacheResolutionOperate.programCacheOperate(keys, data);
     }
 }
