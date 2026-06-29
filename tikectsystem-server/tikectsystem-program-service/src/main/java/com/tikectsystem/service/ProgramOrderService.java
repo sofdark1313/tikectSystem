@@ -437,6 +437,13 @@ public class ProgramOrderService {
      * order_request 的 offset 应以本方法成功作为确认边界。
      */
     public OrderCreateMq reserveOrderRequest(OrderRequestMq orderRequestMq) {
+        if (orderRequestMq == null || orderRequestMq.getOrderNumber() == null ||
+                orderRequestMq.getProgramOrderCreateDto() == null) {
+            return null;
+        }
+        if (shouldSkipTerminalOrderRequest(orderRequestMq.getOrderNumber())) {
+            return null;
+        }
         ProgramOrderCreateDto programOrderCreateDto = orderRequestMq.getProgramOrderCreateDto();
         ProgramOrderCircuitBreakerService.CircuitAccessToken circuitToken =
                 programOrderCircuitBreakerService.beforeRedisAccess(programOrderCreateDto);
@@ -482,7 +489,8 @@ public class ProgramOrderService {
     }
 
     /**
-     * Redis 故障恢复时回扫 order_request 使用：订单已存在则跳过，否则重新锁座并补发 order_create。
+     * Redis 故障恢复时回扫 order_request 使用。
+     * 订单已存在则标记完成；已锁座的请求优先使用结果表快照补发，避免重新锁座造成重复扣减。
      */
     public boolean recoverOrderRequest(OrderRequestMq orderRequestMq) {
         if (orderRequestMq == null || orderRequestMq.getOrderNumber() == null ||
@@ -493,12 +501,119 @@ public class ProgramOrderService {
             markOrderRequestCreatedSafely(orderRequestMq.getOrderNumber());
             return false;
         }
+        OrderRequestResult orderRequestResult = orderRequestResultService.getByOrderNumber(orderRequestMq.getOrderNumber());
+        if (Objects.nonNull(orderRequestResult) &&
+                Objects.equals(orderRequestResult.getResultStatus(), OrderRequestResultStatus.RESERVED)) {
+            if (Objects.nonNull(orderRequestResult.getExpireTime()) &&
+                    orderRequestResult.getExpireTime().before(DateUtils.now())) {
+                expireReservedOrderRequestSafely(orderRequestMq, orderRequestResult);
+                log.warn("skip expired reserved order request recovery, orderNumber : {}",
+                        orderRequestMq.getOrderNumber());
+                return false;
+            }
+            OrderCreateMq reservedOrderCreateMq = buildReservedOrderCreateMq(orderRequestMq, orderRequestResult);
+            if (Objects.nonNull(reservedOrderCreateMq)) {
+                sendReservedOrderCreate(reservedOrderCreateMq);
+                return true;
+            }
+        }
         OrderCreateMq orderCreateMq = reserveOrderRequest(orderRequestMq);
         if (Objects.isNull(orderCreateMq)) {
             return false;
         }
         sendReservedOrderCreate(orderCreateMq);
         return true;
+    }
+
+    /**
+     * 根据结果表中的锁座快照重建 order_create 消息。
+     */
+    private OrderCreateMq buildReservedOrderCreateMq(OrderRequestMq orderRequestMq,
+                                                     OrderRequestResult orderRequestResult) {
+        if (StringUtil.isEmpty(orderRequestResult.getReservationJson())) {
+            return null;
+        }
+        try {
+            JSONObject reservation = JSON.parseObject(orderRequestResult.getReservationJson());
+            Long identifierId = reservation.getLong("identifierId");
+            JSONArray purchaseSeatArray = reservation.getJSONArray("purchaseSeatList");
+            if (Objects.isNull(identifierId) || CollectionUtil.isEmpty(purchaseSeatArray)) {
+                return null;
+            }
+            List<PurchaseSeat> purchaseSeatList = purchaseSeatArray.toJavaList(PurchaseSeat.class);
+            ProgramOrderCreateDto programOrderCreateDto = orderRequestMq.getProgramOrderCreateDto();
+            rebindTicketUserIds(programOrderCreateDto, purchaseSeatList);
+            validatePurchaseSeats(programOrderCreateDto, purchaseSeatList);
+            OrderCreateDto orderCreateDto = buildCreateOrderParamV2(programOrderCreateDto.getProgramId(),
+                    programOrderCreateDto.getUserId(), purchaseSeatList, orderRequestMq.getOrderVersion(),
+                    orderRequestMq.getOrderNumber());
+            return buildOrderCreateMq(orderCreateDto, identifierId);
+        } catch (RuntimeException e) {
+            log.warn("build reserved order_create mq failed, orderNumber : {}",
+                    orderRequestMq.getOrderNumber(), e);
+            return null;
+        }
+    }
+
+    /**
+     * 已锁座但长期未建单时释放座位，并将请求置为 EXPIRED。
+     */
+    private void expireReservedOrderRequestSafely(OrderRequestMq orderRequestMq, OrderRequestResult orderRequestResult) {
+        try {
+            List<PurchaseSeat> purchaseSeatList = getReservationPurchaseSeatList(orderRequestResult.getReservationJson());
+            releaseReservation(orderRequestMq.getOrderNumber(), orderRequestMq.getProgramOrderCreateDto().getProgramId(),
+                    purchaseSeatList);
+        } catch (RuntimeException e) {
+            log.warn("release expired reserved order request failed, orderNumber : {}",
+                    orderRequestMq.getOrderNumber(), e);
+            return;
+        }
+        try {
+            OrderRequestResultUpdateDto updateDto = new OrderRequestResultUpdateDto();
+            updateDto.setOrderNumber(orderRequestMq.getOrderNumber());
+            updateDto.setBeforeStatus(OrderRequestResultStatus.RESERVED);
+            updateDto.setStatus(OrderRequestResultStatus.EXPIRED);
+            updateDto.setFailCode(OrderRequestResultStatus.EXPIRED);
+            updateDto.setFailMessage("锁座请求恢复超时");
+            orderRequestResultService.updateStatus(updateDto);
+        } catch (RuntimeException e) {
+            log.warn("expire reserved order request result failed, orderNumber : {}",
+                    orderRequestMq.getOrderNumber(), e);
+        }
+    }
+
+    /**
+     * 从锁座快照中解析已锁定座位。
+     */
+    private List<PurchaseSeat> getReservationPurchaseSeatList(String reservationJson) {
+        if (StringUtil.isEmpty(reservationJson)) {
+            return null;
+        }
+        JSONObject reservation = JSON.parseObject(reservationJson);
+        JSONArray purchaseSeatArray = reservation.getJSONArray("purchaseSeatList");
+        return Objects.isNull(purchaseSeatArray) ? null : purchaseSeatArray.toJavaList(PurchaseSeat.class);
+    }
+
+    /**
+     * 终态请求不能再被主消费或恢复扫描推进，避免失败或过期请求被后台重新建单。
+     */
+    private boolean shouldSkipTerminalOrderRequest(Long orderNumber) {
+        if (Objects.isNull(orderNumber)) {
+            return false;
+        }
+        OrderRequestResult orderRequestResult = orderRequestResultService.getByOrderNumber(orderNumber);
+        if (Objects.isNull(orderRequestResult)) {
+            return false;
+        }
+        String resultStatus = orderRequestResult.getResultStatus();
+        boolean terminal = Objects.equals(resultStatus, OrderRequestResultStatus.ORDER_CREATED) ||
+                Objects.equals(resultStatus, OrderRequestResultStatus.FAILED) ||
+                Objects.equals(resultStatus, OrderRequestResultStatus.CANCELLED) ||
+                Objects.equals(resultStatus, OrderRequestResultStatus.EXPIRED);
+        if (terminal) {
+            log.warn("skip terminal order request, orderNumber : {}, status : {}", orderNumber, resultStatus);
+        }
+        return terminal;
     }
 
     private boolean orderExists(Long orderNumber) {
@@ -550,12 +665,25 @@ public class ProgramOrderService {
     }
 
     private void releaseGate(ProgramOrderCreateDto programOrderCreateDto, String requestId) {
-        redisCache.del(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_GATE_REQUEST, requestId));
+        RedisKeyBuild requestGateKey = RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_GATE_REQUEST, requestId);
+        String gateOrderNumber = redisCache.get(requestGateKey, String.class);
+        boolean requestGateExists = !StringUtil.isEmpty(gateOrderNumber);
+        if (requestGateExists) {
+            redisCache.del(requestGateKey);
+        }
         if (CollectionUtil.isNotEmpty(programOrderCreateDto.getSeatDtoList())) {
             for (SeatDto seatDto : programOrderCreateDto.getSeatDtoList()) {
-                redisCache.del(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_GATE_SEAT,
-                        programOrderCreateDto.getProgramId() + GLIDE_LINE + seatDto.getId()));
+                RedisKeyBuild seatGateKey = RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_GATE_SEAT,
+                        programOrderCreateDto.getProgramId() + GLIDE_LINE + seatDto.getId());
+                String seatGateRequestId = redisCache.get(seatGateKey, String.class);
+                // 只释放当前 requestId 持有的座位 gate，防止晚到回调误删后续请求的 gate。
+                if (Objects.equals(seatGateRequestId, requestId)) {
+                    redisCache.del(seatGateKey);
+                }
             }
+            return;
+        }
+        if (!requestGateExists) {
             return;
         }
         RedisKeyBuild inflightKey = RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_GATE_INFLIGHT,
@@ -937,7 +1065,6 @@ public class ProgramOrderService {
         Long identifierId = uidGenerator.getUid();
         //把记录的标识id放进去
         keys.add(RecordType.REDUCE.getValue() + GLIDE_LINE + identifierId + GLIDE_LINE + programOrderCreateDto.getUserId());
-        keys.add(RecordType.REDUCE.getValue());
         //记录的类型
         keys.add(RecordType.REDUCE.getValue());
         if (Objects.nonNull(orderNumber)) {
@@ -1375,12 +1502,14 @@ public class ProgramOrderService {
             }
             //要进行删除座位的key
             delSeatIdjsonObject.put("seatHashKeyDel", seatHashKeyDel);
+            delSeatIdjsonObject.put("ticketCategoryId", String.valueOf(k));
             //如果是订单创建，那么就扣除未售卖的座位id
             //如果是订单取消，那么就扣除锁定的座位id
             delSeatIdjsonObject.put("seatIdList", v.stream().map(SeatVo::getId).map(String::valueOf).collect(Collectors.toList()));
             delSeatIdjsonArray.add(delSeatIdjsonObject);
             //要进行添加座位的key
             seatDatajsonObject.put("seatHashKeyAdd", seatHashKeyAdd);
+            seatDatajsonObject.put("ticketCategoryId", String.valueOf(k));
             //如果是订单创建的操作，那么添加到锁定的座位数据
             //如果是订单订单的操作，那么添加到未售卖的座位数据
             List<String> seatDataList = new ArrayList<>();

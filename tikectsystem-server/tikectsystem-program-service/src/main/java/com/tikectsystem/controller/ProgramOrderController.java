@@ -6,6 +6,7 @@ import com.tikectsystem.dto.ProgramOrderCreateDto;
 import com.tikectsystem.enums.ProgramOrderVersion;
 import com.tikectsystem.service.OrderRequestResultService;
 import com.tikectsystem.service.strategy.ProgramOrderContext;
+import com.tikectsystem.vo.ProgramOrderCreateVo;
 import com.tikectsystem.vo.OrderRequestResultVo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,10 +35,13 @@ public class ProgramOrderController {
      */
     @Operation(summary  = "购票V4")
     @PostMapping(value = "/create/v4")
-    public ApiResponse<String> createV4(@Valid @RequestBody ProgramOrderCreateDto programOrderCreateDto) {
+    public ApiResponse<ProgramOrderCreateVo> createV4(@Valid @RequestBody ProgramOrderCreateDto programOrderCreateDto) {
         String orderNumber = ProgramOrderContext.get(ProgramOrderVersion.V4_VERSION.getVersion())
                 .createOrder(programOrderCreateDto);
-        return ApiResponse.ok(orderNumber);
+        ProgramOrderCreateVo programOrderCreateVo = new ProgramOrderCreateVo();
+        programOrderCreateVo.setOrderNumber(orderNumber);
+        programOrderCreateVo.setRequestId(programOrderCreateDto.getRequestId());
+        return ApiResponse.ok(programOrderCreateVo);
     }
 
     /**

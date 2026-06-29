@@ -21,16 +21,27 @@ local ticket_user_id_list = cjson.decode(ARGV[3])
 local reservation_meta_json = ARGV[4]
 local reservation_expire_seconds = tonumber(ARGV[5])
 local request_identifier_id = nil
+local request_order_number = nil
 if reservation_meta_json and reservation_meta_json ~= '' then
     local reservation_meta = cjson.decode(reservation_meta_json)
     request_identifier_id = reservation_meta.identifierId
+    if reservation_meta.orderNumber then
+        request_order_number = tostring(reservation_meta.orderNumber)
+    end
+end
+local reservation_key_matches_request = false
+if reservation_key and request_order_number then
+    local request_order_number_suffix = '_' .. request_order_number
+    reservation_key_matches_request = string.sub(reservation_key, -string.len(request_order_number_suffix)) == request_order_number_suffix
 end
 
-if reservation_key and reservation_key ~= '' then
+if reservation_key_matches_request then
     local exists_reservation = redis.call('get', reservation_key)
     if exists_reservation then
         local reservation = cjson.decode(exists_reservation)
-        return string.format('{"%s": %d, "%s": %s, "%s": %s}', 'code', 0, 'purchaseSeatList', cjson.encode(reservation.purchaseSeatList), 'identifierId', cjson.encode(reservation.identifierId))
+        if reservation.orderNumber and tostring(reservation.orderNumber) == request_order_number then
+            return string.format('{"%s": %d, "%s": %s, "%s": %s}', 'code', 0, 'purchaseSeatList', cjson.encode(reservation.purchaseSeatList), 'identifierId', cjson.encode(reservation.identifierId))
+        end
     end
 end
 -- 过滤后符合条件可以购买的座位集合
@@ -292,7 +303,7 @@ local purchase_record = {
 }
 redis.call('hset',string.format(record_hash_key,program_id),identifier_id,cjson.encode(purchase_record))
 
-if reservation_key and reservation_key ~= '' and reservation_meta_json and reservation_meta_json ~= '' then
+if reservation_key_matches_request and reservation_meta_json and reservation_meta_json ~= '' then
     local reservation = cjson.decode(reservation_meta_json)
     reservation.purchaseSeatList = purchase_seat_list
     if reservation_expire_seconds and reservation_expire_seconds > 0 then

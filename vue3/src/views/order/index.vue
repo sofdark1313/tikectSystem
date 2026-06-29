@@ -228,12 +228,15 @@ function ensureOrderRequestId() {
   if (currentOrderRequestId.value !== '') {
     return currentOrderRequestId.value;
   }
+  const userSegment = String(useUser.userId || '').slice(-8);
+  const programSegment = String(detailList.value.id || '').slice(-8);
   currentOrderRequestId.value = [
-    useUser.userId,
-    detailList.value.id,
-    Date.now(),
-    Math.random().toString(36).slice(2, 10)
-  ].join('-');
+    'or',
+    Date.now().toString(36),
+    Math.random().toString(36).slice(2, 12),
+    userSegment,
+    programSegment
+  ].filter(Boolean).join('-');
   return currentOrderRequestId.value;
 }
 
@@ -274,6 +277,13 @@ function getOrderNumberFromResponse(response) {
     return response.data.orderNumber || null;
   }
   return response.data;
+}
+
+function getRequestIdFromResponse(response) {
+  if (!response || response.data == null || typeof response.data !== 'object') {
+    return '';
+  }
+  return response.data.requestId || '';
 }
 
 function showOrderCreateFailure(response) {
@@ -434,6 +444,10 @@ function submitOrder(){
     orderCreateV4Api(orderCreateParams).then(response => {
       const orderNumber = getOrderNumberFromResponse(response);
       if (response.code == '0' && orderNumber != null) {
+        const responseRequestId = getRequestIdFromResponse(response);
+        if (responseRequestId !== '') {
+          currentOrderRequestId.value = String(responseRequestId);
+        }
         console.log('异步订单创建成功 订单编号',orderNumber)
         //开始定时轮训查询
         startPolling(orderNumber,Date.now());
