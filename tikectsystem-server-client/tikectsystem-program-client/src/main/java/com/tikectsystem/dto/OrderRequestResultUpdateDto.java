@@ -9,30 +9,45 @@ import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * Order request result status update parameter.
+ * 异步下单请求结果状态更新参数。
  */
 @Data
-@Schema(title = "OrderRequestResultUpdateDto", description = "Order request result status update parameter")
+@Schema(title = "OrderRequestResultUpdateDto", description = "异步下单请求结果状态更新参数")
 public class OrderRequestResultUpdateDto implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(name = "orderNumber", type = "Long", description = "Order number")
-    @NotNull(message = "Order number cannot be null")
+    /**
+     * 订单编号。
+     */
+    @Schema(name = "orderNumber", type = "Long", description = "订单编号")
+    @NotNull(message = "订单编号不能为空")
     private Long orderNumber;
 
-    @Schema(name = "status", type = "String", description = "Result status")
-    @NotBlank(message = "Result status cannot be blank")
+    /**
+     * 更新后的请求结果状态。
+     */
+    @Schema(name = "status", type = "String", description = "更新后的请求结果状态")
+    @NotBlank(message = "请求结果状态不能为空")
     private String status;
 
-    @Schema(name = "beforeStatus", type = "String", description = "Expected status before update")
-    @NotBlank(message = "Expected status before update cannot be blank")
+    /**
+     * 更新前必须匹配的请求结果状态，用于状态流转幂等控制。
+     */
+    @Schema(name = "beforeStatus", type = "String", description = "更新前必须匹配的请求结果状态")
+    @NotBlank(message = "更新前请求结果状态不能为空")
     private String beforeStatus;
 
-    @Schema(name = "failCode", type = "String", description = "Failure code")
+    /**
+     * 失败编码。
+     */
+    @Schema(name = "failCode", type = "String", description = "失败编码")
     private String failCode;
 
-    @Schema(name = "failMessage", type = "String", description = "Failure message")
+    /**
+     * 失败原因。
+     */
+    @Schema(name = "failMessage", type = "String", description = "失败原因")
     private String failMessage;
 }

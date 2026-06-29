@@ -3,6 +3,7 @@ package com.tikectsystem.client;
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.dto.*;
 import com.tikectsystem.enums.BaseCode;
+import com.tikectsystem.vo.OrderRequestResultVo;
 import com.tikectsystem.vo.ProgramRecordTaskVo;
 import com.tikectsystem.vo.TicketCategoryDetailVo;
 import org.springframework.stereotype.Component;
@@ -49,6 +50,21 @@ public class ProgramClientFallback implements ProgramClient {
     
     @Override
     public ApiResponse<Boolean> operateProgramData(final ProgramOperateDataDto programOperateDataDto) {
+        return ApiResponse.error(BaseCode.SYSTEM_ERROR);
+    }
+
+    @Override
+    public ApiResponse<Boolean> updateOrderRequestResult(OrderRequestResultUpdateDto orderRequestResultUpdateDto) {
+        return ApiResponse.error(BaseCode.SYSTEM_ERROR);
+    }
+
+    @Override
+    public ApiResponse<OrderRequestResultVo> getOrderRequestResult(OrderRequestResultQueryDto orderRequestResultQueryDto) {
+        return ApiResponse.error(BaseCode.SYSTEM_ERROR);
+    }
+
+    @Override
+    public ApiResponse<Integer> expireOrderRequestResult(OrderRequestResultExpireDto orderRequestResultExpireDto) {
         return ApiResponse.error(BaseCode.SYSTEM_ERROR);
     }
 

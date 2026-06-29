@@ -2,6 +2,7 @@ package com.tikectsystem.client;
 
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.dto.*;
+import com.tikectsystem.vo.OrderRequestResultVo;
 import com.tikectsystem.vo.ProgramRecordTaskVo;
 import com.tikectsystem.vo.TicketCategoryDetailVo;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -75,6 +76,30 @@ public interface ProgramClient {
      */
     @PostMapping(value = "/program/interior/operate/program/data")
     ApiResponse<Boolean> operateProgramData(ProgramOperateDataDto programOperateDataDto);
+
+    /**
+     * 更新异步下单请求结果状态
+     * @param orderRequestResultUpdateDto 参数
+     * @return 结果
+     */
+    @PostMapping(value = "/program/interior/order/request/result/update")
+    ApiResponse<Boolean> updateOrderRequestResult(OrderRequestResultUpdateDto orderRequestResultUpdateDto);
+
+    /**
+     * 查询异步下单请求结果
+     * @param orderRequestResultQueryDto 参数
+     * @return 结果
+     */
+    @PostMapping(value = "/program/interior/order/request/result/get")
+    ApiResponse<OrderRequestResultVo> getOrderRequestResult(OrderRequestResultQueryDto orderRequestResultQueryDto);
+
+    /**
+     * 过期卡住的异步下单请求
+     * @param orderRequestResultExpireDto 参数
+     * @return 结果
+     */
+    @PostMapping(value = "/program/interior/order/request/result/expire")
+    ApiResponse<Integer> expireOrderRequestResult(OrderRequestResultExpireDto orderRequestResultExpireDto);
 
     /**
      * 查询票档集合(通过节目查询)

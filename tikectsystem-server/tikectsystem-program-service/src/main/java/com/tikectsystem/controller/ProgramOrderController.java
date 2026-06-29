@@ -1,12 +1,16 @@
 package com.tikectsystem.controller;
 
 import com.tikectsystem.common.ApiResponse;
+import com.tikectsystem.dto.OrderRequestResultQueryDto;
 import com.tikectsystem.dto.ProgramOrderCreateDto;
 import com.tikectsystem.enums.ProgramOrderVersion;
+import com.tikectsystem.service.OrderRequestResultService;
 import com.tikectsystem.service.strategy.ProgramOrderContext;
+import com.tikectsystem.vo.OrderRequestResultVo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/program/order")
 @Tag(name = "program-order", description = "节目订单")
 public class ProgramOrderController {
+
+    @Autowired
+    private OrderRequestResultService orderRequestResultService;
     
     /**
      * 统一正式下单入口，只保留 V4 异步闭环链路。
@@ -31,5 +38,15 @@ public class ProgramOrderController {
         String orderNumber = ProgramOrderContext.get(ProgramOrderVersion.V4_VERSION.getVersion())
                 .createOrder(programOrderCreateDto);
         return ApiResponse.ok(orderNumber);
+    }
+
+    /**
+     * 查询 V4 异步下单请求结果，用于拿到订单号后轮询最终建单状态。
+     */
+    @Operation(summary  = "查询购票V4结果")
+    @PostMapping(value = "/request/result/get")
+    public ApiResponse<OrderRequestResultVo> getOrderRequestResult(
+            @Valid @RequestBody OrderRequestResultQueryDto orderRequestResultQueryDto) {
+        return ApiResponse.ok(orderRequestResultService.get(orderRequestResultQueryDto));
     }
 }

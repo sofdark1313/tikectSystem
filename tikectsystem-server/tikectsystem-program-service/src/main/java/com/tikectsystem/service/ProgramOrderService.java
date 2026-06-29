@@ -13,16 +13,20 @@ import com.tikectsystem.domain.PurchaseSeat;
 import com.tikectsystem.dto.DelayOrderCancelDto;
 import com.tikectsystem.dto.OrderCreateDto;
 import com.tikectsystem.dto.OrderGetDto;
+import com.tikectsystem.dto.OrderRequestResultUpdateDto;
 import com.tikectsystem.dto.OrderTicketUserCreateDto;
 import com.tikectsystem.dto.ProgramOrderCreateDto;
 import com.tikectsystem.dto.SeatDto;
+import com.tikectsystem.entity.OrderRequestResult;
 import com.tikectsystem.entity.ProgramShowTime;
 import com.tikectsystem.entity.ProgramRecordTask;
 import com.tikectsystem.enums.BaseCode;
+import com.tikectsystem.enums.CompositeCheckType;
 import com.tikectsystem.enums.OrderStatus;
 import com.tikectsystem.enums.RecordType;
 import com.tikectsystem.enums.SellStatus;
 import com.tikectsystem.exception.TikectsystemFrameException;
+import com.tikectsystem.initialize.impl.composite.CompositeContainer;
 import com.tikectsystem.mapper.ProgramRecordTaskMapper;
 import com.tikectsystem.redis.RedisKeyBuild;
 import com.tikectsystem.service.delaysend.DelayOrderCancelSend;
@@ -32,6 +36,7 @@ import com.tikectsystem.service.kafka.CreateOrderMqDomain;
 import com.tikectsystem.service.kafka.CreateOrderSend;
 import com.tikectsystem.service.kafka.OrderKafkaSend;
 import com.tikectsystem.service.kafka.OrderRequestMq;
+import com.tikectsystem.service.constant.OrderRequestResultStatus;
 import com.tikectsystem.service.lua.ProgramCacheCreateOrderData;
 import com.tikectsystem.service.lua.ProgramCacheCreateOrderResolutionOperate;
 import com.tikectsystem.service.lua.ProgramCacheResolutionOperate;
@@ -81,7 +86,7 @@ public class ProgramOrderService {
 
     private static final long REQUEST_IDEMPOTENT_LOCK_TTL_SECONDS = 30L;
 
-    private static final int REQUEST_IDEMPOTENT_WAIT_TIMES = 10;
+    private static final int REQUEST_IDEMPOTENT_WAIT_TIMES = 100;
 
     private static final long REQUEST_IDEMPOTENT_WAIT_MILLIS = 50L;
 
@@ -133,6 +138,12 @@ public class ProgramOrderService {
     @Autowired
     private ProgramOrderCircuitBreakerService programOrderCircuitBreakerService;
 
+    @Autowired
+    private OrderRequestResultService orderRequestResultService;
+
+    @Autowired
+    private CompositeContainer compositeContainer;
+
     /**
      * V4 新链路入口：轻量准入成功并拿到 order_request Kafka ack 后返回订单编号。
      * @param programOrderCreateDto 下单参数
@@ -140,21 +151,22 @@ public class ProgramOrderService {
      * @return 订单编号
      */
     public String acceptOrderRequest(ProgramOrderCreateDto programOrderCreateDto, Integer orderVersion) {
+        String requestId = ensureOrderRequestId(programOrderCreateDto);
+        OrderRequestResult existsOrderRequestResult = getOrderRequestResultByRequestId(requestId);
+        if (Objects.nonNull(existsOrderRequestResult) &&
+                !isSameOrderRequestContext(programOrderCreateDto, existsOrderRequestResult)) {
+            throw new TikectsystemFrameException(BaseCode.PARAMETER_ERROR);
+        }
+        if (isRetryableTerminalOrderRequestResult(existsOrderRequestResult)) {
+            requestId = String.valueOf(uidGenerator.getUid());
+            programOrderCreateDto.setRequestId(requestId);
+            existsOrderRequestResult = null;
+        } else if (isReusableOrderRequestResult(existsOrderRequestResult)) {
+            return String.valueOf(existsOrderRequestResult.getOrderNumber());
+        }
+
         ProgramOrderCircuitBreakerService.CircuitAccessToken circuitToken =
                 programOrderCircuitBreakerService.beforeRedisAccess(programOrderCreateDto);
-        try {
-            prepareCreateOrderProgramCache(programOrderCreateDto);
-        } catch (RuntimeException e) {
-            if (isRedisInfrastructureException(e)) {
-                throw handleRedisInfrastructureFailure(circuitToken, e);
-            } else {
-                programOrderCircuitBreakerService.afterRedisSuccess(circuitToken);
-            }
-            throw e;
-        }
-        String requestId = StringUtil.isEmpty(programOrderCreateDto.getRequestId()) ?
-                String.valueOf(uidGenerator.getUid()) : programOrderCreateDto.getRequestId();
-        programOrderCreateDto.setRequestId(requestId);
         boolean idempotentLockAcquired;
         try {
             idempotentLockAcquired = acquireRequestIdempotentLock(requestId);
@@ -162,19 +174,53 @@ public class ProgramOrderService {
             throw handleRedisInfrastructureFailure(circuitToken, e);
         }
         if (!idempotentLockAcquired) {
-            String gateOrderNumber = waitForGateOrderNumber(requestId);
-            if (!StringUtil.isEmpty(gateOrderNumber)) {
+            try {
+                String acceptedOrderNumber = waitForAcceptedOrderNumber(requestId);
                 programOrderCircuitBreakerService.afterRedisSuccess(circuitToken);
-                return gateOrderNumber;
+                if (!StringUtil.isEmpty(acceptedOrderNumber)) {
+                    return acceptedOrderNumber;
+                }
+            } catch (RuntimeException e) {
+                if (isRedisInfrastructureException(e)) {
+                    throw handleRedisInfrastructureFailure(circuitToken, e);
+                }
+                programOrderCircuitBreakerService.afterRedisSuccess(circuitToken);
+                throw e;
             }
-            programOrderCircuitBreakerService.afterRedisSuccess(circuitToken);
             throw new TikectsystemFrameException(BaseCode.OPERATION_IS_TOO_FREQUENT_PLEASE_TRY_AGAIN_LATER);
         }
-        Long orderNumber;
-        ProgramOrderGateResult gateResult;
         try {
+            executeProgramOrderCreateCheck(programOrderCreateDto);
+            prepareCreateOrderProgramCache(programOrderCreateDto);
+        } catch (RuntimeException e) {
             try {
-                orderNumber = uidGenerator.getOrderNumber(programOrderCreateDto.getUserId(), ORDER_TABLE_COUNT);
+                if (isRedisInfrastructureException(e)) {
+                    throw handleRedisInfrastructureFailure(circuitToken, e);
+                } else {
+                    programOrderCircuitBreakerService.afterRedisSuccess(circuitToken);
+                    throw e;
+                }
+            } finally {
+                releaseRequestIdempotentLockSafely(requestId, circuitToken);
+            }
+        }
+        return sendAcceptedOrderRequest(programOrderCreateDto, orderVersion, requestId, existsOrderRequestResult, circuitToken);
+    }
+
+    private void executeProgramOrderCreateCheck(ProgramOrderCreateDto programOrderCreateDto) {
+        compositeContainer.execute(CompositeCheckType.PROGRAM_ORDER_CREATE_CHECK.getValue(), programOrderCreateDto);
+    }
+
+    private String sendAcceptedOrderRequest(ProgramOrderCreateDto programOrderCreateDto, Integer orderVersion,
+                                            String requestId, OrderRequestResult existsOrderRequestResult,
+                                            ProgramOrderCircuitBreakerService.CircuitAccessToken circuitToken) {
+        try {
+            Long orderNumber;
+            ProgramOrderGateResult gateResult;
+            try {
+                orderNumber = existsOrderRequestResult == null || existsOrderRequestResult.getOrderNumber() == null ?
+                        uidGenerator.getOrderNumber(programOrderCreateDto.getUserId(), ORDER_TABLE_COUNT) :
+                        existsOrderRequestResult.getOrderNumber();
             } catch (RuntimeException e) {
                 programOrderCircuitBreakerService.afterRedisSuccess(circuitToken);
                 throw e;
@@ -185,61 +231,106 @@ public class ProgramOrderService {
             } catch (RuntimeException e) {
                 throw handleRedisInfrastructureFailure(circuitToken, e);
             }
+            if (!Objects.equals(gateResult.getCode(), BaseCode.SUCCESS.getCode())) {
+                BaseCode baseCode = BaseCode.getRc(gateResult.getCode());
+                BaseCode failureCode = baseCode == null ? BaseCode.SYSTEM_ERROR : baseCode;
+                throw new TikectsystemFrameException(failureCode);
+            }
+            if (!StringUtil.isEmpty(gateResult.getOrderNumber())) {
+                orderNumber = Long.valueOf(gateResult.getOrderNumber());
+            }
+            OrderRequestResult orderRequestResult;
+            try {
+                orderRequestResult = orderRequestResultService.saveProcessing(requestId, orderNumber,
+                        programOrderCreateDto.getProgramId(), programOrderCreateDto.getUserId());
+            } catch (RuntimeException e) {
+                releaseGateSafely(programOrderCreateDto, requestId);
+                throw e;
+            }
+            if (Objects.nonNull(orderRequestResult) && Objects.nonNull(orderRequestResult.getOrderNumber()) &&
+                    !Objects.equals(orderRequestResult.getOrderNumber(), orderNumber)) {
+                releaseGateSafely(programOrderCreateDto, requestId);
+                return String.valueOf(orderRequestResult.getOrderNumber());
+            }
+
+            OrderRequestMq orderRequestMq = new OrderRequestMq();
+            orderRequestMq.setRequestId(requestId);
+            orderRequestMq.setOrderNumber(orderNumber);
+            orderRequestMq.setProgramOrderCreateDto(programOrderCreateDto);
+            orderRequestMq.setOrderVersion(orderVersion);
+            orderRequestMq.setCreateTime(DateUtils.now());
+
+            CountDownLatch latch = new CountDownLatch(1);
+            CreateOrderMqDomain createOrderMqDomain = new CreateOrderMqDomain();
+            createOrderMqDomain.orderNumber = String.valueOf(orderNumber);
+            Long finalOrderNumber = orderNumber;
+            String kafkaRequestId = requestId;
+            try {
+                orderKafkaSend.sendOrderRequest(String.valueOf(orderNumber), JSON.toJSONString(orderRequestMq), sendResult -> {
+                    try {
+                        log.debug("order_request kafka send success, orderNumber : {}", finalOrderNumber);
+                    } catch (Exception e) {
+                        createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(e);
+                    } finally {
+                        latch.countDown();
+                    }
+                }, ex -> {
+                    try {
+                        releaseGateSafely(programOrderCreateDto, kafkaRequestId);
+                        markOrderRequestFailedSafely(finalOrderNumber, ex);
+                        createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(ex);
+                    } catch (Exception e) {
+                        createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(e);
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+            } catch (RuntimeException e) {
+                releaseGateSafely(programOrderCreateDto, requestId);
+                markOrderRequestFailedSafely(finalOrderNumber, e);
+                throw e;
+            }
+            try {
+                awaitKafkaAck(latch);
+            } catch (RuntimeException e) {
+                throw e;
+            }
+            if (Objects.nonNull(createOrderMqDomain.tikectsystemFrameException)) {
+                markOrderRequestFailedSafely(finalOrderNumber, createOrderMqDomain.tikectsystemFrameException);
+                throw createOrderMqDomain.tikectsystemFrameException;
+            }
+            return String.valueOf(orderNumber);
         } finally {
             releaseRequestIdempotentLockSafely(requestId, circuitToken);
         }
-        if (!Objects.equals(gateResult.getCode(), BaseCode.SUCCESS.getCode())) {
-            BaseCode baseCode = BaseCode.getRc(gateResult.getCode());
-            throw new TikectsystemFrameException(baseCode == null ? BaseCode.SYSTEM_ERROR : baseCode);
-        }
-        if (!StringUtil.isEmpty(gateResult.getOrderNumber())) {
-            orderNumber = Long.valueOf(gateResult.getOrderNumber());
-        }
+    }
 
-        OrderRequestMq orderRequestMq = new OrderRequestMq();
-        orderRequestMq.setRequestId(requestId);
-        orderRequestMq.setOrderNumber(orderNumber);
-        orderRequestMq.setProgramOrderCreateDto(programOrderCreateDto);
-        orderRequestMq.setOrderVersion(orderVersion);
-        orderRequestMq.setCreateTime(DateUtils.now());
+    /**
+     * V4 重复点击快速复用入口。
+     * 已受理请求要在座位状态校验前返回，否则第二次点击会被“座位已锁定”这类校验误伤。
+     * @param programOrderCreateDto 下单参数
+     * @return 已受理订单号；不存在可复用请求时返回 null
+     */
+    public String reuseAcceptedOrderRequestIfPresent(ProgramOrderCreateDto programOrderCreateDto) {
+        String requestId = ensureOrderRequestId(programOrderCreateDto);
+        OrderRequestResult existsOrderRequestResult = getOrderRequestResultByRequestId(requestId);
+        if (Objects.isNull(existsOrderRequestResult)) {
+            return null;
+        }
+        if (!isSameOrderRequestContext(programOrderCreateDto, existsOrderRequestResult)) {
+            throw new TikectsystemFrameException(BaseCode.PARAMETER_ERROR);
+        }
+        if (isReusableOrderRequestResult(existsOrderRequestResult)) {
+            return String.valueOf(existsOrderRequestResult.getOrderNumber());
+        }
+        return null;
+    }
 
-        CountDownLatch latch = new CountDownLatch(1);
-        CreateOrderMqDomain createOrderMqDomain = new CreateOrderMqDomain();
-        createOrderMqDomain.orderNumber = String.valueOf(orderNumber);
-        Long finalOrderNumber = orderNumber;
-        try {
-            orderKafkaSend.sendOrderRequest(String.valueOf(orderNumber), JSON.toJSONString(orderRequestMq), sendResult -> {
-                try {
-                    log.debug("order_request kafka send success, orderNumber : {}", finalOrderNumber);
-                } catch (Exception e) {
-                    createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(e);
-                } finally {
-                    latch.countDown();
-                }
-            }, ex -> {
-                try {
-                    releaseGate(programOrderCreateDto, requestId);
-                    createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(ex);
-                } catch (Exception e) {
-                    createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(e);
-                } finally {
-                    latch.countDown();
-                }
-            });
-        } catch (RuntimeException e) {
-            releaseGate(programOrderCreateDto, requestId);
-            throw e;
-        }
-        try {
-            awaitKafkaAck(latch);
-        } catch (RuntimeException e) {
-            releaseGate(programOrderCreateDto, requestId);
-            throw e;
-        }
-        if (Objects.nonNull(createOrderMqDomain.tikectsystemFrameException)) {
-            throw createOrderMqDomain.tikectsystemFrameException;
-        }
-        return String.valueOf(orderNumber);
+    private String ensureOrderRequestId(ProgramOrderCreateDto programOrderCreateDto) {
+        String requestId = StringUtil.isEmpty(programOrderCreateDto.getRequestId()) ?
+                String.valueOf(uidGenerator.getUid()) : programOrderCreateDto.getRequestId();
+        programOrderCreateDto.setRequestId(requestId);
+        return requestId;
     }
 
     private boolean acquireRequestIdempotentLock(String requestId) {
@@ -248,10 +339,39 @@ public class ProgramOrderService {
                 REQUEST_IDEMPOTENT_LOCK_TTL_SECONDS, TimeUnit.SECONDS);
     }
 
-    private String waitForGateOrderNumber(String requestId) {
+    private OrderRequestResult getOrderRequestResultByRequestId(String requestId) {
+        return orderRequestResultService.getByRequestId(requestId);
+    }
+
+    private boolean isSameOrderRequestContext(ProgramOrderCreateDto programOrderCreateDto,
+                                              OrderRequestResult orderRequestResult) {
+        return Objects.equals(programOrderCreateDto.getProgramId(), orderRequestResult.getProgramId()) &&
+                Objects.equals(programOrderCreateDto.getUserId(), orderRequestResult.getUserId());
+    }
+
+    private boolean isReusableOrderRequestResult(OrderRequestResult orderRequestResult) {
+        if (Objects.isNull(orderRequestResult) || Objects.isNull(orderRequestResult.getOrderNumber())) {
+            return false;
+        }
+        String resultStatus = orderRequestResult.getResultStatus();
+        return Objects.equals(resultStatus, OrderRequestResultStatus.PROCESSING) ||
+                Objects.equals(resultStatus, OrderRequestResultStatus.RESERVED) ||
+                Objects.equals(resultStatus, OrderRequestResultStatus.ORDER_CREATED);
+    }
+
+    private boolean isRetryableTerminalOrderRequestResult(OrderRequestResult orderRequestResult) {
+        if (Objects.isNull(orderRequestResult)) {
+            return false;
+        }
+        String resultStatus = orderRequestResult.getResultStatus();
+        return Objects.equals(resultStatus, OrderRequestResultStatus.FAILED) ||
+                Objects.equals(resultStatus, OrderRequestResultStatus.CANCELLED) ||
+                Objects.equals(resultStatus, OrderRequestResultStatus.EXPIRED);
+    }
+
+    private String waitForAcceptedOrderNumber(String requestId) {
         for (int i = 0; i < REQUEST_IDEMPOTENT_WAIT_TIMES; i++) {
-            String orderNumber = redisCache.get(RedisKeyBuild.createRedisKey(
-                    RedisKeyManage.PROGRAM_ORDER_GATE_REQUEST, requestId), String.class);
+            String orderNumber = getAcceptedOrderNumber(requestId);
             if (!StringUtil.isEmpty(orderNumber)) {
                 return orderNumber;
             }
@@ -262,8 +382,20 @@ public class ProgramOrderService {
                 throw new TikectsystemFrameException(e);
             }
         }
-        return redisCache.get(RedisKeyBuild.createRedisKey(
+        return getAcceptedOrderNumber(requestId);
+    }
+
+    private String getAcceptedOrderNumber(String requestId) {
+        String gateOrderNumber = redisCache.get(RedisKeyBuild.createRedisKey(
                 RedisKeyManage.PROGRAM_ORDER_GATE_REQUEST, requestId), String.class);
+        if (!StringUtil.isEmpty(gateOrderNumber)) {
+            return gateOrderNumber;
+        }
+        OrderRequestResult result = getOrderRequestResultByRequestId(requestId);
+        if (isReusableOrderRequestResult(result)) {
+            return String.valueOf(result.getOrderNumber());
+        }
+        return null;
     }
 
     private void releaseRequestIdempotentLock(String requestId) {
@@ -313,19 +445,32 @@ public class ProgramOrderService {
             createOrderTemporaryData = createOrderOperateProgramCache(programOrderCreateDto, orderRequestMq.getOrderNumber());
             programOrderCircuitBreakerService.afterRedisSuccess(circuitToken);
         } catch (RuntimeException e) {
-            if (isRedisInfrastructureException(e)) {
+            boolean redisInfrastructureException = isRedisInfrastructureException(e);
+            if (redisInfrastructureException) {
                 programOrderCircuitBreakerService.afterRedisFailure(circuitToken, e);
             } else {
                 programOrderCircuitBreakerService.afterRedisSuccess(circuitToken);
+                markOrderRequestFailedSafely(orderRequestMq.getOrderNumber(), e);
             }
             releaseGateSafely(programOrderCreateDto, orderRequestMq.getRequestId());
             throw e;
         }
+        markOrderRequestReservedSafely(orderRequestMq.getOrderNumber());
         releaseGateSafely(programOrderCreateDto, orderRequestMq.getRequestId());
-        OrderCreateDto orderCreateDto = buildCreateOrderParamV2(programOrderCreateDto.getProgramId(),
-                programOrderCreateDto.getUserId(), createOrderTemporaryData.getPurchaseSeatList(),
-                orderRequestMq.getOrderVersion(), orderRequestMq.getOrderNumber());
-        return buildOrderCreateMq(orderCreateDto, createOrderTemporaryData.getIdentifierId());
+        try {
+            OrderCreateDto orderCreateDto = buildCreateOrderParamV2(programOrderCreateDto.getProgramId(),
+                    programOrderCreateDto.getUserId(), createOrderTemporaryData.getPurchaseSeatList(),
+                    orderRequestMq.getOrderVersion(), orderRequestMq.getOrderNumber());
+            return buildOrderCreateMq(orderCreateDto, createOrderTemporaryData.getIdentifierId());
+        } catch (RuntimeException e) {
+            markOrderRequestFailedSafely(orderRequestMq.getOrderNumber(), e);
+            releaseReservation(orderRequestMq.getOrderNumber(), programOrderCreateDto.getProgramId(),
+                    createOrderTemporaryData.getPurchaseSeatList());
+            if (e instanceof TikectsystemFrameException) {
+                throw e;
+            }
+            throw new TikectsystemFrameException(BaseCode.SYSTEM_ERROR.getCode(), BaseCode.SYSTEM_ERROR.getMsg(), e);
+        }
     }
 
     /**
@@ -345,6 +490,7 @@ public class ProgramOrderService {
             return false;
         }
         if (orderExists(orderRequestMq.getOrderNumber())) {
+            markOrderRequestCreatedSafely(orderRequestMq.getOrderNumber());
             return false;
         }
         OrderCreateMq orderCreateMq = reserveOrderRequest(orderRequestMq);
@@ -456,6 +602,78 @@ public class ProgramOrderService {
 
     private Date getReservationExpireTime() {
         return new Date(System.currentTimeMillis() + DELAY_ORDER_CANCEL_TIME_UNIT.toMillis(DELAY_ORDER_CANCEL_TIME));
+    }
+
+    private void markOrderRequestReservedSafely(Long orderNumber) {
+        if (Objects.isNull(orderNumber)) {
+            return;
+        }
+        String reservationJson = null;
+        Date expireTime = getReservationExpireTime();
+        try {
+            reservationJson = redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_RESERVATION,
+                    orderNumber), String.class);
+            expireTime = parseReservationExpireTime(reservationJson, expireTime);
+        } catch (RuntimeException e) {
+            log.warn("query order reservation snapshot failed, orderNumber : {}", orderNumber, e);
+        }
+        try {
+            orderRequestResultService.markReserved(orderNumber, reservationJson, expireTime);
+        } catch (RuntimeException e) {
+            log.warn("mark order request reserved failed, orderNumber : {}", orderNumber, e);
+        }
+    }
+
+    private Date parseReservationExpireTime(String reservationJson, Date defaultExpireTime) {
+        if (StringUtil.isEmpty(reservationJson)) {
+            return defaultExpireTime;
+        }
+        try {
+            Long expireTime = JSON.parseObject(reservationJson).getLong("expireTime");
+            return Objects.isNull(expireTime) ? defaultExpireTime : new Date(expireTime);
+        } catch (RuntimeException e) {
+            log.warn("parse order reservation expire time failed, reservationJson : {}", reservationJson, e);
+            return defaultExpireTime;
+        }
+    }
+
+    private void markOrderRequestFailedSafely(Long orderNumber, Throwable throwable) {
+        if (Objects.isNull(orderNumber)) {
+            return;
+        }
+        String failCode = String.valueOf(BaseCode.SYSTEM_ERROR.getCode());
+        String failMessage = BaseCode.SYSTEM_ERROR.getMsg();
+        if (throwable instanceof TikectsystemFrameException tikectsystemFrameException &&
+                Objects.nonNull(tikectsystemFrameException.getCode())) {
+            failCode = String.valueOf(tikectsystemFrameException.getCode());
+            failMessage = tikectsystemFrameException.getMessage();
+        } else if (Objects.nonNull(throwable) && !StringUtil.isEmpty(throwable.getMessage())) {
+            failMessage = throwable.getMessage();
+        }
+        try {
+            orderRequestResultService.markFailed(orderNumber, failCode, failMessage);
+        } catch (RuntimeException e) {
+            log.warn("mark order request failed status error, orderNumber : {}", orderNumber, e);
+        }
+    }
+
+    private void markOrderRequestCreatedSafely(Long orderNumber) {
+        if (Objects.isNull(orderNumber)) {
+            return;
+        }
+        try {
+            OrderRequestResultUpdateDto updateDto = new OrderRequestResultUpdateDto();
+            updateDto.setOrderNumber(orderNumber);
+            updateDto.setBeforeStatus(OrderRequestResultStatus.RESERVED);
+            updateDto.setStatus(OrderRequestResultStatus.ORDER_CREATED);
+            if (orderRequestResultService.updateStatus(updateDto)) {
+                return;
+            }
+            updateDto.setBeforeStatus(OrderRequestResultStatus.PROCESSING);
+            orderRequestResultService.updateStatus(updateDto);
+        } catch (RuntimeException e) {
+            log.warn("mark order request created failed, orderNumber : {}", orderNumber, e);
+        }
     }
 
     private void releaseReservation(Long orderNumber, Long programId, List<PurchaseSeat> fallbackPurchaseSeatList) {

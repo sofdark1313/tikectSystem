@@ -32,6 +32,14 @@ export function orderCreateV4Api(data) {
     })
 }
 
+export function getOrderRequestResultApi(data) {
+    return request({
+        url: '/tikectsystem/program/program/order/request/result/get',
+        method: 'post',
+        data:data
+    })
+}
+
 export function getOrderListApi(data) {
     return request({
         url: '/tikectsystem/order/order/select/list',

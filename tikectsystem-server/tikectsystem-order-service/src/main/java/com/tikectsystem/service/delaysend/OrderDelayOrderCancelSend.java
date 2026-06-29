@@ -57,11 +57,15 @@ public class OrderDelayOrderCancelSend {
         String topicName = SpringUtil.getPrefixDistinctionName() + "-" + DELAY_ORDER_CANCEL_TOPIC;
         String messageContent = JSON.toJSONString(messageModule);
 
-        kafkaTemplate.send(topicName, String.valueOf(messageModule.getOrderNumber()), messageContent)
-                .whenComplete((sendResult, ex) -> {
-                    if (ex != null) {
-                        log.error("send delay order cancel kafka message error, message:{}", messageContent, ex);
-                    }
-                });
+        try {
+            kafkaTemplate.send(topicName, String.valueOf(messageModule.getOrderNumber()), messageContent)
+                    .whenComplete((sendResult, ex) -> {
+                        if (ex != null) {
+                            log.error("send delay order cancel kafka message error, message:{}", messageContent, ex);
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("send delay order cancel kafka message error, message:{}", messageContent, e);
+        }
     }
 }

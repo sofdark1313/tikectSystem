@@ -154,7 +154,9 @@ public class DelayOrderCancelConsumer {
             }
         } catch (TikectsystemFrameException e) {
             if (!Objects.equals(e.getCode(), BaseCode.ORDER_CANCEL.getCode()) &&
-                    !Objects.equals(e.getCode(), BaseCode.ORDER_NOT_EXIST.getCode())) {
+                    !Objects.equals(e.getCode(), BaseCode.ORDER_NOT_EXIST.getCode()) &&
+                    !Objects.equals(e.getCode(), BaseCode.ORDER_PAY.getCode()) &&
+                    !Objects.equals(e.getCode(), BaseCode.ORDER_REFUND.getCode())) {
                 log.warn("delay order cancel business exception, orderNumber:{}",
                         messageModule.getOrderNumber(), e);
             }

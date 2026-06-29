@@ -7,18 +7,24 @@ import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * Order request result query parameter.
+ * 异步下单请求结果查询参数。
  */
 @Data
-@Schema(title = "OrderRequestResultQueryDto", description = "Order request result query parameter")
+@Schema(title = "OrderRequestResultQueryDto", description = "异步下单请求结果查询参数")
 public class OrderRequestResultQueryDto implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(name = "requestId", type = "String", description = "Order request idempotent id")
+    /**
+     * 下单请求幂等号。
+     */
+    @Schema(name = "requestId", type = "String", description = "下单请求幂等号")
     private String requestId;
 
-    @Schema(name = "orderNumber", type = "Long", description = "Order number")
+    /**
+     * 订单编号。
+     */
+    @Schema(name = "orderNumber", type = "Long", description = "订单编号")
     private Long orderNumber;
 }

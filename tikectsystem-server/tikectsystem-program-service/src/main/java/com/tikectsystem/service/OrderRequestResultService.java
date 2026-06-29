@@ -65,7 +65,7 @@ public class OrderRequestResultService {
     public void markReserved(Long orderNumber, String reservationJson, Date expireTime) {
         OrderRequestResult current = getByOrderNumber(orderNumber);
         if (Objects.isNull(current) || Objects.equals(current.getResultStatus(), OrderRequestResultStatus.RESERVED) ||
-                Objects.equals(current.getResultStatus(), OrderRequestResultStatus.ORDER_CREATED)) {
+                isTerminalStatus(current.getResultStatus())) {
             return;
         }
         checkTransition(current.getResultStatus(), OrderRequestResultStatus.RESERVED);
@@ -90,7 +90,7 @@ public class OrderRequestResultService {
     public void markFailed(Long orderNumber, String failCode, String failMessage) {
         OrderRequestResult current = getByOrderNumber(orderNumber);
         if (Objects.isNull(current) || Objects.equals(current.getResultStatus(), OrderRequestResultStatus.FAILED) ||
-                Objects.equals(current.getResultStatus(), OrderRequestResultStatus.ORDER_CREATED)) {
+                isTerminalStatus(current.getResultStatus())) {
             return;
         }
         checkTransition(current.getResultStatus(), OrderRequestResultStatus.FAILED);
@@ -209,15 +209,26 @@ public class OrderRequestResultService {
         }
         boolean allowed = Objects.equals(beforeStatus, OrderRequestResultStatus.PROCESSING) &&
                 (Objects.equals(afterStatus, OrderRequestResultStatus.RESERVED) ||
+                        Objects.equals(afterStatus, OrderRequestResultStatus.ORDER_CREATED) ||
                         Objects.equals(afterStatus, OrderRequestResultStatus.FAILED) ||
+                        Objects.equals(afterStatus, OrderRequestResultStatus.CANCELLED) ||
                         Objects.equals(afterStatus, OrderRequestResultStatus.EXPIRED));
         allowed = allowed || Objects.equals(beforeStatus, OrderRequestResultStatus.RESERVED) &&
                 (Objects.equals(afterStatus, OrderRequestResultStatus.ORDER_CREATED) ||
                         Objects.equals(afterStatus, OrderRequestResultStatus.FAILED) ||
                         Objects.equals(afterStatus, OrderRequestResultStatus.CANCELLED) ||
                         Objects.equals(afterStatus, OrderRequestResultStatus.EXPIRED));
+        allowed = allowed || Objects.equals(beforeStatus, OrderRequestResultStatus.ORDER_CREATED) &&
+                Objects.equals(afterStatus, OrderRequestResultStatus.CANCELLED);
         if (!allowed) {
             throw new IllegalStateException("illegal order request result status transition");
         }
+    }
+
+    private boolean isTerminalStatus(String status) {
+        return Objects.equals(status, OrderRequestResultStatus.ORDER_CREATED) ||
+                Objects.equals(status, OrderRequestResultStatus.FAILED) ||
+                Objects.equals(status, OrderRequestResultStatus.CANCELLED) ||
+                Objects.equals(status, OrderRequestResultStatus.EXPIRED);
     }
 }

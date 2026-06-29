@@ -126,7 +126,14 @@ import {useRoute, useRouter} from 'vue-router'
 import { getUserIdKey} from "@/utils/auth";
 import { getPersonInfoId} from '@/api/personInfo'
 import {getTicketUser} from "@/api/buyTicketUser";
-import {getOrderCacheApi, orderCreateV1Api, orderCreateV2Api, orderCreateV3Api, orderCreateV4Api} from '@/api/order.js'
+import {
+  getOrderCacheApi,
+  getOrderRequestResultApi,
+  orderCreateV1Api,
+  orderCreateV2Api,
+  orderCreateV3Api,
+  orderCreateV4Api
+} from '@/api/order.js'
 import {ElMessage} from "element-plus";
 //获取用户信息
 import useUserStore from "../../store/modules/user";
@@ -158,11 +165,15 @@ const svg = `
         " style="stroke-width: 4px; fill: rgba(0, 0, 0, 0)"/>`
 const pollingTimer = ref(null);
 const pollingSessionId = ref(0);
-// 10s的时间（毫秒）
-const tenSecond = 10000;
+const currentOrderRequestId = ref('');
+// V4 异步建单最长等待时间（毫秒）
+const orderCreateWaitMillis = 30000;
+const ORDER_REQUEST_CREATED = 'ORDER_CREATED';
+const ORDER_REQUEST_FAILED_STATUS_SET = ['FAILED', 'CANCELLED', 'EXPIRED'];
 
 //跳转后的接收值
 onMounted(()=>{
+  currentOrderRequestId.value = ''
   detailList.value  = JSON.parse(history.state.detailList)
   allPrice.value  = history.state.allPrice
   countPrice.value  =history.state.countPrice
@@ -194,6 +205,7 @@ function buyTicketInfo(){
 }
 
 function getSelectTicketUser(ticketUserId,isChecked){
+  currentOrderRequestId.value = '';
   if (isChecked) {
     ticketUserIdArr.value.push(ticketUserId);
   } else {
@@ -209,6 +221,28 @@ function getOrderCache(orderNumber){
       return String(response.data);
     }
     return '';
+  })
+}
+
+function ensureOrderRequestId() {
+  if (currentOrderRequestId.value !== '') {
+    return currentOrderRequestId.value;
+  }
+  currentOrderRequestId.value = [
+    useUser.userId,
+    detailList.value.id,
+    Date.now(),
+    Math.random().toString(36).slice(2, 10)
+  ].join('-');
+  return currentOrderRequestId.value;
+}
+
+function getOrderRequestResult(orderNumber) {
+  return getOrderRequestResultApi({orderNumber}).then(response => {
+    if (response.code == '0') {
+      return response.data || null;
+    }
+    return null;
   })
 }
 
@@ -266,9 +300,9 @@ const startPolling = (orderNumber,startTime) => {
       return;
     }
     const currentTime = Date.now();
-    if (currentTime - startTime >= tenSecond) {
+    if (currentTime - startTime >= orderCreateWaitMillis) {
       stopPolling();
-      //1. 大于10秒，此订单被舍弃，显示排队弹框
+      //1. 超过等待时间仍未建单，显示排队弹框
       //2. loading弹出框关闭
       loadingClose();
       //3. 排队弹框显示
@@ -277,6 +311,26 @@ const startPolling = (orderNumber,startTime) => {
     }
     requesting = true;
     try {
+      const requestResult = await getOrderRequestResult(currentOrderNumber);
+      if (pollingSessionId.value !== sessionId) {
+        return;
+      }
+      if (requestResult && requestResult.status === ORDER_REQUEST_CREATED) {
+        stopPolling();
+        loadingClose();
+        submitLoading.value = false;
+        currentOrderRequestId.value = '';
+        goPay(currentOrderNumber)
+        return;
+      }
+      if (requestResult && ORDER_REQUEST_FAILED_STATUS_SET.includes(requestResult.status)) {
+        stopPolling();
+        loadingClose();
+        submitLoading.value = false;
+        currentOrderRequestId.value = '';
+        ElMessage.error(requestResult.failMessage || '提交订单失败，请稍后重试');
+        return;
+      }
       const cachedOrderNumber = await getOrderCache(currentOrderNumber);
       if (pollingSessionId.value !== sessionId || cachedOrderNumber === '') {
         return;
@@ -293,13 +347,14 @@ const startPolling = (orderNumber,startTime) => {
       //loading弹框关闭
       loadingClose();
       submitLoading.value = false;
+      currentOrderRequestId.value = '';
       goPay(cachedOrderNumber)
     } catch (error) {
-      console.error('poll order cache failed', error);
+      console.error('poll order result failed', error);
     } finally {
       requesting = false;
     }
-  }, 200); // 每200毫秒调用一次
+  }, 500); // 每500毫秒调用一次
 };
 //停止轮训
 const stopPolling = () => {
@@ -330,6 +385,7 @@ function submitOrder(){
   const orderCreateParams = {
     'programId':detailList.value.id,
     'userId':useUser.userId,
+    'requestId': ensureOrderRequestId(),
     'ticketUserIdList':ticketUserIdArr.value,
     'ticketCategoryId':ticketCategoryId.value,
     'ticketCount':num.value

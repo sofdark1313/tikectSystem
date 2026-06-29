@@ -2,13 +2,18 @@ package com.tikectsystem.controller;
 
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.dto.OrderRequestRecoverDto;
+import com.tikectsystem.dto.OrderRequestResultExpireDto;
+import com.tikectsystem.dto.OrderRequestResultQueryDto;
+import com.tikectsystem.dto.OrderRequestResultUpdateDto;
 import com.tikectsystem.dto.ProgramOrderCircuitOperateDto;
 import com.tikectsystem.dto.ProgramOrderCircuitQueryDto;
 import com.tikectsystem.dto.ProgramOperateDataDto;
 import com.tikectsystem.dto.ReduceRemainNumberDto;
+import com.tikectsystem.service.OrderRequestResultService;
 import com.tikectsystem.service.ProgramOrderCircuitBreakerService;
 import com.tikectsystem.service.ProgramService;
 import com.tikectsystem.service.kafka.OrderRequestRecoveryService;
+import com.tikectsystem.vo.OrderRequestResultVo;
 import com.tikectsystem.vo.ProgramOrderCircuitStateVo;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -36,6 +41,9 @@ public class ProgramInteriorController {
     @Autowired
     private ProgramOrderCircuitBreakerService programOrderCircuitBreakerService;
 
+    @Autowired
+    private OrderRequestResultService orderRequestResultService;
+
     @Operation(summary  = "扣减库存相关操作")
     @PostMapping(value = "/reduce/remain/number")
     public ApiResponse<Boolean> operateSeatLockAndTicketCategoryRemainNumber(@Valid @RequestBody ReduceRemainNumberDto reduceRemainNumberDto) {
@@ -52,6 +60,29 @@ public class ProgramInteriorController {
     @PostMapping(value = "/order/request/recover")
     public ApiResponse<Integer> recoverOrderRequest(@Valid @RequestBody OrderRequestRecoverDto orderRequestRecoverDto) {
         return ApiResponse.ok(orderRequestRecoveryService.recover(orderRequestRecoverDto));
+    }
+
+    @Operation(summary  = "更新异步下单请求结果")
+    @PostMapping(value = "/order/request/result/update")
+    public ApiResponse<Boolean> updateOrderRequestResult(
+            @Valid @RequestBody OrderRequestResultUpdateDto orderRequestResultUpdateDto) {
+        return ApiResponse.ok(orderRequestResultService.updateStatus(orderRequestResultUpdateDto));
+    }
+
+    @Operation(summary  = "查询异步下单请求结果")
+    @PostMapping(value = "/order/request/result/get")
+    public ApiResponse<OrderRequestResultVo> getOrderRequestResult(
+            @Valid @RequestBody OrderRequestResultQueryDto orderRequestResultQueryDto) {
+        return ApiResponse.ok(orderRequestResultService.get(orderRequestResultQueryDto));
+    }
+
+    @Operation(summary  = "过期卡住的异步下单请求")
+    @PostMapping(value = "/order/request/result/expire")
+    public ApiResponse<Integer> expireOrderRequestResult(
+            @Valid @RequestBody OrderRequestResultExpireDto orderRequestResultExpireDto) {
+        int limit = orderRequestResultExpireDto.getLimit() == null ? 100 : orderRequestResultExpireDto.getLimit();
+        return ApiResponse.ok(orderRequestResultService.expireStuckProcessing(
+                orderRequestResultExpireDto.getBeforeTime(), limit));
     }
 
     @Operation(summary  = "更新节目下单 Redis 熔断状态")

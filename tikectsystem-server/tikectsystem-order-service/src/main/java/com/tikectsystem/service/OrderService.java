@@ -28,6 +28,7 @@ import com.tikectsystem.dto.OrderGetDto;
 import com.tikectsystem.dto.OrderListDto;
 import com.tikectsystem.dto.OrderPayCheckDto;
 import com.tikectsystem.dto.OrderPayDto;
+import com.tikectsystem.dto.OrderRequestResultUpdateDto;
 import com.tikectsystem.dto.OrderTicketUserCreateDto;
 import com.tikectsystem.dto.PayDto;
 import com.tikectsystem.dto.ProgramOperateDataDto;
@@ -87,6 +88,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -115,6 +118,16 @@ import static com.tikectsystem.core.RepeatExecuteLimitConstants.CREATE_PROGRAM_O
 public class OrderService extends ServiceImpl<OrderMapper, Order> {
 
     private static final String SIMPLE_PAY_RESULT = "PAY_SUCCESS";
+
+    private static final String ORDER_REQUEST_RESULT_PROCESSING = "PROCESSING";
+
+    private static final String ORDER_REQUEST_RESULT_RESERVED = "RESERVED";
+
+    private static final String ORDER_REQUEST_RESULT_ORDER_CREATED = "ORDER_CREATED";
+
+    private static final String ORDER_REQUEST_RESULT_FAILED = "FAILED";
+
+    private static final String ORDER_REQUEST_RESULT_CANCELLED = "CANCELLED";
 
     private static final long TICKET_USER_ID_ROUNDING_TOLERANCE = 1024L;
 
@@ -628,6 +641,10 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 throw e;
             }
         }
+        if (Objects.equals(order.getOrderVersion(), ProgramOrderVersion.V4_VERSION.getValue()) &&
+                Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode())) {
+            markOrderRequestCancelledSafely(orderNumber);
+        }
     }
 
     public void checkOrderStatus(Order order){
@@ -754,10 +771,20 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             //濡傛灉鍒涘缓璁㈠崟鐗堟湰鏄痸4 鏇存柊鑺傜洰鏈嶅姟鐨勭浉鍏虫暟鎹?
             if (Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode()) ||
                     Objects.equals(orderStatus.getCode(), OrderStatus.CANCEL.getCode())) {
-                programOperateDataDto.setSellStatus(Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode()) ? SellStatus.SOLD.getCode() : SellStatus.NO_SOLD.getCode());
-                ApiResponse<Boolean> programApiResponse = programClient.operateProgramData(programOperateDataDto);
-                if (programApiResponse == null || !Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
-                    throw new TikectsystemFrameException(programApiResponse);
+                boolean payStatus = Objects.equals(orderStatus.getCode(), OrderStatus.PAY.getCode());
+                programOperateDataDto.setSellStatus(payStatus ? SellStatus.SOLD.getCode() : SellStatus.NO_SOLD.getCode());
+                try {
+                    ApiResponse<Boolean> programApiResponse = programClient.operateProgramData(programOperateDataDto);
+                    if (programApiResponse == null || !Objects.equals(programApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
+                        throw new TikectsystemFrameException(programApiResponse);
+                    }
+                } catch (RuntimeException e) {
+                    if (!payStatus) {
+                        throw e;
+                    }
+                    delayOperateProgramDataSend.sendMessage(JSON.toJSONString(programOperateDataDto));
+                    log.warn("order paid, program db update failed and retry message sent, programId:{}, seatIds:{}",
+                            programId, operateSeatIdList, e);
                 }
             }
             orderProgramCacheResolutionOperate.programCacheReverseOperate(keys,data);
@@ -952,11 +979,116 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         }
         // 真正地创建订单
         String orderNumber = createByMq(orderCreateMq);
-        redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.ORDER_MQ,orderNumber),orderNumber,1, TimeUnit.MINUTES);
+        afterCurrentTransactionCommit(() -> cacheCreatedOrderNumberSafely(orderNumber));
         if (Objects.equals(orderCreateMq.getOrderVersion(), ProgramOrderVersion.V4_VERSION.getValue())) {
-            sendDelayOrderCancel(orderCreateMq);
+            afterCurrentTransactionCommit(() -> {
+                sendDelayOrderCancel(orderCreateMq);
+                markOrderRequestCreatedSafely(orderCreateMq);
+            });
         }
         return orderNumber;
+    }
+
+    private void afterCurrentTransactionCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
+    }
+
+    private void cacheCreatedOrderNumberSafely(String orderNumber) {
+        try {
+            redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.ORDER_MQ, orderNumber),
+                    orderNumber, 1, TimeUnit.MINUTES);
+        } catch (RuntimeException e) {
+            log.warn("cache created order number failed, orderNumber:{}", orderNumber, e);
+        }
+    }
+
+    private void markOrderRequestCreatedSafely(OrderCreateMq orderCreateMq) {
+        if (orderCreateMq == null || orderCreateMq.getOrderNumber() == null) {
+            return;
+        }
+        try {
+            if (updateOrderRequestResult(orderCreateMq.getOrderNumber(), ORDER_REQUEST_RESULT_RESERVED,
+                    ORDER_REQUEST_RESULT_ORDER_CREATED)) {
+                return;
+            }
+            updateOrderRequestResult(orderCreateMq.getOrderNumber(), ORDER_REQUEST_RESULT_PROCESSING,
+                    ORDER_REQUEST_RESULT_ORDER_CREATED);
+        } catch (RuntimeException e) {
+            log.warn("mark order request created failed, orderNumber:{}", orderCreateMq.getOrderNumber(), e);
+        }
+    }
+
+    private void markOrderRequestCancelledSafely(Long orderNumber) {
+        if (orderNumber == null) {
+            return;
+        }
+        try {
+            if (updateOrderRequestResult(orderNumber, ORDER_REQUEST_RESULT_ORDER_CREATED,
+                    ORDER_REQUEST_RESULT_CANCELLED)) {
+                return;
+            }
+            if (updateOrderRequestResult(orderNumber, ORDER_REQUEST_RESULT_RESERVED,
+                    ORDER_REQUEST_RESULT_CANCELLED)) {
+                return;
+            }
+            updateOrderRequestResult(orderNumber, ORDER_REQUEST_RESULT_PROCESSING,
+                    ORDER_REQUEST_RESULT_CANCELLED);
+        } catch (RuntimeException e) {
+            log.warn("mark order request cancelled failed, orderNumber:{}", orderNumber, e);
+        }
+    }
+
+    /**
+     * create_order 消息确定不可建单时回写异步下单失败状态。
+     *
+     * @param orderCreateMq 创建订单消息
+     * @param baseCode 失败原因
+     */
+    public void markCreateOrderRequestFailedSafely(OrderCreateMq orderCreateMq, BaseCode baseCode) {
+        if (orderCreateMq == null || orderCreateMq.getOrderNumber() == null || baseCode == null) {
+            return;
+        }
+        try {
+            if (updateOrderRequestResult(orderCreateMq.getOrderNumber(), ORDER_REQUEST_RESULT_RESERVED,
+                    ORDER_REQUEST_RESULT_FAILED, baseCode)) {
+                return;
+            }
+            updateOrderRequestResult(orderCreateMq.getOrderNumber(), ORDER_REQUEST_RESULT_PROCESSING,
+                    ORDER_REQUEST_RESULT_FAILED, baseCode);
+        } catch (RuntimeException e) {
+            log.warn("mark create order request failed status error, orderNumber:{}", orderCreateMq.getOrderNumber(), e);
+        }
+    }
+
+    private boolean updateOrderRequestResult(Long orderNumber, String beforeStatus, String status) {
+        return updateOrderRequestResult(orderNumber, beforeStatus, status, null);
+    }
+
+    private boolean updateOrderRequestResult(Long orderNumber, String beforeStatus, String status, BaseCode failCode) {
+        OrderRequestResultUpdateDto updateDto = new OrderRequestResultUpdateDto();
+        updateDto.setOrderNumber(orderNumber);
+        updateDto.setBeforeStatus(beforeStatus);
+        updateDto.setStatus(status);
+        if (failCode != null) {
+            updateDto.setFailCode(String.valueOf(failCode.getCode()));
+            updateDto.setFailMessage(failCode.getMsg());
+        }
+        ApiResponse<Boolean> response = programClient.updateOrderRequestResult(updateDto);
+        if (response == null || !Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode())) {
+            log.warn("update order request result response error, orderNumber:{}, beforeStatus:{}, status:{}, response:{}",
+                    orderNumber, beforeStatus, status, JSON.toJSONString(response));
+            return false;
+        }
+        return Boolean.TRUE.equals(response.getData());
     }
 
     private void sendDelayOrderCancel(OrderCreateMq orderCreateMq) {
@@ -967,7 +1099,25 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     }
 
     public String getCache(OrderGetDto orderGetDto) {
-        return redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.ORDER_MQ,orderGetDto.getOrderNumber()),String.class);
+        String cachedOrderNumber = null;
+        try {
+            cachedOrderNumber = redisCache.get(RedisKeyBuild.createRedisKey(
+                    RedisKeyManage.ORDER_MQ, orderGetDto.getOrderNumber()), String.class);
+        } catch (RuntimeException e) {
+            log.warn("query order cache failed, fallback to db, orderNumber:{}", orderGetDto.getOrderNumber(), e);
+        }
+        if (!StringUtil.isEmpty(cachedOrderNumber)) {
+            return cachedOrderNumber;
+        }
+        Order order = orderMapper.selectOne(Wrappers.lambdaQuery(Order.class)
+                .select(Order::getOrderNumber)
+                .eq(Order::getOrderNumber, orderGetDto.getOrderNumber()));
+        if (Objects.isNull(order)) {
+            return null;
+        }
+        String orderNumber = String.valueOf(order.getOrderNumber());
+        cacheCreatedOrderNumberSafely(orderNumber);
+        return orderNumber;
     }
 
     @RepeatExecuteLimit(name = CANCEL_PROGRAM_ORDER,keys = {"#orderCancelDto.orderNumber"})
