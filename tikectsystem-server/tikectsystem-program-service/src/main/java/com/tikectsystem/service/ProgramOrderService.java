@@ -441,10 +441,36 @@ public class ProgramOrderService {
                 orderRequestMq.getProgramOrderCreateDto() == null) {
             return null;
         }
-        if (shouldSkipTerminalOrderRequest(orderRequestMq.getOrderNumber())) {
-            return null;
-        }
         ProgramOrderCreateDto programOrderCreateDto = orderRequestMq.getProgramOrderCreateDto();
+        OrderRequestResult currentOrderRequestResult =
+                orderRequestResultService.getByOrderNumber(orderRequestMq.getOrderNumber());
+        if (Objects.nonNull(currentOrderRequestResult)) {
+            String currentStatus = currentOrderRequestResult.getResultStatus();
+            if (isTerminalOrderRequestStatus(currentStatus)) {
+                log.warn("skip terminal order request, orderNumber : {}, status : {}",
+                        orderRequestMq.getOrderNumber(), currentStatus);
+                if (!Objects.equals(currentStatus, OrderRequestResultStatus.ORDER_CREATED)) {
+                    releaseReservation(orderRequestMq.getOrderNumber(), programOrderCreateDto.getProgramId(), null);
+                }
+                return null;
+            }
+            if (Objects.equals(currentStatus, OrderRequestResultStatus.RESERVED)) {
+                if (Objects.nonNull(currentOrderRequestResult.getExpireTime()) &&
+                        currentOrderRequestResult.getExpireTime().before(DateUtils.now())) {
+                    expireReservedOrderRequestSafely(orderRequestMq, currentOrderRequestResult);
+                    releaseGateSafely(programOrderCreateDto, orderRequestMq.getRequestId());
+                    return null;
+                }
+                OrderCreateMq reservedOrderCreateMq = buildReservedOrderCreateMq(orderRequestMq, currentOrderRequestResult);
+                if (Objects.nonNull(reservedOrderCreateMq)) {
+                    releaseGateSafely(programOrderCreateDto, orderRequestMq.getRequestId());
+                    return reservedOrderCreateMq;
+                }
+                expireReservedOrderRequestSafely(orderRequestMq, currentOrderRequestResult);
+                releaseGateSafely(programOrderCreateDto, orderRequestMq.getRequestId());
+                return null;
+            }
+        }
         ProgramOrderCircuitBreakerService.CircuitAccessToken circuitToken =
                 programOrderCircuitBreakerService.beforeRedisAccess(programOrderCreateDto);
         CreateOrderTemporaryData createOrderTemporaryData;
@@ -462,8 +488,29 @@ public class ProgramOrderService {
             releaseGateSafely(programOrderCreateDto, orderRequestMq.getRequestId());
             throw e;
         }
-        markOrderRequestReservedSafely(orderRequestMq.getOrderNumber());
+        String reservedStatus;
+        try {
+            reservedStatus = markOrderRequestReserved(orderRequestMq.getOrderNumber());
+        } catch (RuntimeException e) {
+            releaseGateSafely(programOrderCreateDto, orderRequestMq.getRequestId());
+            releaseReservation(orderRequestMq.getOrderNumber(), programOrderCreateDto.getProgramId(),
+                    createOrderTemporaryData.getPurchaseSeatList());
+            throw e;
+        }
         releaseGateSafely(programOrderCreateDto, orderRequestMq.getRequestId());
+        if (!Objects.equals(reservedStatus, OrderRequestResultStatus.RESERVED)) {
+            if (Objects.equals(reservedStatus, OrderRequestResultStatus.ORDER_CREATED)) {
+                return null;
+            }
+            releaseReservation(orderRequestMq.getOrderNumber(), programOrderCreateDto.getProgramId(),
+                    createOrderTemporaryData.getPurchaseSeatList());
+            if (isTerminalOrderRequestStatus(reservedStatus)) {
+                log.warn("skip reserved order_create because request is terminal, orderNumber : {}, status : {}",
+                        orderRequestMq.getOrderNumber(), reservedStatus);
+                return null;
+            }
+            throw new TikectsystemFrameException(BaseCode.SYSTEM_ERROR);
+        }
         try {
             OrderCreateDto orderCreateDto = buildCreateOrderParamV2(programOrderCreateDto.getProgramId(),
                     programOrderCreateDto.getUserId(), createOrderTemporaryData.getPurchaseSeatList(),
@@ -481,11 +528,15 @@ public class ProgramOrderService {
     }
 
     /**
-     * Redis 已完成锁座后投递 order_create。投递失败不释放锁座，交给恢复扫描回扫 order_request 补发。
+     * Redis 已完成锁座后投递 order_create。投递失败不释放锁座，交给 Kafka 重试或恢复扫描补发。
      */
     public void sendReservedOrderCreate(OrderCreateMq orderCreateMq) {
         sendOrderCreateByMq(orderCreateMq);
-        programRecordTaskExecutor.execute(() -> createProgramRecordTask(orderCreateMq.getProgramId()));
+        try {
+            programRecordTaskExecutor.execute(() -> createProgramRecordTask(orderCreateMq.getProgramId()));
+        } catch (RuntimeException e) {
+            log.warn("submit program record task failed, programId : {}", orderCreateMq.getProgramId(), e);
+        }
     }
 
     /**
@@ -526,15 +577,20 @@ public class ProgramOrderService {
     }
 
     /**
-     * 根据结果表中的锁座快照重建 order_create 消息。
+     * 根据结果表或 Redis reservation 中的锁座快照重建 order_create 消息。
      */
     private OrderCreateMq buildReservedOrderCreateMq(OrderRequestMq orderRequestMq,
                                                      OrderRequestResult orderRequestResult) {
-        if (StringUtil.isEmpty(orderRequestResult.getReservationJson())) {
+        String reservationJson = orderRequestResult.getReservationJson();
+        if (StringUtil.isEmpty(reservationJson) && Objects.nonNull(orderRequestMq.getOrderNumber())) {
+            reservationJson = redisCache.get(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_ORDER_RESERVATION,
+                    orderRequestMq.getOrderNumber()), String.class);
+        }
+        if (StringUtil.isEmpty(reservationJson)) {
             return null;
         }
         try {
-            JSONObject reservation = JSON.parseObject(orderRequestResult.getReservationJson());
+            JSONObject reservation = JSON.parseObject(reservationJson);
             Long identifierId = reservation.getLong("identifierId");
             JSONArray purchaseSeatArray = reservation.getJSONArray("purchaseSeatList");
             if (Objects.isNull(identifierId) || CollectionUtil.isEmpty(purchaseSeatArray)) {
@@ -594,26 +650,11 @@ public class ProgramOrderService {
         return Objects.isNull(purchaseSeatArray) ? null : purchaseSeatArray.toJavaList(PurchaseSeat.class);
     }
 
-    /**
-     * 终态请求不能再被主消费或恢复扫描推进，避免失败或过期请求被后台重新建单。
-     */
-    private boolean shouldSkipTerminalOrderRequest(Long orderNumber) {
-        if (Objects.isNull(orderNumber)) {
-            return false;
-        }
-        OrderRequestResult orderRequestResult = orderRequestResultService.getByOrderNumber(orderNumber);
-        if (Objects.isNull(orderRequestResult)) {
-            return false;
-        }
-        String resultStatus = orderRequestResult.getResultStatus();
-        boolean terminal = Objects.equals(resultStatus, OrderRequestResultStatus.ORDER_CREATED) ||
+    private boolean isTerminalOrderRequestStatus(String resultStatus) {
+        return Objects.equals(resultStatus, OrderRequestResultStatus.ORDER_CREATED) ||
                 Objects.equals(resultStatus, OrderRequestResultStatus.FAILED) ||
                 Objects.equals(resultStatus, OrderRequestResultStatus.CANCELLED) ||
                 Objects.equals(resultStatus, OrderRequestResultStatus.EXPIRED);
-        if (terminal) {
-            log.warn("skip terminal order request, orderNumber : {}, status : {}", orderNumber, resultStatus);
-        }
-        return terminal;
     }
 
     private boolean orderExists(Long orderNumber) {
@@ -732,9 +773,9 @@ public class ProgramOrderService {
         return new Date(System.currentTimeMillis() + DELAY_ORDER_CANCEL_TIME_UNIT.toMillis(DELAY_ORDER_CANCEL_TIME));
     }
 
-    private void markOrderRequestReservedSafely(Long orderNumber) {
+    private String markOrderRequestReserved(Long orderNumber) {
         if (Objects.isNull(orderNumber)) {
-            return;
+            return null;
         }
         String reservationJson = null;
         Date expireTime = getReservationExpireTime();
@@ -747,8 +788,20 @@ public class ProgramOrderService {
         }
         try {
             orderRequestResultService.markReserved(orderNumber, reservationJson, expireTime);
+            OrderRequestResult orderRequestResult = orderRequestResultService.getByOrderNumber(orderNumber);
+            return Objects.isNull(orderRequestResult) ? null : orderRequestResult.getResultStatus();
         } catch (RuntimeException e) {
+            try {
+                OrderRequestResult latestOrderRequestResult = orderRequestResultService.getByOrderNumber(orderNumber);
+                if (Objects.nonNull(latestOrderRequestResult) &&
+                        !Objects.equals(latestOrderRequestResult.getResultStatus(), OrderRequestResultStatus.PROCESSING)) {
+                    return latestOrderRequestResult.getResultStatus();
+                }
+            } catch (RuntimeException queryException) {
+                log.warn("query latest order request status failed, orderNumber : {}", orderNumber, queryException);
+            }
             log.warn("mark order request reserved failed, orderNumber : {}", orderNumber, e);
+            throw e;
         }
     }
 

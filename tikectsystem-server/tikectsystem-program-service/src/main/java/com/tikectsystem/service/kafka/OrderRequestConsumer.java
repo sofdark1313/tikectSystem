@@ -55,7 +55,6 @@ public class OrderRequestConsumer {
         OrderCreateMq orderCreateMq;
         try {
             orderCreateMq = programOrderService.reserveOrderRequest(orderRequestMq);
-            acknowledge(acknowledgment);
         } catch (TikectsystemFrameException e) {
             if (isCircuitOpen(e)) {
                 throw e;
@@ -67,13 +66,16 @@ public class OrderRequestConsumer {
             throw e;
         }
         if (orderCreateMq == null) {
+            acknowledge(acknowledgment);
             return;
         }
         try {
             programOrderService.sendReservedOrderCreate(orderCreateMq);
+            acknowledge(acknowledgment);
         } catch (RuntimeException e) {
-            log.error("order_create send failed after order_request offset committed, wait recovery scan, orderNumber:{}",
+            log.error("order_create send failed, retry order_request later, orderNumber:{}",
                     orderRequestMq.getOrderNumber(), e);
+            throw e;
         }
     }
 

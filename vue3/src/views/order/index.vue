@@ -315,6 +315,7 @@ const startPolling = (orderNumber,startTime) => {
       //1. 超过等待时间仍未建单，显示排队弹框
       //2. loading弹出框关闭
       loadingClose();
+      submitLoading.value = false;
       //3. 排队弹框显示
       dialogShow('订单创建处理中，请稍后查看订单列表或重试');
       return;
