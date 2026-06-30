@@ -330,8 +330,9 @@ public class ProgramOrderService {
         keys.add(RecordType.REDUCE.getValue());
         data[0] = JSON.toJSONString(jsonArray);
         data[1] = JSON.toJSONString(addSeatDatajsonArray);
-        //购票人id集合
-        data[2] = JSON.toJSONString(programOrderCreateDto.getTicketUserIdList());
+        //购票人id集合传给 Lua 时必须使用字符串，避免 cjson 按 number 处理大 Long 导致精度丢失。
+        data[2] = JSON.toJSONString(programOrderCreateDto.getTicketUserIdList().stream()
+                .map(String::valueOf).collect(Collectors.toList()));
         //执行lua脚本
         ProgramCacheCreateOrderData programCacheCreateOrderData =
                 programCacheCreateOrderResolutionOperate.programCacheOperate(keys, data);

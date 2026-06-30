@@ -42,7 +42,6 @@ import com.tikectsystem.entity.OrderTicketUser;
 import com.tikectsystem.entity.OrderTicketUserAggregate;
 import com.tikectsystem.entity.OrderTicketUserRecord;
 import com.tikectsystem.enums.BaseCode;
-import com.tikectsystem.enums.BusinessStatus;
 import com.tikectsystem.enums.DiscardOrderReason;
 import com.tikectsystem.enums.OrderStatus;
 import com.tikectsystem.enums.PayBillStatus;
@@ -113,6 +112,8 @@ import static com.tikectsystem.core.RepeatExecuteLimitConstants.CREATE_PROGRAM_O
 public class OrderService extends ServiceImpl<OrderMapper, Order> {
     
     private static final String SIMPLE_PAY_RESULT = "PAY_SUCCESS";
+
+    private static final long TICKET_USER_ID_PRECISION_LOSS_TOLERANCE = 1_000_000L;
 
     @Autowired
     private UidGenerator uidGenerator;
@@ -798,10 +799,11 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 orderTicketUserList.stream().collect(Collectors.groupingBy(OrderTicketUser::getOrderPrice));
         orderTicketUserMap.forEach((k,v) -> {
             OrderTicketInfoVo orderTicketInfoVo = new OrderTicketInfoVo();
-            String seatInfo = "暂无座位信息";
-            //如果节目是允许选座的，才显示出当时生成订单时产生的座位信息
-            if (Objects.equals(order.getProgramPermitChooseSeat(),BusinessStatus.YES.getCode())) {
-                seatInfo = v.stream().map(OrderTicketUser::getSeatInfo).collect(Collectors.joining(","));
+            String seatInfo = v.stream().map(OrderTicketUser::getSeatInfo)
+                    .filter(StringUtil::isNotEmpty)
+                    .collect(Collectors.joining(","));
+            if (StringUtil.isEmpty(seatInfo)) {
+                seatInfo = "暂无座位信息";
             }
             orderTicketInfoVo.setSeatInfo(seatInfo);
             orderTicketInfoVo.setPrice(k);
@@ -831,26 +833,67 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (Objects.isNull(userAndTicketUserListVo.getUserVo())) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
-        //如果购票人信息空，抛出异常
-        if (CollectionUtil.isEmpty(userAndTicketUserListVo.getTicketUserVoList())) {
-            throw new TikectsystemFrameException(BaseCode.TICKET_USER_EMPTY);
-        }
         //从查询得到的购票人信息中进行过滤出该订单下购票人的信息
-        List<TicketUserVo> filterTicketUserVoList = new ArrayList<>();
-        Map<Long, TicketUserVo> ticketUserVoMap = userAndTicketUserListVo.getTicketUserVoList()
-                .stream().collect(Collectors.toMap(TicketUserVo::getId, ticketUserVo -> ticketUserVo, (v1, v2) -> v2));
+        List<TicketUserVo> availableTicketUserVoList = CollectionUtil.isEmpty(userAndTicketUserListVo.getTicketUserVoList())
+                ? new ArrayList<>() : userAndTicketUserListVo.getTicketUserVoList();
+        List<TicketUserInfoVo> ticketUserInfoVoList = new ArrayList<>(orderTicketUserList.size());
+        List<Long> matchedTicketUserIdList = new ArrayList<>(orderTicketUserList.size());
+        Map<Long, TicketUserVo> ticketUserVoMap = CollectionUtil.isEmpty(availableTicketUserVoList)
+                ? new HashMap<>()
+                : availableTicketUserVoList.stream()
+                .collect(Collectors.toMap(TicketUserVo::getId, ticketUserVo -> ticketUserVo, (v1, v2) -> v2));
         for (OrderTicketUser orderTicketUser : orderTicketUserList) {
-            filterTicketUserVoList.add(ticketUserVoMap.get(orderTicketUser.getTicketUserId()));
+            TicketUserInfoVo ticketUserInfoVo = new TicketUserInfoVo();
+            TicketUserVo ticketUserVo = ticketUserVoMap.get(orderTicketUser.getTicketUserId());
+            if (Objects.isNull(ticketUserVo)) {
+                ticketUserVo = findPossiblyRoundedTicketUser(orderTicketUser.getTicketUserId(),
+                        availableTicketUserVoList, matchedTicketUserIdList);
+            }
+            if (Objects.nonNull(ticketUserVo)) {
+                BeanUtil.copyProperties(ticketUserVo, ticketUserInfoVo);
+                matchedTicketUserIdList.add(ticketUserVo.getId());
+            } else {
+                ticketUserInfoVo.setId(orderTicketUser.getTicketUserId());
+                ticketUserInfoVo.setRelName("购票人信息已删除");
+            }
+            ticketUserInfoVoList.add(ticketUserInfoVo);
         }
         //组装数据
         UserInfoVo userInfoVo = new UserInfoVo();
         BeanUtil.copyProperties(userAndTicketUserListVo.getUserVo(),userInfoVo);
         UserAndTicketUserInfoVo userAndTicketUserInfoVo = new UserAndTicketUserInfoVo();
         userAndTicketUserInfoVo.setUserInfoVo(userInfoVo);
-        userAndTicketUserInfoVo.setTicketUserInfoVoList(BeanUtil.copyToList(filterTicketUserVoList, TicketUserInfoVo.class));
+        userAndTicketUserInfoVo.setTicketUserInfoVoList(ticketUserInfoVoList);
         orderGetVo.setUserAndTicketUserInfoVo(userAndTicketUserInfoVo);
 
         return orderGetVo;
+    }
+
+    private TicketUserVo findPossiblyRoundedTicketUser(Long ticketUserId, List<TicketUserVo> ticketUserVoList,
+                                                       List<Long> matchedTicketUserIdList) {
+        if (Objects.isNull(ticketUserId) || CollectionUtil.isEmpty(ticketUserVoList)) {
+            return null;
+        }
+        TicketUserVo nearestTicketUserVo = null;
+        long nearestDistance = Long.MAX_VALUE;
+        for (TicketUserVo ticketUserVo : ticketUserVoList) {
+            if (Objects.isNull(ticketUserVo) || Objects.isNull(ticketUserVo.getId()) ||
+                    matchedTicketUserIdList.contains(ticketUserVo.getId())) {
+                continue;
+            }
+            long distance = Math.abs(ticketUserVo.getId() - ticketUserId);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestTicketUserVo = ticketUserVo;
+            }
+        }
+        if (nearestDistance <= TICKET_USER_ID_PRECISION_LOSS_TOLERANCE) {
+            return nearestTicketUserVo;
+        }
+        if (ticketUserVoList.size() == 1 && CollectionUtil.isEmpty(matchedTicketUserIdList)) {
+            return nearestTicketUserVo;
+        }
+        return null;
     }
     
     public AccountOrderCountVo accountOrderCount(AccountOrderCountDto accountOrderCountDto) {

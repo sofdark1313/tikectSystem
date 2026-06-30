@@ -863,45 +863,82 @@ public class ProgramService extends ServiceImpl<ProgramMapper, Program> {
                 }
             }
         }else {
-            //如果创建订单版本是v4
-            //验证座位现在的状态，只能是锁定中
-            for (Seat seat : seatList) {
-                if (!Objects.equals(seat.getSellStatus(), SellStatus.LOCK.getCode())) {
-                    throw new TikectsystemFrameException(BaseCode.SEAT_IS_NOT_NOT_LOCK);
-                }
-            }
-
             Seat updateSeat = new Seat();
-            //订单支付成功的操作
             if (Objects.equals(programOperateDataDto.getSellStatus(),SellStatus.SOLD.getCode())) {
+                for (Seat seat : seatList) {
+                    if (Objects.equals(seat.getSellStatus(), SellStatus.SOLD.getCode())) {
+                        throw new TikectsystemFrameException(BaseCode.SEAT_SOLD);
+                    }
+                }
                 updateSeat.setSellStatus(SellStatus.SOLD.getCode());
                 LambdaUpdateWrapper<Seat> seatLambdaUpdateWrapper =
                         Wrappers.lambdaUpdate(Seat.class)
                                 .eq(Seat::getProgramId,programOperateDataDto.getProgramId())
                                 .in(Seat::getId, seatIdList);
                 seatMapper.update(updateSeat,seatLambdaUpdateWrapper);
+                List<TicketCategoryCountDto> ticketCategoryCountDtoList =
+                        buildTicketCategoryCountDtoListBySellStatus(seatList, SellStatus.NO_SOLD.getCode());
+                reduceTicketCategoryRemainNumber(ticketCategoryCountDtoList, programOperateDataDto.getProgramId());
             } else if (Objects.equals(programOperateDataDto.getSellStatus(),SellStatus.NO_SOLD.getCode())) {
-                //订单取消的操作
+                for (Seat seat : seatList) {
+                    if (Objects.equals(seat.getSellStatus(), SellStatus.SOLD.getCode())) {
+                        throw new TikectsystemFrameException(BaseCode.SEAT_SOLD);
+                    }
+                }
                 updateSeat.setSellStatus(SellStatus.NO_SOLD.getCode());
                 LambdaUpdateWrapper<Seat> seatLambdaUpdateWrapper =
                         Wrappers.lambdaUpdate(Seat.class)
                                 .eq(Seat::getProgramId,programOperateDataDto.getProgramId())
                                 .in(Seat::getId, seatIdList);
                 seatMapper.update(updateSeat,seatLambdaUpdateWrapper);
-                List<TicketCategoryCountDto> ticketCategoryCountDtoList = programOperateDataDto.getTicketCategoryCountDtoList();
-                int updateRemainNumberCount = 0;
-                //把库存增加回去
-                for (TicketCategoryCountDto ticketCategoryCountDto : ticketCategoryCountDtoList) {
-                    updateRemainNumberCount = updateRemainNumberCount + ticketCategoryMapper.increaseRemainNumber(
-                            ticketCategoryCountDto.getCount(), ticketCategoryCountDto.getTicketCategoryId(),
-                            programOperateDataDto.getProgramId());
-                }
-                if (updateRemainNumberCount != ticketCategoryCountDtoList.size()) {
-                    throw new TikectsystemFrameException(BaseCode.UPDATE_TICKET_CATEGORY_COUNT_NOT_CORRECT);
-                }
+                List<TicketCategoryCountDto> ticketCategoryCountDtoList =
+                        buildTicketCategoryCountDtoListBySellStatus(seatList, SellStatus.LOCK.getCode());
+                increaseTicketCategoryRemainNumber(ticketCategoryCountDtoList, programOperateDataDto.getProgramId());
             }
         }
         return true;
+    }
+
+    private List<TicketCategoryCountDto> buildTicketCategoryCountDtoListBySellStatus(List<Seat> seatList, Integer sellStatus) {
+        Map<Long, Long> ticketCategoryCountMap = seatList.stream()
+                .filter(seat -> Objects.equals(seat.getSellStatus(), sellStatus))
+                .collect(Collectors.groupingBy(Seat::getTicketCategoryId, Collectors.counting()));
+        List<TicketCategoryCountDto> ticketCategoryCountDtoList = new ArrayList<>(ticketCategoryCountMap.size());
+        ticketCategoryCountMap.forEach((ticketCategoryId, count) -> {
+            TicketCategoryCountDto ticketCategoryCountDto = new TicketCategoryCountDto();
+            ticketCategoryCountDto.setTicketCategoryId(ticketCategoryId);
+            ticketCategoryCountDto.setCount(count);
+            ticketCategoryCountDtoList.add(ticketCategoryCountDto);
+        });
+        return ticketCategoryCountDtoList;
+    }
+
+    private void reduceTicketCategoryRemainNumber(List<TicketCategoryCountDto> ticketCategoryCountDtoList, Long programId) {
+        if (CollectionUtil.isEmpty(ticketCategoryCountDtoList)) {
+            return;
+        }
+        int updateRemainNumberCount = 0;
+        for (TicketCategoryCountDto ticketCategoryCountDto : ticketCategoryCountDtoList) {
+            updateRemainNumberCount = updateRemainNumberCount + ticketCategoryMapper.reduceRemainNumber(
+                    ticketCategoryCountDto.getCount(), ticketCategoryCountDto.getTicketCategoryId(), programId);
+        }
+        if (updateRemainNumberCount != ticketCategoryCountDtoList.size()) {
+            throw new TikectsystemFrameException(BaseCode.UPDATE_TICKET_CATEGORY_COUNT_NOT_CORRECT);
+        }
+    }
+
+    private void increaseTicketCategoryRemainNumber(List<TicketCategoryCountDto> ticketCategoryCountDtoList, Long programId) {
+        if (CollectionUtil.isEmpty(ticketCategoryCountDtoList)) {
+            return;
+        }
+        int updateRemainNumberCount = 0;
+        for (TicketCategoryCountDto ticketCategoryCountDto : ticketCategoryCountDtoList) {
+            updateRemainNumberCount = updateRemainNumberCount + ticketCategoryMapper.increaseRemainNumber(
+                    ticketCategoryCountDto.getCount(), ticketCategoryCountDto.getTicketCategoryId(), programId);
+        }
+        if (updateRemainNumberCount != ticketCategoryCountDtoList.size()) {
+            throw new TikectsystemFrameException(BaseCode.UPDATE_TICKET_CATEGORY_COUNT_NOT_CORRECT);
+        }
     }
 
     private boolean isCreateOrderCacheFirstVersion(Integer orderVersion) {
