@@ -56,7 +56,7 @@ public class OrderRequestConsumer {
         try {
             orderCreateMq = programOrderService.reserveOrderRequest(orderRequestMq);
         } catch (TikectsystemFrameException e) {
-            if (isCircuitOpen(e)) {
+            if (isRetryableInfrastructureError(e)) {
                 throw e;
             }
             acknowledge(acknowledgment);
@@ -85,8 +85,10 @@ public class OrderRequestConsumer {
         }
     }
 
-    private boolean isCircuitOpen(TikectsystemFrameException exception) {
-        return Objects.equals(exception.getCode(), BaseCode.PROGRAM_ORDER_CIRCUIT_OPEN.getCode()) ||
-                Objects.equals(exception.getCode(), BaseCode.PROGRAM_ORDER_DEGRADE.getCode());
+    private boolean isRetryableInfrastructureError(TikectsystemFrameException exception) {
+        return exception.getCode() == null ||
+                Objects.equals(exception.getCode(), BaseCode.PROGRAM_ORDER_CIRCUIT_OPEN.getCode()) ||
+                Objects.equals(exception.getCode(), BaseCode.PROGRAM_ORDER_DEGRADE.getCode()) ||
+                Objects.equals(exception.getCode(), BaseCode.SYSTEM_ERROR.getCode());
     }
 }

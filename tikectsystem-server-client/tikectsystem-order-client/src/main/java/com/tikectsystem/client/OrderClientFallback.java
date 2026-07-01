@@ -31,4 +31,9 @@ public class OrderClientFallback implements OrderClient {
     public ApiResponse<OrderGetVo> get(final OrderGetDto dto) {
         return ApiResponse.error(BaseCode.SYSTEM_ERROR);
     }
+
+    @Override
+    public ApiResponse<OrderGetVo> getStatus(final OrderGetDto dto) {
+        return ApiResponse.error(BaseCode.SYSTEM_ERROR);
+    }
 }

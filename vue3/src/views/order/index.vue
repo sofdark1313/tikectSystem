@@ -109,8 +109,8 @@
       <div class="content">{{ dialogMessage }}</div>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="dialogVisible = false" class="btn1">返回</el-button>
-          <el-button   class="submit btn2"    @click="dialogVisible = false">
+          <el-button @click="closeOrderCreateDialog" class="btn1">返回</el-button>
+          <el-button   class="submit btn2"    @click="closeOrderCreateDialog">
             继续尝试
           </el-button>
         </div>
@@ -120,9 +120,9 @@
 </template>
 
 <script setup name="orderIndex">
-import {ref, nextTick, onActivated, onMounted,onBeforeUnmount } from 'vue'
-import {getCurrentDateTime,formatDateWithWeekday,useMitt} from '@/utils/index'
-import {useRoute, useRouter} from 'vue-router'
+import {ref, onActivated, onMounted, onBeforeUnmount } from 'vue'
+import {formatDateWithWeekday} from '@/utils/index'
+import {useRouter} from 'vue-router'
 import { getUserIdKey} from "@/utils/auth";
 import { getPersonInfoId} from '@/api/personInfo'
 import {getTicketUser} from "@/api/buyTicketUser";
@@ -140,7 +140,7 @@ import useUserStore from "../../store/modules/user";
 
 const useUser = useUserStore()
 const router = useRouter();
-const detailList = ref([])
+const detailList = ref({})
 const allPrice = ref('')
 const countPrice = ref('')
 const num = ref('')
@@ -170,19 +170,134 @@ const currentOrderRequestId = ref('');
 const orderCreateWaitMillis = 30000;
 const ORDER_REQUEST_CREATED = 'ORDER_CREATED';
 const ORDER_REQUEST_FAILED_STATUS_SET = ['FAILED', 'CANCELLED', 'EXPIRED'];
+const ORDER_CONTEXT_STORAGE_KEY = 'tikectsystem.order.create.context';
+const orderContextKey = ref('');
 
 //跳转后的接收值
 onMounted(()=>{
-  currentOrderRequestId.value = ''
-  detailList.value  = JSON.parse(history.state.detailList)
-  allPrice.value  = history.state.allPrice
-  countPrice.value  =history.state.countPrice
-  num.value  =history.state.num
-  ticketCategoryId.value = history.state.ticketCategoryId
+  currentOrderRequestId.value = '';
+  syncOrderContextFromHistory();
 })
+
+onActivated(() => {
+  syncOrderContextFromHistory(false);
+  resetOrderRequestIdOnFreshEntry();
+})
+
+function resetOrderRequestIdOnFreshEntry() {
+  if (!submitLoading.value && pollingTimer.value == null) {
+    currentOrderRequestId.value = '';
+  }
+}
 
 getPersonInfoIdList()
 getTicketUserList()
+
+function parseOrderDetailList(rawDetailList) {
+  if (rawDetailList == null) {
+    return null;
+  }
+  if (typeof rawDetailList === 'object') {
+    return rawDetailList;
+  }
+  try {
+    return JSON.parse(rawDetailList);
+  } catch (error) {
+    console.warn('parse order detail state failed', error);
+    return null;
+  }
+}
+
+function normalizeOrderContext(rawState) {
+  if (!rawState) {
+    return null;
+  }
+  const parsedDetailList = parseOrderDetailList(rawState.detailList);
+  if (!parsedDetailList || !parsedDetailList.id || rawState.ticketCategoryId == null || rawState.num == null) {
+    return null;
+  }
+  return {
+    detailList: parsedDetailList,
+    allPrice: rawState.allPrice ?? '',
+    countPrice: rawState.countPrice ?? '',
+    num: rawState.num,
+    ticketCategoryId: rawState.ticketCategoryId
+  };
+}
+
+function readStoredOrderContext() {
+  try {
+    return normalizeOrderContext(JSON.parse(sessionStorage.getItem(ORDER_CONTEXT_STORAGE_KEY) || 'null'));
+  } catch (error) {
+    console.warn('read stored order context failed', error);
+    return null;
+  }
+}
+
+function saveOrderContext(context) {
+  try {
+    sessionStorage.setItem(ORDER_CONTEXT_STORAGE_KEY, JSON.stringify(context));
+  } catch (error) {
+    console.warn('save order context failed', error);
+  }
+}
+
+function clearOrderContext() {
+  try {
+    sessionStorage.removeItem(ORDER_CONTEXT_STORAGE_KEY);
+  } catch (error) {
+    console.warn('clear order context failed', error);
+  }
+}
+
+function buildOrderContextKey(context) {
+  return [
+    context.detailList.id,
+    context.ticketCategoryId,
+    context.num,
+    context.countPrice
+  ].map(item => String(item ?? '')).join('|');
+}
+
+function applyOrderContext(context) {
+  const nextContextKey = buildOrderContextKey(context);
+  const contextChanged = orderContextKey.value !== '' && orderContextKey.value !== nextContextKey;
+  detailList.value = context.detailList;
+  allPrice.value = context.allPrice;
+  countPrice.value = context.countPrice;
+  num.value = context.num;
+  ticketCategoryId.value = context.ticketCategoryId;
+  if (contextChanged) {
+    ticketUserIdArr.value = [];
+    currentOrderRequestId.value = '';
+  }
+  orderContextKey.value = nextContextKey;
+}
+
+function getCurrentOrderRouteState() {
+  return {
+    detailList: JSON.stringify(detailList.value),
+    allPrice: allPrice.value,
+    countPrice: countPrice.value,
+    num: num.value,
+    ticketCategoryId: ticketCategoryId.value
+  };
+}
+
+function syncOrderContextFromHistory(showInvalidMessage = true) {
+  const context = normalizeOrderContext(history.state) || readStoredOrderContext();
+  if (!context) {
+    currentOrderRequestId.value = '';
+    if (showInvalidMessage) {
+      ElMessage.error('订单信息已失效，请重新选择票档');
+      router.replace({path: '/index'});
+    }
+    return false;
+  }
+  applyOrderContext(context);
+  saveOrderContext(context);
+  return true;
+}
 
 async function getPersonInfoIdList() {
   const id = getUserIdKey()
@@ -200,7 +315,13 @@ async function getTicketUserList() {
 
 
 function buyTicketInfo(){
-  router.replace({path:'/order/buyTicketUser'})
+  if (!syncOrderContextFromHistory()) {
+    return;
+  }
+  router.replace({
+    path:'/order/buyTicketUser',
+    state: getCurrentOrderRouteState()
+  })
 
 }
 
@@ -249,9 +370,19 @@ function getOrderRequestResult(orderNumber) {
   })
 }
 
+function getOrderRequestResultByRequestId(requestId) {
+  return getOrderRequestResultApi({requestId}).then(response => {
+    if (response.code == '0') {
+      return response.data || null;
+    }
+    return null;
+  })
+}
+
 function goPay(orderNumber) {
   const orderNumberText = String(orderNumber);
   localStorage.setItem('orderNumber', orderNumberText);
+  clearOrderContext();
   router.replace({
     path: '/order/payMethod',
     query: {orderNumber: orderNumberText},
@@ -298,6 +429,31 @@ function showOrderCreateFailure(response) {
   ElMessage.error(message);
 }
 
+async function recoverV4OrderCreateFailure(response, requestId, startTime, error) {
+  try {
+    if (requestId) {
+      const requestResult = await getOrderRequestResultByRequestId(requestId);
+      if (requestResult && requestResult.orderNumber) {
+        const orderNumber = String(requestResult.orderNumber);
+        const cachedOrderNumber = await getOrderCache(orderNumber);
+        if (cachedOrderNumber === orderNumber ||
+            ![ORDER_REQUEST_CREATED, ...ORDER_REQUEST_FAILED_STATUS_SET].includes(requestResult.status)) {
+          startPolling(orderNumber, startTime);
+          return;
+        }
+      }
+    }
+  } catch (recoverError) {
+    console.error('recover v4 order request failed', recoverError);
+  }
+  currentOrderRequestId.value = '';
+  if (response) {
+    showOrderCreateFailure(response);
+    return;
+  }
+  submitOrderError(error);
+}
+
 //订单查询轮训
 const startPolling = (orderNumber,startTime) => {
   stopPolling();
@@ -316,6 +472,7 @@ const startPolling = (orderNumber,startTime) => {
       //2. loading弹出框关闭
       loadingClose();
       submitLoading.value = false;
+      currentOrderRequestId.value = '';
       //3. 排队弹框显示
       dialogShow('订单创建处理中，请稍后查看订单列表或重试');
       return;
@@ -326,24 +483,22 @@ const startPolling = (orderNumber,startTime) => {
       if (pollingSessionId.value !== sessionId) {
         return;
       }
-      if (requestResult && requestResult.status === ORDER_REQUEST_CREATED) {
-        stopPolling();
-        loadingClose();
-        submitLoading.value = false;
-        currentOrderRequestId.value = '';
-        goPay(currentOrderNumber)
-        return;
-      }
-      if (requestResult && ORDER_REQUEST_FAILED_STATUS_SET.includes(requestResult.status)) {
-        stopPolling();
-        loadingClose();
-        submitLoading.value = false;
-        currentOrderRequestId.value = '';
-        ElMessage.error(requestResult.failMessage || '提交订单失败，请稍后重试');
-        return;
-      }
       const cachedOrderNumber = await getOrderCache(currentOrderNumber);
       if (pollingSessionId.value !== sessionId || cachedOrderNumber === '') {
+        if (requestResult && requestResult.status === ORDER_REQUEST_CREATED) {
+          stopPolling();
+          loadingClose();
+          submitLoading.value = false;
+          currentOrderRequestId.value = '';
+          ElMessage.error('订单已不可支付，请重新下单');
+        }
+        if (requestResult && ORDER_REQUEST_FAILED_STATUS_SET.includes(requestResult.status)) {
+          stopPolling();
+          loadingClose();
+          submitLoading.value = false;
+          currentOrderRequestId.value = '';
+          ElMessage.error(requestResult.failMessage || '提交订单失败，请稍后重试');
+        }
         return;
       }
       if (cachedOrderNumber !== currentOrderNumber) {
@@ -381,6 +536,9 @@ function submitOrder(){
   if (submitLoading.value) {
     return;
   }
+  if (!syncOrderContextFromHistory()) {
+    return;
+  }
 
   if (ticketUserIdArr.value.length != num.value) {
     ElMessage({
@@ -392,11 +550,13 @@ function submitOrder(){
   stopPolling();
   submitLoading.value = true;
   loadingShow();
+  const submitStartTime = Date.now();
+  const orderRequestId = ensureOrderRequestId();
 
   const orderCreateParams = {
     'programId':detailList.value.id,
     'userId':useUser.userId,
-    'requestId': ensureOrderRequestId(),
+    'requestId': orderRequestId,
     'ticketUserIdList':ticketUserIdArr.value,
     'ticketCategoryId':ticketCategoryId.value,
     'ticketCount':num.value
@@ -451,11 +611,11 @@ function submitOrder(){
         }
         console.log('异步订单创建成功 订单编号',orderNumber)
         //开始定时轮训查询
-        startPolling(orderNumber,Date.now());
+        startPolling(orderNumber,submitStartTime);
       }else{
-        showOrderCreateFailure(response);
+        recoverV4OrderCreateFailure(response, orderRequestId, submitStartTime);
       }
-    }).catch(submitOrderError)
+    }).catch(error => recoverV4OrderCreateFailure(null, orderRequestId, submitStartTime, error))
   }else{
     submitOrderError();
   }
@@ -466,6 +626,12 @@ function dialogShow(message = '当前排队人数太多，请稍候再试~'){
   dialogVisible.value = true
   isSHowInfo.value=false
   submitLoading.value = false
+}
+
+function closeOrderCreateDialog(){
+  dialogVisible.value = false
+  currentOrderRequestId.value = ''
+  isSHowInfo.value=true
 }
 
 function dialogLoading(){

@@ -91,6 +91,12 @@ public class OrderController {
     public ApiResponse<OrderGetVo> get(@Valid @RequestBody OrderGetDto orderGetDto) {
         return ApiResponse.ok(orderService.get(orderGetDto));
     }
+
+    @Operation(summary  = "查看订单状态(不提供给前端调用，只允许内部program服务调用)")
+    @PostMapping(value = "/get/status")
+    public ApiResponse<OrderGetVo> getStatus(@Valid @RequestBody OrderGetDto orderGetDto) {
+        return ApiResponse.ok(orderService.getStatus(orderGetDto));
+    }
     
     @Operation(summary  = "账户下某个节目的订单数量(不提供给前端调用，只允许内部program服务调用)")
     @PostMapping(value = "/account/order/count")

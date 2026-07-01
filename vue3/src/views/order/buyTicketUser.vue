@@ -39,9 +39,9 @@
 import {getCurrentInstance, ref,onMounted} from 'vue'
 import {saveTicketUser} from "@/api/buyTicketUser";
 import { getUserIdKey} from "@/utils/auth";
-import {useRoute, useRouter} from 'vue-router'
+import {useRouter} from 'vue-router'
+import {ElMessage} from "element-plus";
 
-const route = useRoute();
 const router = useRouter();
 
 const {proxy} = getCurrentInstance();
@@ -52,6 +52,8 @@ const detailList = ref([])
 const allPrice = ref('')
 const countPrice = ref('')
 const num = ref('')
+const ticketCategoryId = ref('')
+const ORDER_CONTEXT_STORAGE_KEY = 'tikectsystem.order.create.context';
 
 const idType = ref([{
   name:'身份证',
@@ -74,11 +76,88 @@ const idType = ref([{
 }])
 
 onMounted(()=>{
-  detailList.value  = JSON.parse(history.state.detailList)
-  allPrice.value  = history.state.allPrice
-  countPrice.value  =history.state.countPrice
-  num.value  =history.state.num
+  if (!syncOrderContextFromHistory()) {
+    ElMessage.error('订单信息已失效，请重新选择票档');
+    router.replace({path: '/index'});
+  }
 })
+
+function parseOrderDetailList(rawDetailList) {
+  if (rawDetailList == null) {
+    return null;
+  }
+  if (typeof rawDetailList === 'object') {
+    return rawDetailList;
+  }
+  try {
+    return JSON.parse(rawDetailList);
+  } catch (error) {
+    console.warn('parse order detail state failed', error);
+    return null;
+  }
+}
+
+function normalizeOrderContext(rawState) {
+  if (!rawState) {
+    return null;
+  }
+  const parsedDetailList = parseOrderDetailList(rawState.detailList);
+  if (!parsedDetailList || !parsedDetailList.id || rawState.ticketCategoryId == null || rawState.num == null) {
+    return null;
+  }
+  return {
+    detailList: parsedDetailList,
+    allPrice: rawState.allPrice ?? '',
+    countPrice: rawState.countPrice ?? '',
+    num: rawState.num,
+    ticketCategoryId: rawState.ticketCategoryId
+  };
+}
+
+function readStoredOrderContext() {
+  try {
+    return normalizeOrderContext(JSON.parse(sessionStorage.getItem(ORDER_CONTEXT_STORAGE_KEY) || 'null'));
+  } catch (error) {
+    console.warn('read stored order context failed', error);
+    return null;
+  }
+}
+
+function saveOrderContext(context) {
+  try {
+    sessionStorage.setItem(ORDER_CONTEXT_STORAGE_KEY, JSON.stringify(context));
+  } catch (error) {
+    console.warn('save order context failed', error);
+  }
+}
+
+function applyOrderContext(context) {
+  detailList.value = context.detailList;
+  allPrice.value = context.allPrice;
+  countPrice.value = context.countPrice;
+  num.value = context.num;
+  ticketCategoryId.value = context.ticketCategoryId;
+}
+
+function getCurrentOrderRouteState() {
+  return {
+    detailList: JSON.stringify(detailList.value),
+    allPrice: allPrice.value,
+    countPrice: countPrice.value,
+    num: num.value,
+    ticketCategoryId: ticketCategoryId.value
+  };
+}
+
+function syncOrderContextFromHistory() {
+  const context = normalizeOrderContext(history.state) || readStoredOrderContext();
+  if (!context) {
+    return false;
+  }
+  applyOrderContext(context);
+  saveOrderContext(context);
+  return true;
+}
 const submit =()=>{
   proxy.$refs.formTicket.validate(valid => {
     if (valid) {
@@ -96,7 +175,10 @@ const submit =()=>{
         form.value.userId=getUserIdKey()
         saveTicketUser(form.value).then(response=>{
           if(response.code==0){
-            router.replace({path:'/order/index'})
+            router.replace({
+              path:'/order/index',
+              state: getCurrentOrderRouteState()
+            })
           }
 
         })

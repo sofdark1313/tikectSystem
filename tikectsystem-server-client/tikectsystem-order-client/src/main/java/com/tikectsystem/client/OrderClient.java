@@ -44,4 +44,14 @@ public interface OrderClient {
      */
     @PostMapping("/order/get")
     ApiResponse<OrderGetVo> get(OrderGetDto dto);
+
+    /**
+     * 查询订单主表状态。
+     * 仅用于内部服务判断订单事实，避免详情接口依赖购票人和用户 RPC。
+     *
+     * @param dto 参数
+     * @return 订单主表状态
+     */
+    @PostMapping("/order/get/status")
+    ApiResponse<OrderGetVo> getStatus(OrderGetDto dto);
 }

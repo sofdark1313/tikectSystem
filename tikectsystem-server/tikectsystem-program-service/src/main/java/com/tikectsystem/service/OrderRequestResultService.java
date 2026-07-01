@@ -128,6 +128,21 @@ public class OrderRequestResultService {
     }
 
     /**
+     * 清理锁座快照。
+     * 座位释放成功后必须清掉快照，避免终态重试或恢复扫描重复释放同一批座位。
+     *
+     * @param orderNumber 订单编号
+     */
+    public void clearReservation(Long orderNumber) {
+        if (Objects.isNull(orderNumber)) {
+            return;
+        }
+        orderRequestResultMapper.update(null, Wrappers.lambdaUpdate(OrderRequestResult.class)
+                .set(OrderRequestResult::getReservationJson, null)
+                .eq(OrderRequestResult::getOrderNumber, orderNumber));
+    }
+
+    /**
      * 将长时间停留在 PROCESSING 的请求过期，避免请求表永久卡在中间态。
      * @param beforeTime 创建时间早于该时间的请求会被过期
      * @param limit 单次处理数量
@@ -220,6 +235,11 @@ public class OrderRequestResultService {
                         Objects.equals(afterStatus, OrderRequestResultStatus.EXPIRED));
         allowed = allowed || Objects.equals(beforeStatus, OrderRequestResultStatus.ORDER_CREATED) &&
                 Objects.equals(afterStatus, OrderRequestResultStatus.CANCELLED);
+        // create_order 已经真实建单时，允许晚到回写把终态异常结果纠偏为已建单。
+        allowed = allowed || (Objects.equals(beforeStatus, OrderRequestResultStatus.FAILED) ||
+                Objects.equals(beforeStatus, OrderRequestResultStatus.EXPIRED) ||
+                Objects.equals(beforeStatus, OrderRequestResultStatus.CANCELLED)) &&
+                Objects.equals(afterStatus, OrderRequestResultStatus.ORDER_CREATED);
         if (!allowed) {
             throw new IllegalStateException("illegal order request result status transition");
         }

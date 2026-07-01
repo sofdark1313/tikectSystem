@@ -129,6 +129,8 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
 
     private static final String ORDER_REQUEST_RESULT_CANCELLED = "CANCELLED";
 
+    private static final String ORDER_REQUEST_RESULT_EXPIRED = "EXPIRED";
+
     private static final long TICKET_USER_ID_ROUNDING_TOLERANCE = 1024L;
 
     @Autowired
@@ -902,6 +904,28 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         return orderGetVo;
     }
 
+    /**
+     * 查询订单主表状态。
+     * 内部服务只需要判断订单事实和可支付状态时使用，避免订单详情组装依赖购票人明细与用户 RPC。
+     *
+     * @param orderGetDto 订单查询参数
+     * @return 仅填充订单主表关键字段的订单视图
+     */
+    public OrderGetVo getStatus(OrderGetDto orderGetDto) {
+        Order order = orderMapper.selectOne(Wrappers.lambdaQuery(Order.class)
+                .select(Order::getOrderNumber, Order::getOrderStatus, Order::getProgramId, Order::getUserId)
+                .eq(Order::getOrderNumber, orderGetDto.getOrderNumber()));
+        if (Objects.isNull(order)) {
+            throw new TikectsystemFrameException(BaseCode.ORDER_NOT_EXIST);
+        }
+        OrderGetVo orderGetVo = new OrderGetVo();
+        orderGetVo.setOrderNumber(order.getOrderNumber());
+        orderGetVo.setOrderStatus(order.getOrderStatus());
+        orderGetVo.setProgramId(order.getProgramId());
+        orderGetVo.setUserId(order.getUserId());
+        return orderGetVo;
+    }
+
     private TicketUserVo resolveOrderTicketUser(OrderTicketUser orderTicketUser,
                                                 List<TicketUserVo> ticketUserVoList,
                                                 Map<Long, TicketUserVo> ticketUserVoMap) {
@@ -1020,7 +1044,19 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                     ORDER_REQUEST_RESULT_ORDER_CREATED)) {
                 return;
             }
-            updateOrderRequestResult(orderCreateMq.getOrderNumber(), ORDER_REQUEST_RESULT_PROCESSING,
+            if (updateOrderRequestResult(orderCreateMq.getOrderNumber(), ORDER_REQUEST_RESULT_PROCESSING,
+                    ORDER_REQUEST_RESULT_ORDER_CREATED)) {
+                return;
+            }
+            if (updateOrderRequestResult(orderCreateMq.getOrderNumber(), ORDER_REQUEST_RESULT_FAILED,
+                    ORDER_REQUEST_RESULT_ORDER_CREATED)) {
+                return;
+            }
+            if (updateOrderRequestResult(orderCreateMq.getOrderNumber(), ORDER_REQUEST_RESULT_EXPIRED,
+                    ORDER_REQUEST_RESULT_ORDER_CREATED)) {
+                return;
+            }
+            updateOrderRequestResult(orderCreateMq.getOrderNumber(), ORDER_REQUEST_RESULT_CANCELLED,
                     ORDER_REQUEST_RESULT_ORDER_CREATED);
         } catch (RuntimeException e) {
             log.warn("mark order request created failed, orderNumber:{}", orderCreateMq.getOrderNumber(), e);
@@ -1106,18 +1142,26 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         } catch (RuntimeException e) {
             log.warn("query order cache failed, fallback to db, orderNumber:{}", orderGetDto.getOrderNumber(), e);
         }
-        if (!StringUtil.isEmpty(cachedOrderNumber)) {
+        if (!StringUtil.isEmpty(cachedOrderNumber) && noPayOrderExists(orderGetDto.getOrderNumber())) {
             return cachedOrderNumber;
         }
         Order order = orderMapper.selectOne(Wrappers.lambdaQuery(Order.class)
                 .select(Order::getOrderNumber)
-                .eq(Order::getOrderNumber, orderGetDto.getOrderNumber()));
+                .eq(Order::getOrderNumber, orderGetDto.getOrderNumber())
+                .eq(Order::getOrderStatus, OrderStatus.NO_PAY.getCode()));
         if (Objects.isNull(order)) {
             return null;
         }
         String orderNumber = String.valueOf(order.getOrderNumber());
         cacheCreatedOrderNumberSafely(orderNumber);
         return orderNumber;
+    }
+
+    private boolean noPayOrderExists(Long orderNumber) {
+        Long count = orderMapper.selectCount(Wrappers.lambdaQuery(Order.class)
+                .eq(Order::getOrderNumber, orderNumber)
+                .eq(Order::getOrderStatus, OrderStatus.NO_PAY.getCode()));
+        return count != null && count > 0;
     }
 
     @RepeatExecuteLimit(name = CANCEL_PROGRAM_ORDER,keys = {"#orderCancelDto.orderNumber"})
