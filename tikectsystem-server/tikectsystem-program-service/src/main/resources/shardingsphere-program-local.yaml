@@ -2,13 +2,13 @@ dataSources:
   ds_0:
     dataSourceClassName: com.zaxxer.hikari.HikariDataSource
     driverClassName: com.mysql.cj.jdbc.Driver
-    jdbcUrl: jdbc:mysql://localhost:3306/tikectsystem_program_0?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&autoReconnect=true
+    jdbcUrl: jdbc:mysql://127.0.0.1:3306/tikectsystem_program_0?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&autoReconnect=true
     username: root
     password: root
     hikari:
       # 连接池配置优化
-      minimum-idle: 30                    # 最小空闲连接数(提升至30)
-      maximum-pool-size: 100              # 最大连接池大小(提升至100)
+      minimum-idle: 2
+      maximum-pool-size: 8
       connection-timeout: 20000           # 连接超时时间(缩短至20秒)
       idle-timeout: 300000                # 空闲连接超时时间(5分钟)
       max-lifetime: 1800000               # 连接最大生命周期(30分钟)
@@ -18,13 +18,13 @@ dataSources:
   ds_1:
     dataSourceClassName: com.zaxxer.hikari.HikariDataSource
     driverClassName: com.mysql.cj.jdbc.Driver
-    jdbcUrl: jdbc:mysql://localhost:3306/tikectsystem_program_1?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&autoReconnect=true
+    jdbcUrl: jdbc:mysql://127.0.0.1:3306/tikectsystem_program_1?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&autoReconnect=true
     username: root
     password: root
     hikari:
       # 连接池配置优化
-      minimum-idle: 30                    # 最小空闲连接数(提升至30)
-      maximum-pool-size: 100              # 最大连接池大小(提升至100)
+      minimum-idle: 2
+      maximum-pool-size: 8
       connection-timeout: 20000           # 连接超时时间(缩短至20秒)
       idle-timeout: 300000                # 空闲连接超时时间(5分钟)
       max-lifetime: 1800000               # 连接最大生命周期(30分钟)
