@@ -74,7 +74,7 @@
                 </span>
                 <span class="user-name">登录</span>
               </router-link>
-              <button v-else class="user-trigger" type="button">
+              <button v-else class="user-trigger is-account" type="button">
                 <span class="user-avatar">
                   <el-icon :size="17"><UserFilled /></el-icon>
                 </span>
@@ -102,11 +102,32 @@
           </el-popover>
 
         </div>
+        <button class="must-read-btn" type="button" @click="noticeDialogVisible = true">必看须知</button>
         <div class="box-right">
           <a href="/help.html" target="_blank" class="help-link">帮助</a>
         </div>
       </div>
     </div>
+    <el-dialog
+        v-model="noticeDialogVisible"
+        title="必看须知"
+        width="520px"
+        custom-class="must-read-dialog"
+    >
+      <div class="must-read-content">
+        <p class="notice-lead">
+          线上演示服务器配置十分脆弱，就两台2核3.5G还不在同一内网，所有中间件、数据库和服务都部署在上面，虽然尽可能压缩了最大内存和连接数等，但内存不足时会使用大量 Swap，所以页面加载、余票查询和下单响应都可能偏慢。
+        </p>
+        <ul class="notice-list">
+          <li>提交订单后请稍等几秒，不要连续快速点击。</li>
+          <li>如果下单失败、超时或提示繁忙，请返回后再点击重试。</li>
+          <li>如果重试还是失败，甚至信息都加载不了，那就是云服务器崩了。悲QAQ。</li>
+        </ul>
+      </div>
+      <template #footer>
+        <button class="notice-close-btn" type="button" @click="noticeDialogVisible = false">我知道了</button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -130,6 +151,7 @@ const isLoginToken = ref('登录')
 const isHasToken = ref(false)
 const iptSearch = ref('')
 const isShowHeader = ref(true)
+const noticeDialogVisible = ref(false)
 const userStore = useUserStore()
 const localName = ref('')
 const localId = ref('')
@@ -182,9 +204,6 @@ function getNickName() {
     if (response.data != null) {
       let {name} = response.data
       isLoginToken.value = name
-      if (isLoginToken.value && isLoginToken.value.length > 2) {
-        isLoginToken.value = isLoginToken.value.slice(0,2)+"..."
-      }
       isHasToken.value = true
     }
   })
@@ -265,11 +284,11 @@ function getProgramSearchList() {
   z-index: 1000;
 
   .header {
-    width: min(1240px, calc(100vw - 64px));
+    width: min(1360px, calc(100vw - 64px));
     margin: 0 auto;
     height: 82px;
     display: grid;
-    grid-template-columns: 144px 92px 162px minmax(320px, 440px) auto;
+    grid-template-columns: 144px 92px 162px minmax(280px, 1fr) max-content;
     align-items: center;
     gap: 18px;
 
@@ -451,6 +470,7 @@ function getProgramSearchList() {
 
     .searchHeader {
       width: 100%;
+      min-width: 0;
       height: 46px;
       margin-top: 0;
       margin-left: 0;
@@ -482,23 +502,33 @@ function getProgramSearchList() {
         }
 
         :deep .el-input__wrapper {
+          flex: 1 1 auto;
+          width: auto !important;
+          min-width: 0;
           box-shadow: none !important;
           background-color: transparent !important;
+        }
+
+        :deep .el-input-group__append {
+          width: 90px;
+          padding: 0;
+          overflow: hidden;
+          border: 0;
+          border-radius: 0 27px 27px 0;
+          background: var(--app-accent);
+          box-shadow: none;
         }
       }
 
       .searchBtn {
-        width: 90px;
+        width: 100%;
         height: 100%;
-        position: absolute;
-        right: 0;
-        top: 0;
+        position: static;
         background: var(--app-accent);
         font-size: 16px;
         text-align: center;
         color: #111;
         border-radius: 0 27px 27px 0;
-        z-index: 11;
         letter-spacing: 0;
         cursor: pointer;
         border: 0;
@@ -506,7 +536,8 @@ function getProgramSearchList() {
     }
 
     .rightHeader {
-      min-width: 170px;
+      min-width: 354px;
+      width: max-content;
       height: auto;
       position: relative;
       float: none;
@@ -563,6 +594,31 @@ function getProgramSearchList() {
   }
 }
 
+.must-read-btn {
+  height: 36px;
+  min-width: 90px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(245, 158, 11, .58);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, .16);
+  color: #fff7e6;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, color .18s ease;
+
+  &:hover {
+    border-color: var(--app-accent);
+    background: var(--app-accent);
+    color: #111;
+  }
+}
+
 .user-trigger {
   height: 38px;
   min-width: 88px;
@@ -589,6 +645,12 @@ function getProgramSearchList() {
   }
 }
 
+.user-trigger.is-account {
+  width: 190px;
+  max-width: 190px;
+  justify-content: flex-start;
+}
+
 .user-avatar {
   width: 26px;
   height: 26px;
@@ -608,6 +670,12 @@ function getProgramSearchList() {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.user-trigger.is-account .user-name {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
 }
 
 .user-arrow {
@@ -668,6 +736,67 @@ function getProgramSearchList() {
   background: var(--app-accent);
   color: #111;
   font-weight: 800;
+}
+
+:deep(.must-read-dialog) {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+:deep(.must-read-dialog .el-dialog__header) {
+  padding: 22px 26px 12px;
+  margin-right: 0;
+}
+
+:deep(.must-read-dialog .el-dialog__title) {
+  color: #111;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+:deep(.must-read-dialog .el-dialog__body) {
+  padding: 8px 26px 6px;
+}
+
+:deep(.must-read-dialog .el-dialog__footer) {
+  padding: 14px 26px 24px;
+}
+
+.must-read-content {
+  color: #2f2f35;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.notice-lead {
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #fff7e6;
+  color: #7a3f00;
+  font-weight: 700;
+}
+
+.notice-list {
+  margin: 0;
+  padding-left: 20px;
+
+  li + li {
+    margin-top: 8px;
+  }
+}
+
+.notice-close-btn {
+  min-width: 96px;
+  height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-accent);
+  color: #111;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 

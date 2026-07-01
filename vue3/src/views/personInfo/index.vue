@@ -242,7 +242,7 @@ async function getPersonInfoIdList() {
 
 }
 
-:deep(.el-input__wrapper) {
+.profile-page :deep(.el-input__wrapper) {
   flex-grow: 0;
   width: 320px;
 }

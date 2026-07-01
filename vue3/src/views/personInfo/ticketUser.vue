@@ -319,31 +319,31 @@ function reset(){
 }
 
 
-:deep(.el-input__wrapper) {
+.container .profile-page :deep(.el-input__wrapper) {
   flex-grow: 0;
   width: 320px;
 }
-:deep(.el-select .el-input__wrapper ) {
+.container .profile-page :deep(.el-select .el-input__wrapper ) {
   flex-grow: 0;
   width: 320px !important;
 }
 
-:deep(.el-table) {
+.container .profile-page :deep(.el-table) {
   border-radius: 8px;
   overflow: hidden;
   box-shadow: var(--app-shadow);
 }
 
-:deep(.el-table th.el-table__cell) {
+.container .profile-page :deep(.el-table th.el-table__cell) {
   background: #111113;
   color: rgba(255, 255, 255, .78);
 }
 
-:deep(.el-table--border .el-table__cell) {
+.container .profile-page :deep(.el-table--border .el-table__cell) {
   border-color: var(--app-border);
 }
 
-:deep(.el-button--primary.is-link) {
+.container .profile-page :deep(.el-button--primary.is-link) {
   color: var(--app-danger);
 }
 
