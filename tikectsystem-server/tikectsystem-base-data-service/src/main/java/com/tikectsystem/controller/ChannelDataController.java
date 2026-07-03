@@ -3,6 +3,7 @@ package com.tikectsystem.controller;
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.dto.ChannelDataAddDto;
 import com.tikectsystem.dto.GetChannelDataByCodeDto;
+import com.tikectsystem.properties.ApiVerify;
 import com.tikectsystem.service.ChannelDataService;
 import com.tikectsystem.vo.GetChannelDataVo;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +27,9 @@ public class ChannelDataController {
     
     @Autowired
     private ChannelDataService channelDataService;
+
+    @Autowired
+    private ApiVerify apiVerify;
     
     @Operation(summary = "通过code查询渠道数据")
     @PostMapping (value = "/getByCode")
@@ -37,6 +41,7 @@ public class ChannelDataController {
     @Operation(summary = "添加渠道数据")
     @PostMapping(value = "/add")
     public ApiResponse<Boolean> add(@Valid @RequestBody ChannelDataAddDto channelDataAddDto) {
+        apiVerify.verifyApi();
         channelDataService.add(channelDataAddDto);
         return ApiResponse.ok(true);
     }

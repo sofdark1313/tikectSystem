@@ -48,12 +48,12 @@ public class BackManageLoginDto {
     /**
      * 用户名
      */
-    @NotBlank
+    @NotBlank(message = "用户名不能为空")
     private String username;
 
     /**
      * 密码
      */
-    @NotBlank
+    @NotBlank(message = "密码不能为空")
     private String password;
 }

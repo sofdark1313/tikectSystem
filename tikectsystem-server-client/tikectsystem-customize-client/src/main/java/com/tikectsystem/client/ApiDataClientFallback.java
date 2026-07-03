@@ -1,7 +1,6 @@
 package com.tikectsystem.client;
 
 import com.tikectsystem.common.ApiResponse;
-import com.tikectsystem.dto.AddApiDataDto;
 import com.tikectsystem.dto.InsertMessageConsumerRecordDto;
 import com.tikectsystem.dto.InsertMessageProducerRecordDto;
 import com.tikectsystem.dto.MessageIdDto;
@@ -19,11 +18,6 @@ import org.springframework.stereotype.Component;
  **/
 @Component
 public class ApiDataClientFallback implements ApiDataClient {
-    
-    @Override
-    public ApiResponse<Boolean> add(final AddApiDataDto dto) {
-        return ApiResponse.error(BaseCode.SYSTEM_ERROR);
-    }
     
     @Override
     public ApiResponse<MessageProducerRecordVo> insertMessageProducerRecord(final InsertMessageProducerRecordDto insertMessageProducerRecordDto) {

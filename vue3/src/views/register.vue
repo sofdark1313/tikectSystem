@@ -180,9 +180,14 @@ function registerInfo() {
             message: '注册成功',
             type: 'success',
           })
-          router.push({path: "./login"});
+          router.push({path: "/login"});
           reset()
 
+        } else {
+          ElMessage({
+            message: response.message || '注册失败，请稍后重试',
+            type: 'error',
+          })
         }
       }).catch(() => {
 
@@ -236,7 +241,7 @@ function handleValueFromChild(value) {
             message: '注册成功',
             type: 'success',
           })
-          router.push({path: "./login"});
+          router.push({path: "/login"});
           reset()
         }else{
           ElMessage({

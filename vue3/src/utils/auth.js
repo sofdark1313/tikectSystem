@@ -5,12 +5,21 @@ const RefreshTokenKey = 'Admin-Refresh-Token'
 const nameKey = 'userName'
 const userIdKey = 'userId'
 
+function buildCookieOptions(expiresInSeconds) {
+  const expires = Number(expiresInSeconds)
+  if (!Number.isFinite(expires) || expires <= 0) {
+    return undefined
+  }
+  return { expires: expires / 86400 }
+}
+
 export function getToken() {
   return Cookies.get(TokenKey)
 }
 
-export function setToken(token) {
-  return Cookies.set(TokenKey, token)
+export function setToken(token, expiresInSeconds) {
+  const options = buildCookieOptions(expiresInSeconds)
+  return options ? Cookies.set(TokenKey, token, options) : Cookies.set(TokenKey, token)
 }
 
 export function removeToken() {
@@ -21,8 +30,9 @@ export function getRefreshToken() {
   return Cookies.get(RefreshTokenKey)
 }
 
-export function setRefreshToken(token) {
-  return Cookies.set(RefreshTokenKey, token)
+export function setRefreshToken(token, expiresInSeconds) {
+  const options = buildCookieOptions(expiresInSeconds)
+  return options ? Cookies.set(RefreshTokenKey, token, options) : Cookies.set(RefreshTokenKey, token)
 }
 
 export function removeRefreshToken() {

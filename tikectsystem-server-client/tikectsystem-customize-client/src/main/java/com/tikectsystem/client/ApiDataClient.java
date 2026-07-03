@@ -1,7 +1,6 @@
 package com.tikectsystem.client;
 
 import com.tikectsystem.common.ApiResponse;
-import com.tikectsystem.dto.AddApiDataDto;
 import com.tikectsystem.dto.InsertMessageConsumerRecordDto;
 import com.tikectsystem.dto.InsertMessageProducerRecordDto;
 import com.tikectsystem.dto.MessageIdDto;
@@ -23,14 +22,6 @@ import static com.tikectsystem.constant.Constant.SPRING_INJECT_PREFIX_DISTINCTIO
 @Component
 @FeignClient(value = SPRING_INJECT_PREFIX_DISTINCTION_NAME+"-"+"customize-service",fallback = ApiDataClientFallback.class)
 public interface ApiDataClient {
-    
-    /**
-     * 添加
-     * @param dto 参数
-     * @return 结果
-     * */
-    @PostMapping(value = "/apiData/add")
-    ApiResponse<Boolean> add(AddApiDataDto dto);
     
     /**
      * 添加消息发送记录

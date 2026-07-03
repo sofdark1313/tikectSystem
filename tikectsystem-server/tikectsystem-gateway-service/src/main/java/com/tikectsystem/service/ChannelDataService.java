@@ -63,11 +63,18 @@ public class ChannelDataService {
     public GetChannelDataVo getChannelDataByCode(String code){
         checkCode(code);
         GetChannelDataVo channelDataVo = getChannelDataByRedis(code);
-        if (Objects.isNull(channelDataVo)) {
+        if (!isUsableChannelData(channelDataVo)) {
             channelDataVo = getChannelDataByClient(code);
             setChannelDataRedis(code,channelDataVo);
         }
+        if (!isUsableChannelData(channelDataVo)) {
+            throw new TikectsystemFrameException(BaseCode.CHANNEL_DATA_NOT_EXIST);
+        }
         return channelDataVo;
+    }
+
+    private boolean isUsableChannelData(GetChannelDataVo channelDataVo) {
+        return Objects.nonNull(channelDataVo) && StringUtil.isNotEmpty(channelDataVo.getTokenSecret());
     }
     
     private GetChannelDataVo getChannelDataByRedis(String code){
@@ -88,7 +95,7 @@ public class ChannelDataService {
             ApiResponse<GetChannelDataVo> getChannelDataApiResponse = future.get(10, TimeUnit.SECONDS);
             if (Objects.nonNull(getChannelDataApiResponse) && Objects.equals(getChannelDataApiResponse.getCode(), BaseCode.SUCCESS.getCode())) {
                 GetChannelDataVo channelDataVo = getChannelDataApiResponse.getData();
-                if (Objects.nonNull(channelDataVo)) {
+                if (isUsableChannelData(channelDataVo)) {
                     return channelDataVo;
                 }
             }

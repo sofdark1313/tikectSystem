@@ -26,7 +26,6 @@
 
 import Header from '../../../components/header/index'
 import Footer from '../../../components/footer/index'
-import {getEditPsd} from '@/api/accountSettings'
 import {ElMessage} from "element-plus"
 import {getUserIdKey} from "../../../utils/auth"
 import {ref, reactive} from 'vue'
@@ -37,6 +36,7 @@ import {getEditMobile} from "../../../api/accountSettings";
 
 const router = useRouter();
 const userStore = useUserStore()
+const editMobileRef = ref(null)
 const editMobileForm = ref({
   mobile: '',
   id: getUserIdKey()
@@ -59,23 +59,28 @@ const editMobileRules = reactive({
 
 
 function savePsd() {
-  getEditMobile(editMobileForm.value).then(response => {
-    if (response.code == '0') {
-      ElMessage({
-        message: '保存成功',
-        type: 'success',
-      })
-
-      userStore.logOut().then(() => {
-        location.href = '../../login';
-      })
-
-    } else {
-      ElMessage({
-        message: response.message,
-        type: 'error',
-      })
+  editMobileRef.value.validate(valid => {
+    if (!valid) {
+      return
     }
+    getEditMobile(editMobileForm.value).then(response => {
+      if (response.code == '0') {
+        ElMessage({
+          message: '保存成功',
+          type: 'success',
+        })
+
+        userStore.logOut().finally(() => {
+          router.replace('/login');
+        })
+
+      } else {
+        ElMessage({
+          message: response.message,
+          type: 'error',
+        })
+      }
+    })
   })
 }
 </script>

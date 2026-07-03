@@ -112,8 +112,8 @@
 
 <script setup>
 
-import {ref, reactive, onMounted, nextTick} from 'vue'
-import {getToken, getUserIdKey, removeToken, removeUserIdKey, removeName} from "../../utils/auth";
+import {ref, onMounted} from 'vue'
+import {getUserIdKey} from "../../utils/auth";
 import useUserStore from '@/store/modules/user'
 import {getPersonInfoId} from '@/api/personInfo'
 import {useRoute, useRouter} from 'vue-router'
@@ -151,22 +151,12 @@ if (path == '/login') {
   isShowHeader.value = true
 }
 
-const handleOpen = (key, keyPath) => {
-  console.log(key, keyPath)
-}
-const handleClose = (key, keyPath) => {
-  console.log(key, keyPath)
-}
-
 //退出到首页,设置token为空，并且昵称变为登录
 function loginOut() {
-  userStore.logOut().then(() => {
-    location.href = '/';
+  userStore.logOut().finally(() => {
     isLoginToken.value = '登录'
-    removeToken('Admin-Token')
-    removeUserIdKey('userId')
-    removeName('userName')
     isHasToken.value = false
+    router.replace('/')
   })
 
 }

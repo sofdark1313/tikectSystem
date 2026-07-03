@@ -97,8 +97,8 @@ function refreshTokens(refreshToken) {
                 if (!accessToken || !responseData.refreshToken) {
                     throw new Error('refresh token response invalid')
                 }
-                setToken(accessToken)
-                setRefreshToken(responseData.refreshToken)
+                setToken(accessToken, responseData.expiresIn)
+                setRefreshToken(responseData.refreshToken, responseData.refreshExpiresIn)
                 const userStore = useUserStore()
                 userStore.token = accessToken
                 userStore.refreshToken = responseData.refreshToken
@@ -129,13 +129,22 @@ function promptRelogin() {
         }).then(() => {
             isRelogin.show = false
             useUserStore().logOut().finally(() => {
-                location.href = '/login'
+                redirectToLogin()
             })
         }).catch(() => {
             isRelogin.show = false
         })
     }
     return Promise.reject('登录状态已过期，请重新登录')
+}
+
+function redirectToLogin() {
+    const currentPath = `${location.pathname}${location.search}${location.hash}`
+    if (currentPath && currentPath !== '/login' && !currentPath.startsWith('/login?')) {
+        location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
+        return
+    }
+    location.href = '/login'
 }
 
 export function sign(params) {

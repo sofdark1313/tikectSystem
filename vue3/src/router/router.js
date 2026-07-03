@@ -1,5 +1,4 @@
 import {createRouter, createWebHashHistory, createWebHistory} from "vue-router";
-import {getToken} from '@/utils/auth'
 
 export const constantRoutes = [
     // {
@@ -131,15 +130,6 @@ const router = createRouter({
             return {top: 0}
         }
     },
-})
-
-router.beforeEach((to, from, next) => {
-
-    if (to.matched.some(record => record.meta.requiresAuth) && !getToken()) {
-        next('/login') // 如果用户未登录，则重定向到登录页
-    } else {
-        next() // 否则，正常导航到目标页面
-    }
 })
 
 export default router

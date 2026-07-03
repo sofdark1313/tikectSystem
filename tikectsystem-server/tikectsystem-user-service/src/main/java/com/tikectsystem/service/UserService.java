@@ -286,9 +286,10 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.USER_LOGIN, code, userId),
                 loginUserVo, refreshTokenExpireTime, TimeUnit.MINUTES);
 
+        Long userIdValue = parseUserIdAsLong(userId);
         UserLoginVo userLoginVo = new UserLoginVo();
-        userLoginVo.setUserId(parseUserIdAsLong(userId));
-        fillLoginTokens(userLoginVo, code, parseUserIdAsLong(userId), tokenSecret);
+        userLoginVo.setUserId(userIdValue);
+        fillLoginTokens(userLoginVo, code, userIdValue, tokenSecret);
         return userLoginVo;
     }
 
@@ -372,10 +373,17 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     
     public GetChannelDataVo getChannelDataByCode(String code){
         GetChannelDataVo channelDataVo = getChannelDataByRedis(code);
-        if (Objects.isNull(channelDataVo)) {
+        if (!isUsableChannelData(channelDataVo)) {
             channelDataVo = getChannelDataByClient(code);
         }
+        if (!isUsableChannelData(channelDataVo)) {
+            throw new TikectsystemFrameException(BaseCode.CHANNEL_DATA_NOT_EXIST);
+        }
         return channelDataVo;
+    }
+
+    private boolean isUsableChannelData(GetChannelDataVo channelDataVo) {
+        return Objects.nonNull(channelDataVo) && StringUtil.isNotEmpty(channelDataVo.getTokenSecret());
     }
     
     @Transactional(rollbackFor = Exception.class)

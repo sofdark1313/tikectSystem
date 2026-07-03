@@ -2,8 +2,8 @@ package com.tikectsystem.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tikectsystem.common.ApiResponse;
-import com.tikectsystem.dto.AddApiDataDto;
 import com.tikectsystem.dto.ApiDataDto;
+import com.tikectsystem.properties.ApiVerify;
 import com.tikectsystem.service.ApiDataService;
 import com.tikectsystem.vo.ApiDataVo;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,15 +27,14 @@ public class ApiDataController {
     
     @Autowired
     private ApiDataService apiDataService;
+
+    @Autowired
+    private ApiVerify apiVerify;
     
     @Operation(summary  = "分页查询api调用记录")
     @RequestMapping(value = "/pageList",method = RequestMethod.POST)
     public ApiResponse<Page<ApiDataVo>> pageList(@Valid @RequestBody ApiDataDto dto) {
+        apiVerify.verifyApi();
         return ApiResponse.ok(apiDataService.pageList(dto));
-    }
-    @Operation(summary  = "添加")
-    @RequestMapping(value = "/add",method = RequestMethod.POST)
-    public ApiResponse<Boolean> add(@Valid @RequestBody AddApiDataDto dto) {
-        return ApiResponse.ok(apiDataService.add(dto));
     }
 }

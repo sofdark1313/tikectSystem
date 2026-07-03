@@ -7,11 +7,12 @@ NProgress.configure({ showSpinner: false });
 
 const whiteList = ['/login', '/register'];
 router.beforeEach((to, from, next) => {
-    if (getToken()) {
+    NProgress.start()
+    const hasToken = getToken()
+    if (hasToken) {
         // to.meta.title&& useSettingsStore().setTitle(to.meta.title)
         if (to.path === '/login') {
             next({ path: '/' })
-            NProgress.done()
         } else {
             next()
             // if (useUserStore().roles.length === 0) {
@@ -40,15 +41,14 @@ router.beforeEach((to, from, next) => {
         }
     }
     else {
-        // 没有token
-        next()
-        NProgress.done()
-        // if (whiteList.indexOf(to.path) !== -1) {
-        //     // 在免登录白名单，直接进入
-        //     next()
-        // } else {
-        //     next(`/login?redirect=${to.fullPath}`) // 否则全部重定向到登录页
-        //     NProgress.done()
-        // }
+        if (whiteList.indexOf(to.path) !== -1 || !to.matched.some(record => record.meta.requiresAuth)) {
+            next()
+        } else {
+            next({ path: '/login', query: { redirect: to.fullPath } })
+        }
     }
+})
+
+router.afterEach(() => {
+    NProgress.done()
 })

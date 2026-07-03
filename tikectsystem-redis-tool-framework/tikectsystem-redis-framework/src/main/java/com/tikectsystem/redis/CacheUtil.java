@@ -1,6 +1,8 @@
 package com.tikectsystem.redis;
 
 import com.alibaba.fastjson.util.ParameterizedTypeImpl;
+import com.tikectsystem.enums.BaseCode;
+import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.util.StringUtil;
 
 import java.lang.reflect.Type;
@@ -19,6 +21,8 @@ import java.util.stream.Collectors;
 public class CacheUtil {
 
     public static final TimeUnit DEFAULT_TIME_UNIT = TimeUnit.SECONDS;
+
+    private static final String PARAMETER_MISSING_MESSAGE = "请求参数缺失";
 
     /**
      * 构建类型
@@ -48,9 +52,12 @@ public class CacheUtil {
      * @param key
      */
     public static void checkNotBlank(String... key) {
+        if (key == null || key.length == 0) {
+            throw missingParameterException();
+        }
         for (String s : key) {
             if (StringUtil.isEmpty(s)) {
-                throw new RuntimeException("请求参数缺失");
+                throw missingParameterException();
             }
         }
     }
@@ -61,8 +68,8 @@ public class CacheUtil {
      * @param redisKeyBuild key包装
      */
     public static void checkNotBlank(RedisKeyBuild redisKeyBuild) {
-        if (StringUtil.isEmpty(redisKeyBuild.getRelKey())) {
-            throw new RuntimeException("请求参数缺失");
+        if (redisKeyBuild == null || StringUtil.isEmpty(redisKeyBuild.getRelKey())) {
+            throw missingParameterException();
         }
     }
 
@@ -72,9 +79,12 @@ public class CacheUtil {
      * @param list
      */
     public static void checkNotBlank(Collection<String> list) {
+        if (list == null || list.isEmpty()) {
+            throw missingParameterException();
+        }
         for (String s : list) {
             if (StringUtil.isEmpty(s)) {
-                throw new RuntimeException("请求参数缺失");
+                throw missingParameterException();
             }
         }
     }
@@ -85,9 +95,12 @@ public class CacheUtil {
      * @param list key集合
      */
     public static void checkNotEmpty(Collection<?> list) {
+        if (list == null || list.isEmpty()) {
+            throw missingParameterException();
+        }
         for (Object o : list) {
             if (o == null) {
-                throw new RuntimeException("请求参数缺失");
+                throw missingParameterException();
             }
         }
     }
@@ -99,8 +112,12 @@ public class CacheUtil {
      */
     public static void checkNotEmpty(Object object) {
         if (isEmpty(object)) {
-            throw new RuntimeException("请求参数缺失");
+            throw missingParameterException();
         }
+    }
+
+    private static TikectsystemFrameException missingParameterException() {
+        return new TikectsystemFrameException(BaseCode.PARAMETER_ERROR.getCode(), PARAMETER_MISSING_MESSAGE);
     }
     
     /**

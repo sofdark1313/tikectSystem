@@ -37,38 +37,46 @@ import useUserStore from '@/store/modules/user'
 
 const router = useRouter();
 const userStore = useUserStore()
+const editPsdRef = ref(null)
 const editPsdForm = ref({
   password: '',
   id: getUserIdKey()
 })
-const editPsdRules = reactive([
-  {
-    required: true,
-    pattern: /^(?![\d]+$)(?![a-zA-Z]+$)(?![^\da-zA-Z]+$)([^\u4e00-\u9fa5\s]){6,20}$/,
-    message: '6-20位英文字母、数字或者符号（除空格），且字母、数字和标点符号至少包含两种',
-    trigger: ['blur', 'focus']
-  }
-])
+const editPsdRules = reactive({
+  password: [
+    {
+      required: true,
+      pattern: /^(?![\d]+$)(?![a-zA-Z]+$)(?![^\da-zA-Z]+$)([^\u4e00-\u9fa5\s]){6,20}$/,
+      message: '6-20位英文字母、数字或者符号（除空格），且字母、数字和标点符号至少包含两种',
+      trigger: ['blur', 'focus']
+    }
+  ]
+})
 
 
 function savePsd() {
-  getEditPsd(editPsdForm.value).then(response=>{
-    if(response.code == '0'){
-      ElMessage({
-        message: '保存成功',
-        type: 'success',
-      })
-
-      userStore.logOut().then(() => {
-        location.href = '../../login';
-      })
-
-    }else{
-      ElMessage({
-        message: response.message,
-        type: 'error',
-      })
+  editPsdRef.value.validate(valid => {
+    if (!valid) {
+      return
     }
+    getEditPsd(editPsdForm.value).then(response=>{
+      if(response.code == '0'){
+        ElMessage({
+          message: '保存成功',
+          type: 'success',
+        })
+
+        userStore.logOut().finally(() => {
+          router.replace('/login');
+        })
+
+      }else{
+        ElMessage({
+          message: response.message,
+          type: 'error',
+        })
+      }
+    })
   })
 }
 </script>

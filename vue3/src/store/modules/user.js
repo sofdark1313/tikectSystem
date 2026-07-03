@@ -25,12 +25,16 @@ const useUserStore = defineStore(
                 const code = userInfo.code
                 return new Promise((resolve, reject) => {
                     login(email,mobile, password, code).then(res => {
-                        if(res.code == 0){
+                        if(res.code == 0 && res.data){
                             const accessToken = res.data.accessToken || res.data.token
-                            setToken(accessToken)
-                            if (res.data.refreshToken) {
-                                setRefreshToken(res.data.refreshToken)
+                            if (!accessToken || !res.data.refreshToken) {
+                                const message = '登录响应无效，请稍后重试'
+                                ElMessage.error(message)
+                                reject(new Error(message))
+                                return
                             }
+                            setToken(accessToken, res.data.expiresIn)
+                            setRefreshToken(res.data.refreshToken, res.data.refreshExpiresIn)
                             userInfo.mobile? setName(userInfo.mobile):setName(userInfo.email)
                             setUserIdKey(res.data.userId)
                             this.token = accessToken
@@ -38,7 +42,9 @@ const useUserStore = defineStore(
                             this.userId = res.data.userId
                             resolve()
                         }else{
-                            ElMessage.error(res.message)
+                            const message = res.message || '登录失败，请稍后重试'
+                            ElMessage.error(message)
+                            reject(new Error(message))
                         }
 
                     }).catch(error => {
@@ -83,6 +89,8 @@ const useUserStore = defineStore(
                     }).catch(error => {
                         this.token = ''
                         this.refreshToken = ''
+                        this.roles = []
+                        this.permissions = []
                         removeToken()
                         removeRefreshToken()
                         removeName()

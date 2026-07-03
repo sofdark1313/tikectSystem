@@ -35,7 +35,6 @@
 
 import Header from '../../../components/header/index'
 import Footer from '../../../components/footer/index'
-import {getEditPsd} from '@/api/accountSettings'
 import {ElMessage} from "element-plus"
 import {getUserIdKey} from "../../../utils/auth"
 import {ref, reactive} from 'vue'
@@ -46,6 +45,7 @@ import {getAuthentication} from "../../../api/accountSettings";
 
 const router = useRouter();
 const userStore = useUserStore()
+const authRef = ref(null)
 const authForm = ref({
   idNumber: '',
   relName: '',
@@ -54,30 +54,35 @@ const authForm = ref({
 
 
 const authRules = reactive({
-      idNumber: [],
-      relName: [],
+      idNumber: [{required: true, message: '身份证号码不能为空', trigger: 'blur'}],
+      relName: [{required: true, message: '真实姓名不能为空', trigger: 'blur'}],
     }
 )
 
 
 function savePsd() {
-  getAuthentication(authForm.value).then(response => {
-    if (response.code == '0') {
-      ElMessage({
-        message: '保存成功',
-        type: 'success',
-      })
-
-      userStore.logOut().then(() => {
-        location.href = '../../login';
-      })
-
-    } else {
-      ElMessage({
-        message: response.message,
-        type: 'error',
-      })
+  authRef.value.validate(valid => {
+    if (!valid) {
+      return
     }
+    getAuthentication(authForm.value).then(response => {
+      if (response.code == '0') {
+        ElMessage({
+          message: '保存成功',
+          type: 'success',
+        })
+
+        userStore.logOut().finally(() => {
+          router.replace('/login');
+        })
+
+      } else {
+        ElMessage({
+          message: response.message,
+          type: 'error',
+        })
+      }
+    })
   })
 }
 </script>

@@ -11,7 +11,6 @@ import com.tikectsystem.dto.OrderPayCheckDto;
 import com.tikectsystem.dto.OrderPayDto;
 import com.tikectsystem.dto.ProgramGetDto;
 import com.tikectsystem.properties.ApiVerify;
-import com.tikectsystem.scheduletask.PresentationOrderDataTask;
 import com.tikectsystem.scheduletask.ReconciliationTask;
 import com.tikectsystem.service.OrderService;
 import com.tikectsystem.service.OrderTaskService;
@@ -49,9 +48,6 @@ public class OrderController {
     
     @Autowired
     private ReconciliationTask reconciliationTask;
-    
-    @Autowired
-    private PresentationOrderDataTask orderDataTask;
     
     @Autowired
     private ApiVerify apiVerify;
@@ -128,13 +124,6 @@ public class OrderController {
     public ApiResponse<ReconciliationTaskData> reconciliationTaskAll() {
         apiVerify.verifyApi();
         reconciliationTask.reconciliationTask();
-        return ApiResponse.ok();
-    }
-    
-    @Operation(summary  = "测试")
-    @PostMapping(value = "/test")
-    public ApiResponse<Void> test() {
-        orderDataTask.executeTask();
         return ApiResponse.ok();
     }
 }

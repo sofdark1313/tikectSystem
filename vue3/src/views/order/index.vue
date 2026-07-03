@@ -609,7 +609,6 @@ function submitOrder(){
         if (responseRequestId !== '') {
           currentOrderRequestId.value = String(responseRequestId);
         }
-        console.log('异步订单创建成功 订单编号',orderNumber)
         //开始定时轮训查询
         startPolling(orderNumber,submitStartTime);
       }else{

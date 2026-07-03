@@ -10,9 +10,9 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.util.Objects;
 
 /**
- * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
- * @description: 后台管理配置属性
- * @author: 阿星不是程序员
+ * 敏感内部 API 调用密码校验器。
+ * <p>
+ * 用于保护渠道配置、对账任务等不应由普通前台直接调用的接口。
  **/
 public class ApiVerify {
     
@@ -23,9 +23,15 @@ public class ApiVerify {
     public ApiVerify(BackManageProperties backManageProperties) {
         this.backManageProperties = backManageProperties;
     }
-    
+
+    /**
+     * 校验敏感内部 API 调用密码。
+     */
     public void verifyApi() {
         if (Boolean.TRUE.equals(backManageProperties.getApiPasswordCall())) {
+            if (StringUtil.isEmpty(backManageProperties.getApiPassword())) {
+                throw new TikectsystemFrameException(BaseCode.API_CALL_NEED_PASSWORD);
+            }
             String password = getApiPasswordHeader();
             if (StringUtil.isEmpty(password)) {
                 throw new TikectsystemFrameException(BaseCode.API_CALL_NEED_PASSWORD);

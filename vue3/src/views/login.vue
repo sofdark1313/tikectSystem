@@ -82,15 +82,16 @@ import bg from '@/assets/section/login-visual-generated.jpg'
 import Header from '@/components/header/index'
 import Footer from '@/components/footer/index'
 import {isPhoneNumber, isEmailAddress} from '@/utils/index'
-import {ref, getCurrentInstance, inject} from 'vue'
+import {ref, getCurrentInstance} from 'vue'
 import useUserStore from '@/store/modules/user'
-import {useRouter} from 'vue-router'
+import {useRoute, useRouter} from 'vue-router'
 
 //体验账号标识
 const experienceAccountFlag = ref(import.meta.env.VITE_EXPERIENCE_ACCOUNT_FLAG);
 //获取体验账号弹出框
 const stateOpen = ref(false)
 const userStore = useUserStore()
+const route = useRoute();
 const router = useRouter();
 const loading = ref(false);
 // 注册开关
@@ -102,8 +103,8 @@ const {proxy} = getCurrentInstance();
 const userName = ref('');
 const loginForm = ref({
   email: '',
-  mobile: '13212345678',
-  password: '123456..',
+  mobile: '',
+  password: '',
   code: '0001'//pc网站
 })
 
@@ -122,10 +123,15 @@ const handleLogin = () => {
       }else{
         isTips.value = false
         //正则匹配(手机号还是邮箱涉及到传参)
-        identifyType(userName.value)
+        if (!identifyType(userName.value)) {
+          isTips.value = true
+          tipsContent.value = '请输入正确的手机号或邮箱'
+          return
+        }
+        loading.value = true
         // 调用action的登录方法
         userStore.login(loginForm.value).then(() => {
-          router.push({path: "/"});
+          router.push(resolveRedirectPath());
         }).catch(() => {
           loading.value = false;
         });
@@ -137,17 +143,27 @@ const handleLogin = () => {
 
 
 function identifyType(value) {
+  loginForm.value.mobile = ''
+  loginForm.value.email = ''
   if (isPhoneNumber(value)) {
     loginForm.value.mobile = value
-    return loginForm.value.mobile;
+    return true;
   } else if (isEmailAddress(value)) {
     loginForm.value.email = value
-    return loginForm.value.email;
+    return true;
   }
+  return false
+}
+
+function resolveRedirectPath() {
+  const redirect = route.query.redirect
+  if (typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
+    return redirect
+  }
+  return '/'
 }
 
 function getExperienceAccount(){
-  console.log('getExperienceAccount')
   stateOpen.value = true
 }
 

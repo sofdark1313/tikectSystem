@@ -23,7 +23,6 @@ import com.tikectsystem.dto.AccountOrderCountDto;
 import com.tikectsystem.dto.DelayOrderCancelDto;
 import com.tikectsystem.dto.OrderCancelDto;
 import com.tikectsystem.dto.OrderCreateDto;
-import com.tikectsystem.dto.OrderCreateTestDto;
 import com.tikectsystem.dto.OrderGetDto;
 import com.tikectsystem.dto.OrderListDto;
 import com.tikectsystem.dto.OrderPayCheckDto;
@@ -1194,28 +1193,5 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         orderTicketUserMapper.relDelOrderTicketUser();
         orderTicketUserRecordMapper.relDelOrderTicketUserRecord();
         orderProgramMapper.relDelOrderProgram();
-    }
-    @Transactional(rollbackFor = Exception.class)
-    public boolean test(OrderCreateTestDto orderCreateTestDto){
-        long orderNumber = uidGenerator.getOrderNumber(orderCreateTestDto.getUserId(), 2);
-        OrderTicketUserRecord orderTicketUserRecord = new OrderTicketUserRecord();
-        orderTicketUserRecord.setId(uidGenerator.getUid());
-        orderTicketUserRecord.setOrderNumber(orderNumber);
-        orderTicketUserRecord.setTicketUserOrderId(uidGenerator.getUid());
-        orderTicketUserRecord.setProgramId(orderCreateTestDto.getProgramId());
-        orderTicketUserRecord.setUserId(orderCreateTestDto.getUserId());
-        orderTicketUserRecord.setTicketUserId(uidGenerator.getUid());
-        orderTicketUserRecord.setSeatId(1L);
-        orderTicketUserRecord.setIdentifierId(uidGenerator.getUid());
-        orderTicketUserRecordMapper.insert(orderTicketUserRecord);
-
-        ProgramRecordTaskAddDto programRecordTaskAddDto = new ProgramRecordTaskAddDto();
-        programRecordTaskAddDto.setProgramId(orderCreateTestDto.getProgramId());
-        programClient.add(programRecordTaskAddDto);
-
-        if ("1".equals(orderCreateTestDto.getHaveException())) {
-            throw new TikectsystemFrameException("妯℃嫙寮傚父");
-        }
-        return true;
     }
 }

@@ -26,17 +26,13 @@
 
 import Header from '../../../components/header/index'
 import Footer from '../../../components/footer/index'
-import {getEditPsd} from '@/api/accountSettings'
 import {ElMessage} from "element-plus"
 import {getUserIdKey} from "../../../utils/auth"
 import {ref, reactive} from 'vue'
-import {useRouter} from 'vue-router'
-import useUserStore from '@/store/modules/user'
 import {getEditEmail} from "../../../api/accountSettings";
 
 
-const router = useRouter();
-const userStore = useUserStore()
+const editEmailRef = ref(null)
 const editEmailForm = ref({
   email: '',
   id: getUserIdKey()
@@ -53,23 +49,23 @@ const editEmailRules = reactive({
 
 
 function savePsd() {
-  getEditEmail(editEmailForm.value).then(response => {
-    if (response.code == '0') {
-      ElMessage({
-        message: '保存成功',
-        type: 'success',
-      })
-
-      // userStore.logOut().then(() => {
-      //   location.href = '../../login';
-      // })
-
-    } else {
-      ElMessage({
-        message: response.message,
-        type: 'error',
-      })
+  editEmailRef.value.validate(valid => {
+    if (!valid) {
+      return
     }
+    getEditEmail(editEmailForm.value).then(response => {
+      if (response.code == '0') {
+        ElMessage({
+          message: '保存成功',
+          type: 'success',
+        })
+      } else {
+        ElMessage({
+          message: response.message,
+          type: 'error',
+        })
+      }
+    })
   })
 }
 </script>
