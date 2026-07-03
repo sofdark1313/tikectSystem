@@ -157,6 +157,8 @@ sql/cloud/
 3. 导入节目库脚本：
    - `tikectsystem_program_0.sql`
    - `tikectsystem_program_1.sql`
+   - 节目库脚本已包含 V4 异步下单结果分片表 `order_request_result_0` 和 `order_request_result_1`。
+   - 如果是已经初始化过的旧库，可单独执行 `sql/cloud/order_request_result.sql` 补建结果表。
 4. 导入订单库脚本：
    - `tikectsystem_order_0.sql`
    - `tikectsystem_order_1.sql`

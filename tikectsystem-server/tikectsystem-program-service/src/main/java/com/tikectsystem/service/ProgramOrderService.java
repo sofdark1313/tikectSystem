@@ -146,39 +146,13 @@ public class ProgramOrderService {
 
     /**
      * V4 新链路入口：轻量准入成功并拿到 order_request Kafka ack 后返回订单编号。
+     * 该入口不访问结果表，结果表首写由 order_request 消费端异步完成。
      * @param programOrderCreateDto 下单参数
      * @param orderVersion 下单版本
      * @return 订单编号
      */
     public String acceptOrderRequest(ProgramOrderCreateDto programOrderCreateDto, Integer orderVersion) {
         String requestId = ensureOrderRequestId(programOrderCreateDto);
-        OrderRequestResult existsOrderRequestResult = getOrderRequestResultByRequestId(requestId);
-        if (Objects.nonNull(existsOrderRequestResult)) {
-            if (!isSameOrderRequestOwner(programOrderCreateDto, existsOrderRequestResult)) {
-                throw new TikectsystemFrameException(BaseCode.PARAMETER_ERROR);
-            }
-            if (!isSameOrderRequestContext(programOrderCreateDto, existsOrderRequestResult)) {
-                // 同一用户在同一演出页再次下单时，如果前端误带旧 requestId，刷新后按新请求受理。
-                requestId = refreshOrderRequestId(programOrderCreateDto);
-                existsOrderRequestResult = null;
-            }
-        }
-        if (isRetryableTerminalOrderRequestResult(existsOrderRequestResult)) {
-            // 结果表可能被超时任务提前置为失败/过期，未支付订单事实存在时仍应复用旧订单。
-            if (markExistingOrderCreatedAndReusable(existsOrderRequestResult)) {
-                return String.valueOf(existsOrderRequestResult.getOrderNumber());
-            }
-            // 终态失败/过期/取消的补偿释放已在状态流转时完成，这里只刷新 requestId 重新受理。
-            requestId = refreshOrderRequestId(programOrderCreateDto);
-            existsOrderRequestResult = null;
-        } else if (isReusableOrderRequestResult(existsOrderRequestResult)) {
-            return String.valueOf(existsOrderRequestResult.getOrderNumber());
-        } else if (Objects.nonNull(existsOrderRequestResult)) {
-            // 已建单但不再可支付的旧请求不能继续复用，否则第二次下单会一直拿到上一单订单号。
-            requestId = refreshOrderRequestId(programOrderCreateDto);
-            existsOrderRequestResult = null;
-        }
-
         ProgramOrderCircuitBreakerService.CircuitAccessToken circuitToken =
                 programOrderCircuitBreakerService.beforeRedisAccess(programOrderCreateDto);
         boolean idempotentLockAcquired;
@@ -218,7 +192,7 @@ public class ProgramOrderService {
                 releaseRequestIdempotentLockSafely(requestId, circuitToken);
             }
         }
-        return sendAcceptedOrderRequest(programOrderCreateDto, orderVersion, requestId, existsOrderRequestResult, circuitToken);
+        return sendAcceptedOrderRequest(programOrderCreateDto, orderVersion, requestId, circuitToken);
     }
 
     private void executeProgramOrderCreateCheck(ProgramOrderCreateDto programOrderCreateDto) {
@@ -226,15 +200,13 @@ public class ProgramOrderService {
     }
 
     private String sendAcceptedOrderRequest(ProgramOrderCreateDto programOrderCreateDto, Integer orderVersion,
-                                            String requestId, OrderRequestResult existsOrderRequestResult,
+                                            String requestId,
                                             ProgramOrderCircuitBreakerService.CircuitAccessToken circuitToken) {
         try {
             Long orderNumber;
             ProgramOrderGateResult gateResult;
             try {
-                orderNumber = existsOrderRequestResult == null || existsOrderRequestResult.getOrderNumber() == null ?
-                        uidGenerator.getOrderNumber(programOrderCreateDto.getUserId(), ORDER_TABLE_COUNT) :
-                        existsOrderRequestResult.getOrderNumber();
+                orderNumber = uidGenerator.getOrderNumber(programOrderCreateDto.getUserId(), ORDER_TABLE_COUNT);
             } catch (RuntimeException e) {
                 programOrderCircuitBreakerService.afterRedisSuccess(circuitToken);
                 throw e;
@@ -251,22 +223,12 @@ public class ProgramOrderService {
                 throw new TikectsystemFrameException(failureCode);
             }
             if (!StringUtil.isEmpty(gateResult.getOrderNumber())) {
-                orderNumber = Long.valueOf(gateResult.getOrderNumber());
+                Long acceptedOrderNumber = Long.valueOf(gateResult.getOrderNumber());
+                if (!Objects.equals(acceptedOrderNumber, orderNumber)) {
+                    return String.valueOf(acceptedOrderNumber);
+                }
+                orderNumber = acceptedOrderNumber;
             }
-            OrderRequestResult orderRequestResult;
-            try {
-                orderRequestResult = orderRequestResultService.saveProcessing(requestId, orderNumber,
-                        programOrderCreateDto.getProgramId(), programOrderCreateDto.getUserId());
-            } catch (RuntimeException e) {
-                releaseGateSafely(programOrderCreateDto, requestId);
-                throw e;
-            }
-            if (Objects.nonNull(orderRequestResult) && Objects.nonNull(orderRequestResult.getOrderNumber()) &&
-                    !Objects.equals(orderRequestResult.getOrderNumber(), orderNumber)) {
-                releaseGateSafely(programOrderCreateDto, requestId);
-                return String.valueOf(orderRequestResult.getOrderNumber());
-            }
-
             OrderRequestMq orderRequestMq = new OrderRequestMq();
             orderRequestMq.setRequestId(requestId);
             orderRequestMq.setOrderNumber(orderNumber);
@@ -291,7 +253,6 @@ public class ProgramOrderService {
                 }, ex -> {
                     try {
                         releaseGateSafely(programOrderCreateDto, kafkaRequestId);
-                        markOrderRequestFailedSafely(finalOrderNumber, ex);
                         createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(ex);
                     } catch (Exception e) {
                         createOrderMqDomain.tikectsystemFrameException = new TikectsystemFrameException(e);
@@ -301,7 +262,6 @@ public class ProgramOrderService {
                 });
             } catch (RuntimeException e) {
                 releaseGateSafely(programOrderCreateDto, requestId);
-                markOrderRequestFailedSafely(finalOrderNumber, e);
                 throw e;
             }
             if (!awaitKafkaAck(latch)) {
@@ -310,41 +270,12 @@ public class ProgramOrderService {
                 return String.valueOf(orderNumber);
             }
             if (Objects.nonNull(createOrderMqDomain.tikectsystemFrameException)) {
-                markOrderRequestFailedSafely(finalOrderNumber, createOrderMqDomain.tikectsystemFrameException);
                 throw createOrderMqDomain.tikectsystemFrameException;
             }
             return String.valueOf(orderNumber);
         } finally {
             releaseRequestIdempotentLockSafely(requestId, circuitToken);
         }
-    }
-
-    /**
-     * V4 重复点击快速复用入口。
-     * 已受理请求要在座位状态校验前返回，否则第二次点击会被“座位已锁定”这类校验误伤。
-     * @param programOrderCreateDto 下单参数
-     * @return 已受理订单号；不存在可复用请求时返回 null
-     */
-    public String reuseAcceptedOrderRequestIfPresent(ProgramOrderCreateDto programOrderCreateDto) {
-        String requestId = ensureOrderRequestId(programOrderCreateDto);
-        OrderRequestResult existsOrderRequestResult = getOrderRequestResultByRequestId(requestId);
-        if (Objects.isNull(existsOrderRequestResult)) {
-            return null;
-        }
-        if (!isSameOrderRequestOwner(programOrderCreateDto, existsOrderRequestResult)) {
-            throw new TikectsystemFrameException(BaseCode.PARAMETER_ERROR);
-        }
-        if (!isSameOrderRequestContext(programOrderCreateDto, existsOrderRequestResult)) {
-            return null;
-        }
-        if (isReusableOrderRequestResult(existsOrderRequestResult)) {
-            return String.valueOf(existsOrderRequestResult.getOrderNumber());
-        }
-        if (isRetryableTerminalOrderRequestResult(existsOrderRequestResult) &&
-                markExistingOrderCreatedAndReusable(existsOrderRequestResult)) {
-            return String.valueOf(existsOrderRequestResult.getOrderNumber());
-        }
-        return null;
     }
 
     private String ensureOrderRequestId(ProgramOrderCreateDto programOrderCreateDto) {
@@ -354,184 +285,10 @@ public class ProgramOrderService {
         return requestId;
     }
 
-    private String refreshOrderRequestId(ProgramOrderCreateDto programOrderCreateDto) {
-        String requestId = String.valueOf(uidGenerator.getUid());
-        programOrderCreateDto.setRequestId(requestId);
-        return requestId;
-    }
-
     private boolean acquireRequestIdempotentLock(String requestId) {
         return redisCache.setIfAbsent(RedisKeyBuild.createRedisKey(
                         RedisKeyManage.PROGRAM_ORDER_REQUEST_IDEMPOTENT, requestId), requestId,
                 REQUEST_IDEMPOTENT_LOCK_TTL_SECONDS, TimeUnit.SECONDS);
-    }
-
-    private OrderRequestResult getOrderRequestResultByRequestId(String requestId) {
-        return orderRequestResultService.getByRequestId(requestId);
-    }
-
-    private boolean isSameOrderRequestContext(ProgramOrderCreateDto programOrderCreateDto,
-                                              OrderRequestResult orderRequestResult) {
-        if (!isSameOrderRequestOwner(programOrderCreateDto, orderRequestResult)) {
-            return false;
-        }
-        return isSameReservationOrderContext(programOrderCreateDto, orderRequestResult.getReservationJson());
-    }
-
-    private boolean isSameOrderRequestOwner(ProgramOrderCreateDto programOrderCreateDto,
-                                            OrderRequestResult orderRequestResult) {
-        return Objects.equals(programOrderCreateDto.getProgramId(), orderRequestResult.getProgramId()) &&
-                Objects.equals(programOrderCreateDto.getUserId(), orderRequestResult.getUserId());
-    }
-
-    private boolean isSameReservationOrderContext(ProgramOrderCreateDto programOrderCreateDto, String reservationJson) {
-        if (StringUtil.isEmpty(reservationJson)) {
-            return true;
-        }
-        try {
-            JSONObject reservation = JSON.parseObject(reservationJson);
-            if (!Objects.equals(programOrderCreateDto.getProgramId(), reservation.getLong("programId")) ||
-                    !Objects.equals(programOrderCreateDto.getUserId(), reservation.getLong("userId"))) {
-                return false;
-            }
-            JSONArray purchaseSeatArray = reservation.getJSONArray("purchaseSeatList");
-            if (purchaseSeatArray == null || purchaseSeatArray.isEmpty()) {
-                return true;
-            }
-            List<PurchaseSeat> purchaseSeatList = purchaseSeatArray.toJavaList(PurchaseSeat.class);
-            return isSameTicketUserContext(programOrderCreateDto, purchaseSeatList) &&
-                    isSameTicketSelectionContext(programOrderCreateDto, purchaseSeatList);
-        } catch (RuntimeException e) {
-            log.warn("parse order request reservation context failed, requestId : {}",
-                    programOrderCreateDto.getRequestId(), e);
-            return false;
-        }
-    }
-
-    private boolean isSameTicketUserContext(ProgramOrderCreateDto programOrderCreateDto,
-                                            List<PurchaseSeat> purchaseSeatList) {
-        List<Long> ticketUserIdList = programOrderCreateDto.getTicketUserIdList();
-        if (CollectionUtil.isEmpty(ticketUserIdList) || CollectionUtil.isEmpty(purchaseSeatList) ||
-                ticketUserIdList.size() != purchaseSeatList.size()) {
-            return false;
-        }
-        for (int i = 0; i < ticketUserIdList.size(); i++) {
-            PurchaseSeat purchaseSeat = purchaseSeatList.get(i);
-            if (Objects.isNull(purchaseSeat) ||
-                    !Objects.equals(ticketUserIdList.get(i), purchaseSeat.getTicketUserId())) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean isSameTicketSelectionContext(ProgramOrderCreateDto programOrderCreateDto,
-                                                 List<PurchaseSeat> purchaseSeatList) {
-        List<SeatDto> seatDtoList = programOrderCreateDto.getSeatDtoList();
-        if (CollectionUtil.isNotEmpty(seatDtoList)) {
-            return isSameSelectedSeatContext(seatDtoList, purchaseSeatList);
-        }
-        return isSameAutoMatchSeatContext(programOrderCreateDto, purchaseSeatList);
-    }
-
-    private boolean isSameSelectedSeatContext(List<SeatDto> seatDtoList, List<PurchaseSeat> purchaseSeatList) {
-        if (seatDtoList.size() != purchaseSeatList.size()) {
-            return false;
-        }
-        Map<Long, Long> sourceSeatTicketCategoryMap = new HashMap<>(seatDtoList.size());
-        for (SeatDto seatDto : seatDtoList) {
-            if (Objects.isNull(seatDto) || Objects.isNull(seatDto.getId()) ||
-                    Objects.isNull(seatDto.getTicketCategoryId())) {
-                return false;
-            }
-            sourceSeatTicketCategoryMap.put(seatDto.getId(), seatDto.getTicketCategoryId());
-        }
-        for (PurchaseSeat purchaseSeat : purchaseSeatList) {
-            if (Objects.isNull(purchaseSeat) || Objects.isNull(purchaseSeat.getId()) ||
-                    !Objects.equals(sourceSeatTicketCategoryMap.get(purchaseSeat.getId()),
-                            purchaseSeat.getTicketCategoryId())) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean isSameAutoMatchSeatContext(ProgramOrderCreateDto programOrderCreateDto,
-                                               List<PurchaseSeat> purchaseSeatList) {
-        Long ticketCategoryId = programOrderCreateDto.getTicketCategoryId();
-        Integer ticketCount = programOrderCreateDto.getTicketCount();
-        if (Objects.isNull(ticketCategoryId) || Objects.isNull(ticketCount) ||
-                purchaseSeatList.size() != ticketCount) {
-            return false;
-        }
-        for (PurchaseSeat purchaseSeat : purchaseSeatList) {
-            if (Objects.isNull(purchaseSeat) ||
-                    !Objects.equals(ticketCategoryId, purchaseSeat.getTicketCategoryId())) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean isReusableOrderRequestResult(OrderRequestResult orderRequestResult) {
-        if (Objects.isNull(orderRequestResult) || Objects.isNull(orderRequestResult.getOrderNumber())) {
-            return false;
-        }
-        String resultStatus = orderRequestResult.getResultStatus();
-        if (Objects.equals(resultStatus, OrderRequestResultStatus.PROCESSING) ||
-                Objects.equals(resultStatus, OrderRequestResultStatus.RESERVED)) {
-            return isActiveOrderRequestReusable(orderRequestResult);
-        }
-        if (Objects.equals(resultStatus, OrderRequestResultStatus.ORDER_CREATED)) {
-            return noPayOrderExists(orderRequestResult.getOrderNumber());
-        }
-        return false;
-    }
-
-    private boolean isActiveOrderRequestReusable(OrderRequestResult orderRequestResult) {
-        OrderGetVo orderGetVo = getOrderByNumber(orderRequestResult.getOrderNumber());
-        if (Objects.isNull(orderGetVo)) {
-            return true;
-        }
-        if (Objects.equals(orderGetVo.getOrderStatus(), OrderStatus.NO_PAY.getCode())) {
-            markOrderRequestCreatedSafely(orderRequestResult.getOrderNumber());
-            return true;
-        }
-        return false;
-    }
-
-    private boolean isAcceptedOrderRequestResult(OrderRequestResult orderRequestResult) {
-        if (Objects.isNull(orderRequestResult) || Objects.isNull(orderRequestResult.getOrderNumber())) {
-            return false;
-        }
-        String resultStatus = orderRequestResult.getResultStatus();
-        if (Objects.equals(resultStatus, OrderRequestResultStatus.PROCESSING) ||
-                Objects.equals(resultStatus, OrderRequestResultStatus.RESERVED)) {
-            return isActiveOrderRequestReusable(orderRequestResult);
-        }
-        return Objects.equals(resultStatus, OrderRequestResultStatus.ORDER_CREATED) &&
-                noPayOrderExists(orderRequestResult.getOrderNumber());
-    }
-
-    private boolean isRetryableTerminalOrderRequestResult(OrderRequestResult orderRequestResult) {
-        if (Objects.isNull(orderRequestResult)) {
-            return false;
-        }
-        String resultStatus = orderRequestResult.getResultStatus();
-        return Objects.equals(resultStatus, OrderRequestResultStatus.FAILED) ||
-                Objects.equals(resultStatus, OrderRequestResultStatus.CANCELLED) ||
-                Objects.equals(resultStatus, OrderRequestResultStatus.EXPIRED);
-    }
-
-    private boolean markExistingOrderCreatedAndReusable(OrderRequestResult orderRequestResult) {
-        if (Objects.isNull(orderRequestResult) || Objects.isNull(orderRequestResult.getOrderNumber())) {
-            return false;
-        }
-        if (!noPayOrderExists(orderRequestResult.getOrderNumber())) {
-            return false;
-        }
-        markOrderRequestCreatedSafely(orderRequestResult.getOrderNumber());
-        return true;
     }
 
     private String waitForAcceptedOrderNumber(String requestId) {
@@ -551,19 +308,8 @@ public class ProgramOrderService {
     }
 
     private String getAcceptedOrderNumber(String requestId) {
-        String gateOrderNumber = redisCache.get(RedisKeyBuild.createRedisKey(
+        return redisCache.get(RedisKeyBuild.createRedisKey(
                 RedisKeyManage.PROGRAM_ORDER_GATE_REQUEST, requestId), String.class);
-        if (!StringUtil.isEmpty(gateOrderNumber)) {
-            return gateOrderNumber;
-        }
-        OrderRequestResult result = getOrderRequestResultByRequestId(requestId);
-        if (isAcceptedOrderRequestResult(result)) {
-            return String.valueOf(result.getOrderNumber());
-        }
-        if (isRetryableTerminalOrderRequestResult(result) && markExistingOrderCreatedAndReusable(result)) {
-            return String.valueOf(result.getOrderNumber());
-        }
-        return null;
     }
 
     private void releaseRequestIdempotentLock(String requestId) {
@@ -611,7 +357,8 @@ public class ProgramOrderService {
         }
         ProgramOrderCreateDto programOrderCreateDto = orderRequestMq.getProgramOrderCreateDto();
         OrderRequestResult currentOrderRequestResult =
-                orderRequestResultService.getByOrderNumber(orderRequestMq.getOrderNumber());
+                orderRequestResultService.ensureProcessing(orderRequestMq.getRequestId(), orderRequestMq.getOrderNumber(),
+                        programOrderCreateDto.getProgramId(), programOrderCreateDto.getUserId());
         if (Objects.nonNull(currentOrderRequestResult)) {
             String currentStatus = currentOrderRequestResult.getResultStatus();
             if (isTerminalOrderRequestStatus(currentStatus)) {

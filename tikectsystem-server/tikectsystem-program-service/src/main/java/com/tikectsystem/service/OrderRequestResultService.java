@@ -11,6 +11,7 @@ import com.tikectsystem.service.constant.OrderRequestResultStatus;
 import com.tikectsystem.vo.OrderRequestResultVo;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -30,18 +31,16 @@ public class OrderRequestResultService {
     private OrderRequestResultMapper orderRequestResultMapper;
 
     /**
-     * 记录 Kafka 已受理状态。
+     * 确保异步消费阶段存在 PROCESSING 结果记录。
+     * 该方法只在 order_request 消费端调用，入口受理链路不能同步写结果表。
      * @param requestId 请求幂等号
      * @param orderNumber 订单编号
      * @param programId 节目编号
      * @param userId 用户编号
+     * @return 当前订单编号对应的结果记录
      */
-    public OrderRequestResult saveProcessing(String requestId, Long orderNumber, Long programId, Long userId) {
-        OrderRequestResult exists = getByRequestId(requestId);
-        if (Objects.nonNull(exists)) {
-            return exists;
-        }
-        exists = getByOrderNumber(orderNumber);
+    public OrderRequestResult ensureProcessing(String requestId, Long orderNumber, Long programId, Long userId) {
+        OrderRequestResult exists = getByOrderNumber(orderNumber);
         if (Objects.nonNull(exists)) {
             return exists;
         }
@@ -52,8 +51,16 @@ public class OrderRequestResultService {
         result.setProgramId(programId);
         result.setUserId(userId);
         result.setResultStatus(OrderRequestResultStatus.PROCESSING);
-        orderRequestResultMapper.insert(result);
-        return result;
+        try {
+            orderRequestResultMapper.insert(result);
+            return result;
+        } catch (DuplicateKeyException e) {
+            OrderRequestResult concurrentExists = getByOrderNumber(orderNumber);
+            if (Objects.nonNull(concurrentExists)) {
+                return concurrentExists;
+            }
+            throw e;
+        }
     }
 
     /**
