@@ -6,7 +6,6 @@ import com.alibaba.fastjson.JSONObject;
 import com.baidu.fsg.uid.UidGenerator;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tikectsystem.client.BaseDataClient;
@@ -21,6 +20,7 @@ import com.tikectsystem.dto.UserLoginDto;
 import com.tikectsystem.dto.UserLogoutDto;
 import com.tikectsystem.dto.UserMobileDto;
 import com.tikectsystem.dto.UserRegisterDto;
+import com.tikectsystem.dto.UserRefreshTokenDto;
 import com.tikectsystem.dto.UserUpdateDto;
 import com.tikectsystem.dto.UserUpdateEmailDto;
 import com.tikectsystem.dto.UserUpdateMobileDto;
@@ -57,7 +57,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -102,10 +106,19 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     @Autowired
     private BaseDataClient baseDataClient;
     
-    @Value("${token.expire.time:40}")
-    private Long tokenExpireTime;
+    @Value("${token.access.expire.time:${token.expire.time:40}}")
+    private Long accessTokenExpireTime;
+
+    @Value("${token.refresh.expire.time:10080}")
+    private Long refreshTokenExpireTime;
     
     private static final Integer ERROR_COUNT_THRESHOLD = 5;
+
+    private static final String TOKEN_TYPE = "tokenType";
+
+    private static final String TOKEN_TYPE_ACCESS = "access";
+
+    private static final String TOKEN_TYPE_REFRESH = "refresh";
     
     @Transactional(rollbackFor = Exception.class)
     @ServiceLock(lockType= LockType.Write,name = REGISTER_USER_LOCK,keys = {"#userRegisterDto.mobile"})
@@ -207,12 +220,14 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         if (Objects.isNull(user)) {
             throw new TikectsystemFrameException(BaseCode.NAME_PASSWORD_ERROR);
         }
-        //将用户信息放到缓存中
-        redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.USER_LOGIN,code,user.getId()),user,
-                tokenExpireTime,TimeUnit.MINUTES);
+        // 将登录态缓存为对外用户视图，避免把密码等敏感实体字段写入 Redis。
+        UserVo loginUserVo = new UserVo();
+        BeanUtil.copyProperties(user, loginUserVo);
+        redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.USER_LOGIN,code,user.getId()),loginUserVo,
+                refreshTokenExpireTime,TimeUnit.MINUTES);
         userLoginVo.setUserId(userId);
         //生成token
-        userLoginVo.setToken(createToken(user.getId(),getChannelDataByCode(code).getTokenSecret()));
+        fillLoginTokens(userLoginVo, code, user.getId(), getChannelDataByCode(code).getTokenSecret());
         return userLoginVo;
     }
     
@@ -232,14 +247,66 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     }
     
     public String createToken(Long userId,String tokenSecret){
+        return createToken(userId, tokenSecret, TOKEN_TYPE_ACCESS, accessTokenExpireTime);
+    }
+
+    private String createToken(Long userId, String tokenSecret, String tokenType, Long expireMinutes){
         Map<String,Object> map = new HashMap<>(4);
         map.put("userId",userId);
-        return TokenUtil.createToken(String.valueOf(uidGenerator.getUid()), JSON.toJSONString(map),tokenExpireTime * 60 * 1000,tokenSecret);
+        map.put(TOKEN_TYPE, tokenType);
+        return TokenUtil.createToken(String.valueOf(uidGenerator.getUid()), JSON.toJSONString(map),
+                expireMinutes * 60 * 1000, tokenSecret);
+    }
+
+    /**
+     * 使用 refresh token 轮换新的 access token 与 refresh token。
+     */
+    public UserLoginVo refreshToken(UserRefreshTokenDto userRefreshTokenDto) {
+        String code = userRefreshTokenDto.getCode();
+        String refreshToken = userRefreshTokenDto.getRefreshToken();
+        String tokenSecret = getChannelDataByCode(code).getTokenSecret();
+        String userStr = TokenUtil.parseToken(refreshToken, tokenSecret);
+        if (!TOKEN_TYPE_REFRESH.equals(parseTokenType(userStr))) {
+            throw new TikectsystemFrameException(BaseCode.REFRESH_TOKEN_INVALID);
+        }
+        String userId = parseUserId(userStr);
+        if (StringUtil.isEmpty(userId)) {
+            throw new TikectsystemFrameException(BaseCode.REFRESH_TOKEN_INVALID);
+        }
+        String cachedDigest = redisCache.get(RedisKeyBuild.createRedisKey(
+                RedisKeyManage.USER_REFRESH_TOKEN, code, userId), String.class);
+        if (!Objects.equals(cachedDigest, tokenDigest(refreshToken))) {
+            throw new TikectsystemFrameException(BaseCode.REFRESH_TOKEN_INVALID);
+        }
+        UserVo loginUserVo = redisCache.get(RedisKeyBuild.createRedisKey(
+                RedisKeyManage.USER_LOGIN, code, userId), UserVo.class);
+        if (Objects.isNull(loginUserVo)) {
+            throw new TikectsystemFrameException(BaseCode.LOGIN_USER_NOT_EXIST);
+        }
+        redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.USER_LOGIN, code, userId),
+                loginUserVo, refreshTokenExpireTime, TimeUnit.MINUTES);
+
+        UserLoginVo userLoginVo = new UserLoginVo();
+        userLoginVo.setUserId(parseUserIdAsLong(userId));
+        fillLoginTokens(userLoginVo, code, parseUserIdAsLong(userId), tokenSecret);
+        return userLoginVo;
+    }
+
+    private void fillLoginTokens(UserLoginVo userLoginVo, String code, Long userId, String tokenSecret) {
+        String accessToken = createToken(userId, tokenSecret, TOKEN_TYPE_ACCESS, accessTokenExpireTime);
+        String refreshToken = createToken(userId, tokenSecret, TOKEN_TYPE_REFRESH, refreshTokenExpireTime);
+        redisCache.set(RedisKeyBuild.createRedisKey(RedisKeyManage.USER_REFRESH_TOKEN, code, userId),
+                tokenDigest(refreshToken), refreshTokenExpireTime, TimeUnit.MINUTES);
+        userLoginVo.setToken(accessToken);
+        userLoginVo.setAccessToken(accessToken);
+        userLoginVo.setRefreshToken(refreshToken);
+        userLoginVo.setExpiresIn(accessTokenExpireTime * 60);
+        userLoginVo.setRefreshExpiresIn(refreshTokenExpireTime * 60);
     }
     
     public Boolean logout(UserLogoutDto userLogoutDto) {
-        String userStr = TokenUtil.parseToken(userLogoutDto.getToken(),getChannelDataByCode(userLogoutDto.getCode())
-                .getTokenSecret());
+        String tokenSecret = getChannelDataByCode(userLogoutDto.getCode()).getTokenSecret();
+        String userStr = parseLogoutToken(userLogoutDto, tokenSecret);
         if (StringUtil.isEmpty(userStr)) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
@@ -248,7 +315,19 @@ public class UserService extends ServiceImpl<UserMapper, User> {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
         redisCache.del(RedisKeyBuild.createRedisKey(RedisKeyManage.USER_LOGIN,userLogoutDto.getCode(),userId));
+        redisCache.del(RedisKeyBuild.createRedisKey(RedisKeyManage.USER_REFRESH_TOKEN,userLogoutDto.getCode(),userId));
         return true;
+    }
+
+    private String parseLogoutToken(UserLogoutDto userLogoutDto, String tokenSecret) {
+        try {
+            return TokenUtil.parseToken(userLogoutDto.getToken(), tokenSecret);
+        } catch (TikectsystemFrameException e) {
+            if (StringUtil.isEmpty(userLogoutDto.getRefreshToken())) {
+                throw e;
+            }
+            return TokenUtil.parseToken(userLogoutDto.getRefreshToken(), tokenSecret);
+        }
     }
 
     private String parseUserId(String userStr) {
@@ -258,6 +337,36 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         } catch (Exception e) {
             log.warn("parse user id from token subject failed", e);
             return null;
+        }
+    }
+
+    private Long parseUserIdAsLong(String userId) {
+        try {
+            return Long.valueOf(userId);
+        } catch (NumberFormatException e) {
+            log.warn("parse user id number failed", e);
+            throw new TikectsystemFrameException(BaseCode.REFRESH_TOKEN_INVALID);
+        }
+    }
+
+    private String parseTokenType(String userStr) {
+        try {
+            JSONObject user = JSONObject.parseObject(userStr);
+            return user == null ? null : user.getString(TOKEN_TYPE);
+        } catch (Exception e) {
+            log.warn("parse token type failed", e);
+            return null;
+        }
+    }
+
+    private String tokenDigest(String token) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            log.error("sha256 digest algorithm not found", e);
+            throw new TikectsystemFrameException(BaseCode.SYSTEM_ERROR);
         }
     }
     
@@ -295,27 +404,30 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         if (Objects.isNull(user)) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
+        String newEmail = userUpdateEmailDto.getEmail();
+        UserEmail occupiedUserEmail = userEmailMapper.selectOne(Wrappers.lambdaQuery(UserEmail.class)
+                .eq(UserEmail::getEmail, newEmail));
+        if (Objects.nonNull(occupiedUserEmail) && !Objects.equals(occupiedUserEmail.getUserId(), user.getId())) {
+            throw new TikectsystemFrameException(BaseCode.USER_EMAIL_EXIST);
+        }
         User updateUser = new User();
         BeanUtil.copyProperties(userUpdateEmailDto,updateUser);
         updateUser.setEmailStatus(BusinessStatus.YES.getCode());
         userMapper.updateById(updateUser);
         
-        String oldEmail = user.getEmail();
-        LambdaQueryWrapper<UserEmail> userEmailLambdaQueryWrapper = Wrappers.lambdaQuery(UserEmail.class)
-                .eq(UserEmail::getEmail, userUpdateEmailDto.getEmail());
-        UserEmail userEmail = userEmailMapper.selectOne(userEmailLambdaQueryWrapper);
-        if (Objects.isNull(userEmail)) {
-            userEmail = new UserEmail();
-            userEmail.setId(uidGenerator.getUid());
-            userEmail.setUserId(user.getId());
-            userEmail.setEmail(userUpdateEmailDto.getEmail());
-            userEmailMapper.insert(userEmail);
+        UserEmail currentUserEmail = userEmailMapper.selectOne(Wrappers.lambdaQuery(UserEmail.class)
+                .eq(UserEmail::getUserId, user.getId()));
+        if (Objects.isNull(currentUserEmail)) {
+            UserEmail insertUserEmail = new UserEmail();
+            insertUserEmail.setId(uidGenerator.getUid());
+            insertUserEmail.setUserId(user.getId());
+            insertUserEmail.setEmail(newEmail);
+            userEmailMapper.insert(insertUserEmail);
         }else {
-            LambdaUpdateWrapper<UserEmail> userEmailLambdaUpdateWrapper = Wrappers.lambdaUpdate(UserEmail.class)
-                    .eq(UserEmail::getEmail, oldEmail);
             UserEmail updateUserEmail = new UserEmail();
-            updateUserEmail.setEmail(userUpdateEmailDto.getEmail());
-            userEmailMapper.update(updateUserEmail,userEmailLambdaUpdateWrapper);
+            updateUserEmail.setId(currentUserEmail.getId());
+            updateUserEmail.setEmail(newEmail);
+            userEmailMapper.updateById(updateUserEmail);
         }
     }
     
@@ -325,26 +437,30 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         if (Objects.isNull(user)) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
-        String oldMobile = user.getMobile();
+        String newMobile = userUpdateMobileDto.getMobile();
+        UserMobile occupiedUserMobile = userMobileMapper.selectOne(Wrappers.lambdaQuery(UserMobile.class)
+                .eq(UserMobile::getMobile, newMobile));
+        if (Objects.nonNull(occupiedUserMobile) && !Objects.equals(occupiedUserMobile.getUserId(), user.getId())) {
+            throw new TikectsystemFrameException(BaseCode.USER_MOBILE_EXIST);
+        }
         User updateUser = new User();
         BeanUtil.copyProperties(userUpdateMobileDto,updateUser);
         userMapper.updateById(updateUser);
-        LambdaQueryWrapper<UserMobile> userMobileLambdaQueryWrapper = Wrappers.lambdaQuery(UserMobile.class)
-                .eq(UserMobile::getMobile, userUpdateMobileDto.getMobile());
-        UserMobile userMobile = userMobileMapper.selectOne(userMobileLambdaQueryWrapper);
-        if (Objects.isNull(userMobile)) {
-            userMobile = new UserMobile();
-            userMobile.setId(uidGenerator.getUid());
-            userMobile.setUserId(user.getId());
-            userMobile.setMobile(userUpdateMobileDto.getMobile());
-            userMobileMapper.insert(userMobile);
+        UserMobile currentUserMobile = userMobileMapper.selectOne(Wrappers.lambdaQuery(UserMobile.class)
+                .eq(UserMobile::getUserId, user.getId()));
+        if (Objects.isNull(currentUserMobile)) {
+            UserMobile insertUserMobile = new UserMobile();
+            insertUserMobile.setId(uidGenerator.getUid());
+            insertUserMobile.setUserId(user.getId());
+            insertUserMobile.setMobile(newMobile);
+            userMobileMapper.insert(insertUserMobile);
         }else {
-            LambdaUpdateWrapper<UserMobile> userMobileLambdaUpdateWrapper = Wrappers.lambdaUpdate(UserMobile.class)
-                    .eq(UserMobile::getMobile, oldMobile);
             UserMobile updateUserMobile = new UserMobile();
-            updateUserMobile.setMobile(userUpdateMobileDto.getMobile());
-            userMobileMapper.update(updateUserMobile,userMobileLambdaUpdateWrapper);
+            updateUserMobile.setId(currentUserMobile.getId());
+            updateUserMobile.setMobile(newMobile);
+            userMobileMapper.updateById(updateUserMobile);
         }
+        bloomFilterHandler.add(newMobile);
     }
     
     @Transactional(rollbackFor = Exception.class)

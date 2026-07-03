@@ -2,6 +2,7 @@ package com.tikectsystem.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -37,10 +38,11 @@ public class PayDto implements Serializable {
     
     @Schema(name ="price", type ="BigDecimal", description ="价格",requiredMode= RequiredMode.REQUIRED)
     @NotNull
+    @DecimalMin(value = "0.00", inclusive = false, message = "支付金额必须大于0")
     private BigDecimal price;
     
     @Schema(name ="channel", type ="String", description ="支付渠道保留字段，当前使用本地确认支付",requiredMode= RequiredMode.REQUIRED)
-    @NotNull
+    @NotBlank
     private String channel;
 
     @Schema(name ="payBillType", type ="Integer", description ="支付种类",requiredMode= RequiredMode.REQUIRED)

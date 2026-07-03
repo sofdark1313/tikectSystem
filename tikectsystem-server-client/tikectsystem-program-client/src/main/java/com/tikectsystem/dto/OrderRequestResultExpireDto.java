@@ -1,6 +1,7 @@
 package com.tikectsystem.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -29,6 +30,7 @@ public class OrderRequestResultExpireDto implements Serializable {
     /**
      * 单次最多处理数量。
      */
+    @Max(value = 1000, message = "处理数量不能超过1000")
     @Min(value = 1, message = "处理数量必须大于0")
     @Schema(name = "limit", type = "Integer", description = "单次最多处理数量")
     private Integer limit = 100;

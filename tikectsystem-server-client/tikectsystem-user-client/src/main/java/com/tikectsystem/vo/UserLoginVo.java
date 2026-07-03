@@ -17,4 +17,16 @@ public class UserLoginVo {
     
     @Schema(name ="token", type ="String", description ="token")
     private String token;
+
+    @Schema(name ="accessToken", type ="String", description ="短效访问令牌")
+    private String accessToken;
+
+    @Schema(name ="refreshToken", type ="String", description ="长效刷新令牌")
+    private String refreshToken;
+
+    @Schema(name ="expiresIn", type ="Long", description ="访问令牌过期秒数")
+    private Long expiresIn;
+
+    @Schema(name ="refreshExpiresIn", type ="Long", description ="刷新令牌过期秒数")
+    private Long refreshExpiresIn;
 }

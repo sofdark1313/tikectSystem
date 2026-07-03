@@ -2,6 +2,7 @@ package com.tikectsystem.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -23,10 +24,11 @@ public class RefundDto {
     
     @Schema(name ="amount", type ="BigDecimal", description ="退款金额",requiredMode= RequiredMode.REQUIRED)
     @NotNull
+    @DecimalMin(value = "0.00", inclusive = false, message = "退款金额必须大于0")
     private BigDecimal amount;
     
     @Schema(name ="channel", type ="Integer", description ="退款渠道 alipay：支付宝 wx：微信",requiredMode= RequiredMode.REQUIRED)
-    @NotNull
+    @NotBlank
     private String channel;
     
     @Schema(name ="reason", type ="String", description ="退款原因")

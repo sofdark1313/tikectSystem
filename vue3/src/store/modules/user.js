@@ -1,5 +1,5 @@
 import { login,logout} from '@/api/login'
-import { getToken, setToken, removeToken,getName,setName,removeName,
+import { getToken, setToken, removeToken, getRefreshToken, setRefreshToken, removeRefreshToken, getName,setName,removeName,
     getUserIdKey,setUserIdKey,removeUserIdKey } from '@/utils/auth'
 import { defineStore } from 'pinia'
 
@@ -8,6 +8,7 @@ const useUserStore = defineStore(
     {
         state: () => ({
             token: getToken(),
+            refreshToken: getRefreshToken(),
             name: getName(),
             avatar: '',
             userId: getUserIdKey(),
@@ -25,10 +26,15 @@ const useUserStore = defineStore(
                 return new Promise((resolve, reject) => {
                     login(email,mobile, password, code).then(res => {
                         if(res.code == 0){
-                            setToken(res.data.token)
+                            const accessToken = res.data.accessToken || res.data.token
+                            setToken(accessToken)
+                            if (res.data.refreshToken) {
+                                setRefreshToken(res.data.refreshToken)
+                            }
                             userInfo.mobile? setName(userInfo.mobile):setName(userInfo.email)
                             setUserIdKey(res.data.userId)
-                            this.token = res.data.token
+                            this.token = accessToken
+                            this.refreshToken = res.data.refreshToken
                             this.userId = res.data.userId
                             resolve()
                         }else{
@@ -64,13 +70,23 @@ const useUserStore = defineStore(
             // // 退出系统
             logOut() {
                 return new Promise((resolve, reject) => {
-                    logout('0001',this.token).then(() => {
+                    logout('0001',this.token,this.refreshToken || getRefreshToken()).then(() => {
                         this.token = ''
+                        this.refreshToken = ''
                         this.roles = []
                         this.permissions = []
                         removeToken()
+                        removeRefreshToken()
+                        removeName()
+                        removeUserIdKey()
                         resolve()
                     }).catch(error => {
+                        this.token = ''
+                        this.refreshToken = ''
+                        removeToken()
+                        removeRefreshToken()
+                        removeName()
+                        removeUserIdKey()
                         reject(error)
                     })
                 })

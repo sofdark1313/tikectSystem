@@ -102,6 +102,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.tikectsystem.constant.Constant.ALIPAY_NOTIFY_FAILURE_RESULT;
 import static com.tikectsystem.constant.Constant.ALIPAY_NOTIFY_SUCCESS_RESULT;
 import static com.tikectsystem.constant.Constant.GLIDE_LINE;
 import static com.tikectsystem.core.DistributedLockConstants.UPDATE_ORDER_STATUS_LOCK;
@@ -436,11 +437,11 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 updateOrder.setEditTime(DateUtils.now());
                 updateOrder.setOrderStatus(OrderStatus.REFUND.getCode());
                 orderMapper.update(updateOrder,Wrappers.lambdaUpdate(Order.class).eq(Order::getOrderNumber, order.getOrderNumber()));
+                orderPayCheckVo.setOrderStatus(OrderStatus.REFUND.getCode());
+                orderPayCheckVo.setCancelOrderTime(DateUtils.now());
             }else {
                 log.error("pay鏈嶅姟閫€娆惧け璐?dto : {} response : {}",JSON.toJSONString(refundDto),JSON.toJSONString(response));
             }
-            orderPayCheckVo.setOrderStatus(OrderStatus.REFUND.getCode());
-            orderPayCheckVo.setCancelOrderTime(DateUtils.now());
             return orderPayCheckVo;
         }
 
@@ -460,6 +461,11 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (tradeCheckVo.isSuccess()) {
             Integer payBillStatus = tradeCheckVo.getPayBillStatus();
             Integer orderStatus = order.getOrderStatus();
+            if (Objects.equals(payBillStatus, PayBillStatus.PAY.getCode()) &&
+                    (tradeCheckVo.getTotalAmount() == null ||
+                            tradeCheckVo.getTotalAmount().compareTo(order.getOrderPrice()) != 0)) {
+                throw new TikectsystemFrameException(BaseCode.PAY_PRICE_NOT_EQUAL_ORDER_PRICE);
+            }
             //濡傛灉璁㈠崟鐨勭姸鎬佸拰璐﹀崟鐨勭姸鎬佷笉涓€鑷达紝鍒欏湪鏈妫€鏌ヤ腑琛ュ伩鏇存柊
             if (!Objects.equals(orderStatus, payBillStatus)) {
                 orderPayCheckVo.setOrderStatus(payBillStatus);
@@ -522,6 +528,9 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                     orderMapper.update(updateOrder,Wrappers.lambdaUpdate(Order.class).eq(Order::getOrderNumber, outTradeNo));
                 }else {
                     log.error("pay鏈嶅姟閫€娆惧け璐?dto : {} response : {}",JSON.toJSONString(refundDto),JSON.toJSONString(response));
+                }
+                if (response == null || !Objects.equals(response.getCode(), BaseCode.SUCCESS.getCode())) {
+                    return ALIPAY_NOTIFY_FAILURE_RESULT;
                 }
                 return ALIPAY_NOTIFY_SUCCESS_RESULT;
             }

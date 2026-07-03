@@ -21,4 +21,7 @@ public class UserLogoutDto {
     @Schema(name ="id", type ="Long", description ="token", requiredMode= RequiredMode.REQUIRED)
     @NotBlank
     private String token;
+
+    @Schema(name ="refreshToken", type ="String", description ="刷新令牌")
+    private String refreshToken;
 }

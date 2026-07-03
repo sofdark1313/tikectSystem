@@ -24,6 +24,11 @@ import java.util.Objects;
 @Service
 public class OrderRequestResultService {
 
+    /**
+     * 单次过期扫描最大处理数量，避免配置或内部调用放大慢查询。
+     */
+    private static final int MAX_EXPIRE_LIMIT = 1000;
+
     @Autowired
     private UidGenerator uidGenerator;
 
@@ -156,12 +161,13 @@ public class OrderRequestResultService {
      * @return 实际过期数量
      */
     public int expireStuckProcessing(Date beforeTime, int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, MAX_EXPIRE_LIMIT));
         List<OrderRequestResult> resultList = orderRequestResultMapper.selectList(
                 Wrappers.lambdaQuery(OrderRequestResult.class)
                         .select(OrderRequestResult::getOrderNumber)
                         .eq(OrderRequestResult::getResultStatus, OrderRequestResultStatus.PROCESSING)
                         .le(OrderRequestResult::getCreateTime, beforeTime)
-                        .last("limit " + limit));
+                        .last("limit " + safeLimit));
         int expireCount = 0;
         for (OrderRequestResult result : resultList) {
             checkTransition(OrderRequestResultStatus.PROCESSING, OrderRequestResultStatus.EXPIRED);

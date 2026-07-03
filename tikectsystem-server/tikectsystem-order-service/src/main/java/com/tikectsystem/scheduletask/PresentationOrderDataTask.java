@@ -27,6 +27,7 @@ import com.tikectsystem.vo.TicketUserVo;
 import com.tikectsystem.vo.UserLoginVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -57,9 +58,29 @@ public class PresentationOrderDataTask {
 
     @Autowired
     private OrderBackgroundTaskExecutor orderBackgroundTaskExecutor;
+
+    @Value("${presentation.order.enabled:false}")
+    private Boolean presentationOrderEnabled;
+
+    @Value("${presentation.order.login.code:0001}")
+    private String presentationOrderLoginCode;
+
+    @Value("${presentation.order.login.mobile:13154982525}")
+    private String presentationOrderLoginMobile;
+
+    @Value("${presentation.order.login.password:}")
+    private String presentationOrderLoginPassword;
     
     @Scheduled(cron = "0 30 23 * * ?")
     public void executeTask(){
+        if (!Boolean.TRUE.equals(presentationOrderEnabled)) {
+            log.info("订单演示数据重置任务未启用");
+            return;
+        }
+        if (StringUtil.isEmpty(presentationOrderLoginPassword)) {
+            log.error("订单演示数据重置任务缺少登录密码配置");
+            return;
+        }
         orderBackgroundTaskExecutor.execute( () -> {
             try {
                 log.info("订单服务定时任务重置执行");
@@ -119,12 +140,12 @@ public class PresentationOrderDataTask {
         try {
             //先登录
             UserLoginDto userLoginDto = new UserLoginDto();
-            userLoginDto.setCode("0001");
-            userLoginDto.setMobile("13154982525");
-            userLoginDto.setPassword("tikectsystem888");
+            userLoginDto.setCode(presentationOrderLoginCode);
+            userLoginDto.setMobile(presentationOrderLoginMobile);
+            userLoginDto.setPassword(presentationOrderLoginPassword);
             UserLoginVo userLoginVo = userLoginHttp(userLoginDto);
             if (Objects.isNull(userLoginVo)) {
-                log.error("模拟用户登录失败 userLoginDto:{}",JSON.toJSONString(userLoginDto));
+                log.error("模拟用户登录失败 code:{}, mobile:{}", presentationOrderLoginCode, presentationOrderLoginMobile);
                 return;
             }
             //获取购票人列表

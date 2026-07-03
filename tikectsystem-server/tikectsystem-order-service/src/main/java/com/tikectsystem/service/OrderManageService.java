@@ -44,6 +44,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -106,9 +107,17 @@ public class OrderManageService {
         List<TicketCategoryVo> ticketCategoryVoList =
                 redisCache.getValueIsList(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_TICKET_CATEGORY_LIST,
                         recordManageDto.getProgramId()), TicketCategoryVo.class);
-        Map<Long, String> ticketCategoryVoMap = ticketCategoryVoList.stream().collect(Collectors.toMap(TicketCategoryVo::getId, TicketCategoryVo::getIntroduce));
+        Map<Long, String> ticketCategoryVoMap = CollectionUtil.isEmpty(ticketCategoryVoList) ? Map.of() :
+                ticketCategoryVoList.stream().collect(Collectors.toMap(TicketCategoryVo::getId, TicketCategoryVo::getIntroduce, (v1, v2) -> v2));
         Map<String, String> redisProgramRecordMap = redisCache.getAllMapForHash(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_RECORD, recordManageDto.getProgramId()), String.class);
-        redisProgramRecordMap.putAll(redisCache.getAllMapForHash(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_RECORD_FINISH, recordManageDto.getProgramId()), String.class));
+        if (redisProgramRecordMap == null) {
+            redisProgramRecordMap = new HashMap<>(16);
+        }
+        Map<String, String> redisProgramRecordFinishMap =
+                redisCache.getAllMapForHash(RedisKeyBuild.createRedisKey(RedisKeyManage.PROGRAM_RECORD_FINISH, recordManageDto.getProgramId()), String.class);
+        if (redisProgramRecordFinishMap != null) {
+            redisProgramRecordMap.putAll(redisProgramRecordFinishMap);
+        }
         
         List<RecordOrderManageVo> recordOrderManageVoList = new ArrayList<>();
         for (Order order : orderList) {
@@ -130,7 +139,6 @@ public class OrderManageService {
                 recordOrderTickerUserManageVo.setDbRecordTypeValue(orderTicketUserRecord.getRecordTypeValue());
                 recordOrderTickerUserManageVo.setDbRecordTypeName(RecordType.getMsg(orderTicketUserRecord.getRecordTypeCode()));
                 recordOrderTickerUserManageVo.setTicketCategoryName(ticketCategoryVoMap.get(orderTicketUserRecord.getTicketCategoryId()));
-                boolean redisRecordFlag = true;
                 String redisProgramRecordStr = redisProgramRecordMap.get(orderTicketUserRecord.getRecordTypeValue() + GLIDE_LINE + orderTicketUserRecord.getIdentifierId() + GLIDE_LINE + orderTicketUserRecord.getUserId());
                 if (StringUtil.isNotEmpty(redisProgramRecordStr)) {
                     ProgramRecord redisProgramRecord;
@@ -228,16 +236,21 @@ public class OrderManageService {
         }
         List<DiscardOrderManageVo> discardOrderManageVoList = new ArrayList<>();
         for (DiscardOrder discardOrder : discardOrderList) {
+            if (discardOrder == null || discardOrder.getOrderCreateMq() == null) {
+                continue;
+            }
             DiscardOrderManageVo discardOrderManageVo = new DiscardOrderManageVo();
             BeanUtils.copyProperties(discardOrder.getOrderCreateMq(), discardOrderManageVo);
             discardOrderManageVo.setDiscardOrderReason(discardOrder.getDiscardOrderReason());
             discardOrderManageVo.setDiscardOrderReasonName(DiscardOrderReason.getMsg(discardOrder.getDiscardOrderReason()));
             List<OrderTicketUserCreateDto> orderTicketUserCreateDtoList = discardOrder.getOrderCreateMq().getOrderTicketUserCreateDtoList();
             List<DiscardOrderTicketUserManageVo> discardOrderTicketUserManageVoList = new ArrayList<>();
-            for (OrderTicketUserCreateDto orderTicketUserCreateDto : orderTicketUserCreateDtoList) {
-                DiscardOrderTicketUserManageVo discardOrderTicketUserManageVo = new DiscardOrderTicketUserManageVo();
-                BeanUtils.copyProperties(orderTicketUserCreateDto, discardOrderTicketUserManageVo);
-                discardOrderTicketUserManageVoList.add(discardOrderTicketUserManageVo);
+            if (CollectionUtil.isNotEmpty(orderTicketUserCreateDtoList)) {
+                for (OrderTicketUserCreateDto orderTicketUserCreateDto : orderTicketUserCreateDtoList) {
+                    DiscardOrderTicketUserManageVo discardOrderTicketUserManageVo = new DiscardOrderTicketUserManageVo();
+                    BeanUtils.copyProperties(orderTicketUserCreateDto, discardOrderTicketUserManageVo);
+                    discardOrderTicketUserManageVoList.add(discardOrderTicketUserManageVo);
+                }
             }
             discardOrderManageVo.setDiscardOrderTicketUserManageVo(discardOrderTicketUserManageVoList);
             discardOrderManageVoList.add(discardOrderManageVo);

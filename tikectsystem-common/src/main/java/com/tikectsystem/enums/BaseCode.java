@@ -86,6 +86,8 @@ public enum BaseCode {
     API_RULE_TIME_WINDOW_INTERSECT(10057,"已有的时间范围已经包含"),
     
     USER_AUTHENTICATION(10058,"用户已认证"),
+
+    REFRESH_TOKEN_INVALID(10059,"刷新令牌无效"),
     
     SUBMIT_FREQUENT(20000,"执行频繁，请稍后再试"),
     
@@ -93,6 +95,8 @@ public enum BaseCode {
     
     USER_MOBILE_EMPTY(20002,"用户手机号不存在"),
     USER_EXIST(20003,"用户已存在"),
+    USER_EMAIL_EXIST(20004,"用户邮箱已存在"),
+    USER_MOBILE_EXIST(20005,"用户手机号已存在"),
     
     DEPARTMENT_STRATEGY(30002,"departmentStrategy策略实现未找到"),
     
@@ -251,6 +255,14 @@ public enum BaseCode {
     PAY_BILL_IS_NOT_PAY_STATUS(60023,"账单不是已支付状态"),
     
     REFUND_AMOUNT_GREATER_THAN_PAY_AMOUNT(60024,"退款金额大于支付金额"),
+
+    PAY_AMOUNT_MUST_BE_POSITIVE(60025,"支付金额必须大于0"),
+
+    REFUND_AMOUNT_MUST_BE_POSITIVE(60026,"退款金额必须大于0"),
+
+    PAY_BILL_UPDATE_ERROR(60027,"账单状态更新失败"),
+
+    REFUND_BILL_AMOUNT_NOT_MATCH(60028,"重复退款金额与原退款记录不一致"),
     
     ORDER_NUMBER_NOT_EXIST(70000,"order_number的值不存在"),
     

@@ -11,6 +11,7 @@ public enum RedisKeyManage {
     Key2("key:%s", "test placeholder key", "test value", "k"),
 
     USER_LOGIN("user_login_%s_%s", "user login", "user login value", "k"),
+    USER_REFRESH_TOKEN("user_refresh_token_%s_%s", "user refresh token", "refresh token digest", "k"),
     PRODUCT_STOCK("product_stock:%s", "product stock", "stock value", "k"),
     DISTRIBUTED_DATACENTER_ID("distributed_datacenter_id:%s", "distributed datacenter id", "datacenter id", "lk"),
 

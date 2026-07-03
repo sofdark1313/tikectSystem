@@ -22,6 +22,10 @@ import java.util.Optional;
 
 @Component
 public class TokenService {
+
+    private static final String TOKEN_TYPE = "tokenType";
+
+    private static final String TOKEN_TYPE_REFRESH = "refresh";
     
     @Autowired
     private RedisCache redisCache;
@@ -29,6 +33,9 @@ public class TokenService {
     public String parseToken(String token,String tokenSecret){
         String userStr = TokenUtil.parseToken(token,tokenSecret);
         if (StringUtil.isNotEmpty(userStr)) {
+            if (TOKEN_TYPE_REFRESH.equals(parseTokenType(userStr))) {
+                throw new TikectsystemFrameException(BaseCode.LOGIN_USER_NOT_EXIST);
+            }
             return parseUserId(userStr);
         }
         return null;
@@ -38,6 +45,15 @@ public class TokenService {
         try {
             JSONObject user = JSONObject.parseObject(userStr);
             return user == null ? null : user.getString("userId");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String parseTokenType(String userStr) {
+        try {
+            JSONObject user = JSONObject.parseObject(userStr);
+            return user == null ? null : user.getString(TOKEN_TYPE);
         } catch (Exception e) {
             return null;
         }

@@ -28,9 +28,10 @@ export function login(email, mobile, password, code) {
   * @param token
   * @returns {*}
   */
- export function logout(code,token) {
+ export function logout(code,token,refreshToken) {
      const data = {
          token,
+         refreshToken,
          code
      }
      return request({
@@ -39,6 +40,25 @@ export function login(email, mobile, password, code) {
          data:data
      })
  }
+
+/**
+ * 刷新访问令牌。
+ *
+ * @param code 渠道code
+ * @param refreshToken 长效刷新令牌
+ * @returns {*}
+ */
+export function refreshToken(code, refreshToken) {
+    const data = {
+        code,
+        refreshToken
+    }
+    return request({
+        url: '/tikectsystem/user/user/token/refresh',
+        method: 'post',
+        data:data
+    })
+}
 
  /**
   * 检查是否需要验证码

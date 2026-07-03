@@ -9,6 +9,7 @@ import com.tikectsystem.dto.UserLoginDto;
 import com.tikectsystem.dto.UserLogoutDto;
 import com.tikectsystem.dto.UserMobileDto;
 import com.tikectsystem.dto.UserRegisterDto;
+import com.tikectsystem.dto.UserRefreshTokenDto;
 import com.tikectsystem.dto.UserUpdateDto;
 import com.tikectsystem.dto.UserUpdateEmailDto;
 import com.tikectsystem.dto.UserUpdateMobileDto;
@@ -68,6 +69,15 @@ public class UserController {
     @PostMapping(value = "/login")
     public ApiResponse<UserLoginVo> login(@Valid @RequestBody UserLoginDto userLoginDto) {
         return ApiResponse.ok(userService.login(userLoginDto));
+    }
+
+    /**
+     * 刷新登录令牌。
+     */
+    @Operation(summary  = "刷新登录令牌")
+    @PostMapping(value = "/token/refresh")
+    public ApiResponse<UserLoginVo> refreshToken(@Valid @RequestBody UserRefreshTokenDto userRefreshTokenDto) {
+        return ApiResponse.ok(userService.refreshToken(userRefreshTokenDto));
     }
     
     @Operation(summary  = "退出登录")

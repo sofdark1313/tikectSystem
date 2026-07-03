@@ -19,14 +19,14 @@ service.interceptors.request.use(
           config.data = sign(config.data)
       }
       //向请求头放置token
-      if (getToken) {
-          let token = getToken();
+      const token = getToken();
+      if (token) {
           config.headers = Object.assign(config.headers,{token:token});
       }
     return config
   },
   error => {
-    Promise.reject(error)
+    return Promise.reject(error)
   }
 )
 
@@ -37,6 +37,7 @@ service.interceptors.response.use(
     return res
   },
   error => {
+    return Promise.reject(error)
   }
 )
 export default service

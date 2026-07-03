@@ -75,10 +75,10 @@ public class TokenUtil {
                     .getBody()
                     .getSubject();
         }catch (ExpiredJwtException jwtException) {
-            log.error("parseToken error",jwtException);
+            log.warn("parseToken expired");
             throw new TikectsystemFrameException(BaseCode.TOKEN_EXPIRE);
         } catch (JwtException | IllegalArgumentException e) {
-            log.error("parseToken invalid token",e);
+            log.warn("parseToken invalid token",e);
             throw new TikectsystemFrameException(BaseCode.LOGIN_USER_NOT_EXIST);
         }
 

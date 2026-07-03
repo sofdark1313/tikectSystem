@@ -43,7 +43,6 @@ public class BackManageUserService {
         backManageLoginVo.setId("1");
         backManageLoginVo.setRealName("阿星不是程序员");
         backManageLoginVo.setUsername(backManageLoginDto.getUsername());
-        backManageLoginVo.setPassword(backManageLoginDto.getPassword());
         backManageLoginVo.setAccessToken(StpUtil.getTokenValue());
         return backManageLoginVo;
     }

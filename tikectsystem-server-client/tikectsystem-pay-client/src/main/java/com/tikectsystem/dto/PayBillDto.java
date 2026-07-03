@@ -2,7 +2,7 @@ package com.tikectsystem.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 import java.io.Serial;
@@ -21,6 +21,6 @@ public class PayBillDto implements Serializable {
     private static final long serialVersionUID = 1L;
     
     @Schema(name ="orderNumber", type ="Long", description ="订单号",requiredMode= RequiredMode.REQUIRED)
-    @NotNull
+    @NotBlank
     private String orderNumber;
 }
