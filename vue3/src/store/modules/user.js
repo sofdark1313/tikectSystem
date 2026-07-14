@@ -3,6 +3,8 @@ import { getToken, setToken, removeToken, getRefreshToken, setRefreshToken, remo
     getUserIdKey,setUserIdKey,removeUserIdKey } from '@/utils/auth'
 import { defineStore } from 'pinia'
 
+const platformCode = import.meta.env.VITE_CODE || '0001'
+
 const useUserStore = defineStore(
     'user',
     {
@@ -76,7 +78,7 @@ const useUserStore = defineStore(
             // // 退出系统
             logOut() {
                 return new Promise((resolve, reject) => {
-                    logout('0001',this.token,this.refreshToken || getRefreshToken()).then(() => {
+                    logout(platformCode,this.token,this.refreshToken || getRefreshToken()).then(() => {
                         this.token = ''
                         this.refreshToken = ''
                         this.roles = []

@@ -18,9 +18,14 @@ public class GatewayProperty {
     @Value("${api.limit.paths:#{null}}")
     private String[] apiRestrictPaths;
     
-    @Value("${skip.check.token.paths:/**/program/order/create/v4,/**/ticket/user/add,/**/ticket/user/delete,/**/ticket/user/list,/**/user/authentication," +
+    /**
+     * 需要校验用户 token 的路径。
+     * 历史配置名仍叫 skip.check.token.paths，但当前匹配到时表示不跳过 token 校验。
+     */
+    @Value("${skip.check.token.paths:/**/program/order/create/v4,/**/program/order/request/result/get," +
+            "/**/ticket/user/add,/**/ticket/user/delete,/**/ticket/user/list,/**/user/authentication,/**/user/get/id,/**/user/get/mobile," +
             "/**/user/update,/**/user/update/email,/**/user/update/mobile,/**/user/update/password," +
-            "/**/order/cancel,/**/order/create,/**/order/pay,/**/order/select/list,/**/order/get,/**/order/cancel}")
+            "/**/order/create,/**/order/pay,/**/order/pay/check,/**/order/select/list,/**/order/get,/**/order/get/cache,/**/order/cancel}")
     private String[] checkTokenPaths;
     
     @Value("${skip.check.parmeter.paths:/**/alipay/notify}")

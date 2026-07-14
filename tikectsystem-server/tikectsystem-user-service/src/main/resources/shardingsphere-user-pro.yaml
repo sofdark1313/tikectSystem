@@ -2,15 +2,15 @@ dataSources:
   ds_0:
     dataSourceClassName: com.zaxxer.hikari.HikariDataSource
     driverClassName: com.mysql.cj.jdbc.Driver
-    jdbcUrl: jdbc:mysql://www.cookframe.com:3306/tikectsystem_user_0?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
-    username: root
-    password: qazxsw890
+    jdbcUrl: ${USER_DATASOURCE_0_URL}
+    username: ${USER_DATASOURCE_USERNAME}
+    password: ${USER_DATASOURCE_PASSWORD}
   ds_1:
     dataSourceClassName: com.zaxxer.hikari.HikariDataSource
     driverClassName: com.mysql.cj.jdbc.Driver
-    jdbcUrl: jdbc:mysql://www.cookframe.com:3306/tikectsystem_user_1?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
-    username: root
-    password: qazxsw890
+    jdbcUrl: ${USER_DATASOURCE_1_URL}
+    username: ${USER_DATASOURCE_USERNAME}
+    password: ${USER_DATASOURCE_PASSWORD}
 
 rules:
   - !SHARDING
@@ -110,9 +110,9 @@ rules:
       user_encryption_algorithm:
         type: SM4
         props:
-          sm4-key: d3ecdaa11d6ab89e1987870186073eaa
+          sm4-key: ${USER_SM4_KEY}
           sm4-mode: CBC
-          sm4-iv: 1afc7fdce9ebc393f693cd3d23e35ed2
+          sm4-iv: ${USER_SM4_IV}
           sm4-padding: PKCS7Padding
 props:
   sql-show: true

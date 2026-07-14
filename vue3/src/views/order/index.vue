@@ -123,7 +123,6 @@
 import {ref, onActivated, onMounted, onBeforeUnmount } from 'vue'
 import {formatDateWithWeekday} from '@/utils/index'
 import {useRouter} from 'vue-router'
-import { getUserIdKey} from "@/utils/auth";
 import { getPersonInfoId} from '@/api/personInfo'
 import {getTicketUser} from "@/api/buyTicketUser";
 import {
@@ -300,15 +299,13 @@ function syncOrderContextFromHistory(showInvalidMessage = true) {
 }
 
 async function getPersonInfoIdList() {
-  const id = getUserIdKey()
-  getPersonInfoId({id: id}).then(response => {
+  getPersonInfoId({}).then(response => {
     let {mobile } = response.data
     telNum.value = mobile
   })
 }
 async function getTicketUserList() {
-  const id = getUserIdKey()
-  getTicketUser({userId:id}).then(response=>{
+  getTicketUser({}).then(response=>{
     ticketInfoArr.value =response.data
   })
 }
@@ -555,7 +552,6 @@ function submitOrder(){
 
   const orderCreateParams = {
     'programId':detailList.value.id,
-    'userId':useUser.userId,
     'requestId': orderRequestId,
     'ticketUserIdList':ticketUserIdArr.value,
     'ticketCategoryId':ticketCategoryId.value,

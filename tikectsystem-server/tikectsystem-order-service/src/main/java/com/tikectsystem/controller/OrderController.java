@@ -55,6 +55,7 @@ public class OrderController {
     @Operation(summary  = "订单创建(不提供给前端调用，只允许内部program服务调用)")
     @PostMapping(value = "/create")
     public ApiResponse<String> create(@Valid @RequestBody OrderCreateDto orderCreateDto) {
+        apiVerify.verifyApi();
         return ApiResponse.ok(orderService.create(orderCreateDto));
     }
     
@@ -91,12 +92,14 @@ public class OrderController {
     @Operation(summary  = "查看订单状态(不提供给前端调用，只允许内部program服务调用)")
     @PostMapping(value = "/get/status")
     public ApiResponse<OrderGetVo> getStatus(@Valid @RequestBody OrderGetDto orderGetDto) {
+        apiVerify.verifyApi();
         return ApiResponse.ok(orderService.getStatus(orderGetDto));
     }
     
     @Operation(summary  = "账户下某个节目的订单数量(不提供给前端调用，只允许内部program服务调用)")
     @PostMapping(value = "/account/order/count")
     public ApiResponse<AccountOrderCountVo> accountOrderCount(@Valid @RequestBody AccountOrderCountDto accountOrderCountDto) {
+        apiVerify.verifyApi();
         return ApiResponse.ok(orderService.accountOrderCount(accountOrderCountDto));
     }
     

@@ -57,19 +57,15 @@ import Header from '../../components/header/index'
 import Footer from '../../components/footer/index'
 import {ref, reactive, getCurrentInstance,nextTick,onMounted } from 'vue'
 import {getPersonInfo, getPersonInfoId} from '@/api/personInfo'
-import useUserStore from "../../store/modules/user";
 import {ElMessage} from 'element-plus'
-import {getName,getUserIdKey} from "@/utils/auth";
 
 const {proxy} = getCurrentInstance();
-const useUser = useUserStore()
 
 const perInfoForm = reactive({
   name: '',
   relName: '',
   gender: '1',
-  idNumber: '',
-  id: useUser.userId.value
+  idNumber: ''
 })
 const perInfoRules = ref({
   name: [
@@ -112,8 +108,7 @@ onMounted(()=>{
 
 
 async function getPersonInfoIdList() {
-  const id = getUserIdKey()
-  getPersonInfoId({id: id}).then(response => {
+  getPersonInfoId({}).then(response => {
     let {gender, id, idNumber, name, relAuthenticationStatus, relName} = response.data
     perInfoForm.name = name
     perInfoForm.relName = relName

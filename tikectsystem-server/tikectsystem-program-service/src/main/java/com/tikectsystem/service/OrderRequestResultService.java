@@ -6,8 +6,11 @@ import com.baidu.fsg.uid.UidGenerator;
 import com.tikectsystem.dto.OrderRequestResultQueryDto;
 import com.tikectsystem.dto.OrderRequestResultUpdateDto;
 import com.tikectsystem.entity.OrderRequestResult;
+import com.tikectsystem.enums.BaseCode;
+import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.mapper.OrderRequestResultMapper;
 import com.tikectsystem.service.constant.OrderRequestResultStatus;
+import com.tikectsystem.threadlocal.BaseParameterHolder;
 import com.tikectsystem.vo.OrderRequestResultVo;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +20,8 @@ import org.springframework.stereotype.Service;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+
+import static com.tikectsystem.constant.Constant.USER_ID;
 
 /**
  * 异步下单请求结果服务。
@@ -191,12 +196,16 @@ public class OrderRequestResultService {
      * @return 请求结果视图
      */
     public OrderRequestResultVo get(OrderRequestResultQueryDto orderRequestResultQueryDto) {
+        Long currentUserId = currentLoginUserId();
         OrderRequestResult result = null;
         if (Objects.nonNull(orderRequestResultQueryDto.getOrderNumber())) {
-            result = getByOrderNumber(orderRequestResultQueryDto.getOrderNumber());
+            result = orderRequestResultMapper.selectOne(Wrappers.lambdaQuery(OrderRequestResult.class)
+                    .eq(OrderRequestResult::getOrderNumber, orderRequestResultQueryDto.getOrderNumber())
+                    .eq(OrderRequestResult::getUserId, currentUserId));
         } else if (StrUtil.isNotBlank(orderRequestResultQueryDto.getRequestId())) {
             result = orderRequestResultMapper.selectOne(Wrappers.lambdaQuery(OrderRequestResult.class)
-                    .eq(OrderRequestResult::getRequestId, orderRequestResultQueryDto.getRequestId()));
+                    .eq(OrderRequestResult::getRequestId, orderRequestResultQueryDto.getRequestId())
+                    .eq(OrderRequestResult::getUserId, currentUserId));
         }
         if (Objects.isNull(result)) {
             return null;
@@ -229,6 +238,18 @@ public class OrderRequestResultService {
         }
         return orderRequestResultMapper.selectOne(Wrappers.lambdaQuery(OrderRequestResult.class)
                 .eq(OrderRequestResult::getRequestId, requestId));
+    }
+
+    private Long currentLoginUserId() {
+        String userId = BaseParameterHolder.getParameter(USER_ID);
+        if (StrUtil.isBlank(userId)) {
+            throw new TikectsystemFrameException(BaseCode.USER_ID_EMPTY);
+        }
+        try {
+            return Long.valueOf(userId);
+        } catch (NumberFormatException e) {
+            throw new TikectsystemFrameException(BaseCode.USER_ID_EMPTY);
+        }
     }
 
     private void checkTransition(String beforeStatus, String afterStatus) {

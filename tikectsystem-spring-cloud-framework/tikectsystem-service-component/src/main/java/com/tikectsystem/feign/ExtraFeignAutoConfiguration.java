@@ -1,6 +1,8 @@
 package com.tikectsystem.feign;
 
+import com.tikectsystem.properties.BackManageProperties;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
 import static com.tikectsystem.constant.Constant.SERVER_GRAY;
@@ -12,13 +14,14 @@ import static com.tikectsystem.constant.Constant.SERVER_GRAY;
  * @author: 阿星不是程序员
  **/
 
+@EnableConfigurationProperties(BackManageProperties.class)
 public class ExtraFeignAutoConfiguration {
     
     @Value(SERVER_GRAY)
     public String serverGray;
     
     @Bean
-    public FeignRequestInterceptor feignRequestInterceptor(){
-        return new FeignRequestInterceptor(serverGray);
+    public FeignRequestInterceptor feignRequestInterceptor(BackManageProperties backManageProperties){
+        return new FeignRequestInterceptor(serverGray,backManageProperties);
     }
 }

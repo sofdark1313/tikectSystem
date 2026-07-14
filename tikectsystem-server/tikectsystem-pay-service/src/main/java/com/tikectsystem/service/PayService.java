@@ -142,20 +142,9 @@ public class PayService {
                     payBill.getOutOrderNo(), payBill.getPayBillStatus());
             return buildNotifyVo(null, ALIPAY_NOTIFY_FAILURE_RESULT);
         }
+        log.warn("simple pay notify cannot promote non-terminal bill, outTradeNo:{}", payBill.getOutOrderNo());
+        return buildNotifyVo(null, ALIPAY_NOTIFY_FAILURE_RESULT);
 
-        PayBill updatePayBill = new PayBill();
-        updatePayBill.setPayBillStatus(PayBillStatus.PAY.getCode());
-        updatePayBill.setPayTime(DateUtils.now());
-        updatePayBill.setTradeNumber(getNotifyParam(params, "trade_no"));
-        updatePayBill.setPayChannel(notifyDto.getChannel());
-        LambdaUpdateWrapper<PayBill> payBillLambdaUpdateWrapper = Wrappers.lambdaUpdate(PayBill.class)
-                .eq(PayBill::getOutOrderNo, outTradeNo)
-                .eq(PayBill::getPayBillStatus, PayBillStatus.NO_PAY.getCode());
-        if (payBillMapper.update(updatePayBill, payBillLambdaUpdateWrapper) != 1) {
-            log.warn("pay notify update bill failed, outTradeNo:{}", outTradeNo);
-            return buildNotifyVo(null, ALIPAY_NOTIFY_FAILURE_RESULT);
-        }
-        return buildNotifyVo(payBill.getOutOrderNo(), ALIPAY_NOTIFY_SUCCESS_RESULT);
     }
 
     /**

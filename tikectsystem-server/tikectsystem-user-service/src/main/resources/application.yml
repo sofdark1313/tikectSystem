@@ -46,9 +46,9 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:8848
-        username: nacos
-        password: nacos
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD}
 bloom-filter:
   name: user-register-bloom-filter
   expectedInsertions: 1000
@@ -109,7 +109,7 @@ management:
       enabled: false
 jasypt:
   encryptor:
-    password: bgtjkjl!%^sdc
+    password: ${JASYPT_ENCRYPTOR_PASSWORD}
     algorithm: PBEWithMD5AndDES
 always_verify_captcha: 1
 springdoc:

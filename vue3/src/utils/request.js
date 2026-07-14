@@ -15,7 +15,12 @@ axios.defaults.headers['Content-Type'] = 'application/json;charset=utf-8'
 
 export let isRelogin = { show: false }
 
-const defaultHeaders = import.meta.env.VITE_SIGN_FLAG == 1 ? { no_verify: false } : { no_verify: true }
+const platformCode = import.meta.env.VITE_CODE || '0001'
+
+const defaultHeaders = {
+    no_verify: import.meta.env.VITE_SIGN_FLAG == 1 ? false : true,
+    code: platformCode
+}
 
 const request = axios.create({
     baseURL: import.meta.env.VITE_APP_BASE_API,
@@ -113,7 +118,7 @@ function refreshTokens(refreshToken) {
 
 function buildRefreshTokenData(refreshToken) {
     const data = {
-        code: import.meta.env.VITE_CODE,
+        code: platformCode,
         refreshToken
     }
     return import.meta.env.VITE_SIGN_FLAG == 1 ? sign(data) : data
@@ -148,7 +153,7 @@ function redirectToLogin() {
 }
 
 export function sign(params) {
-    const code = import.meta.env.VITE_CODE
+    const code = platformCode
     const paramsStr = JSON.stringify(params)
     const signParam = { businessBody: paramsStr, code: code }
     const signSecretKey = import.meta.env.VITE_SIGN_SECRET_KEY

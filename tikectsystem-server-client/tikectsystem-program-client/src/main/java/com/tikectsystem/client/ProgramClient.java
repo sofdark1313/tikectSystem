@@ -66,7 +66,7 @@ public interface ProgramClient {
      * @param orderTicketUserRecordAddDto 参数
      * @return 结果
      * */
-    @PostMapping(value = "program/record/task/add")
+    @PostMapping(value = "/program/record/task/add")
     ApiResponse<Integer> add(ProgramRecordTaskAddDto orderTicketUserRecordAddDto);
     
     /**

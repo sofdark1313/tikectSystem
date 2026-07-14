@@ -99,13 +99,14 @@ const register = ref(true);
 const isTips = ref(false)
 const tipsContent = ref('')
 const {proxy} = getCurrentInstance();
+const platformCode = import.meta.env.VITE_CODE || '0001'
 
 const userName = ref('');
 const loginForm = ref({
   email: '',
   mobile: '',
   password: '',
-  code: '0001'//pc网站
+  code: platformCode // pc网站
 })
 
 const loginRules = ref({});

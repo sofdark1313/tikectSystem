@@ -23,6 +23,7 @@ import com.tikectsystem.simulation.module.UserLoginResultModule;
 import com.tikectsystem.util.DateUtils;
 import com.tikectsystem.util.StringUtil;
 import com.tikectsystem.vo.ProgramVo;
+import com.tikectsystem.vo.ProgramOrderCreateVo;
 import com.tikectsystem.vo.TicketUserVo;
 import com.tikectsystem.vo.UserLoginVo;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,8 @@ import static com.tikectsystem.simulation.constant.SimulationOrderConstant.CREAT
 import static com.tikectsystem.simulation.constant.SimulationOrderConstant.PROGRAM_DETAIL_URL;
 import static com.tikectsystem.simulation.constant.SimulationOrderConstant.TICKET_USER_LIST_URL;
 import static com.tikectsystem.simulation.constant.SimulationOrderConstant.USER_LOGIN_URL;
+import static com.tikectsystem.constant.Constant.CODE;
+import static com.tikectsystem.constant.Constant.USER_ID;
 
 /**
  * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
@@ -151,7 +154,7 @@ public class PresentationOrderDataTask {
             //获取购票人列表
             TicketUserListDto ticketUserListDto = new TicketUserListDto();
             ticketUserListDto.setUserId(userLoginVo.getUserId());
-            List<TicketUserVo> ticketUserVoList = tickerUserListHttp(ticketUserListDto);
+            List<TicketUserVo> ticketUserVoList = tickerUserListHttp(ticketUserListDto,userLoginVo);
             if (CollectionUtil.isEmpty(ticketUserVoList)){
                 log.error("模拟获取购票人列表失败 ticketUserListDto:{}",JSON.toJSONString(ticketUserListDto));
                 return;
@@ -160,7 +163,7 @@ public class PresentationOrderDataTask {
             ProgramGetDto programGetDto = new ProgramGetDto();
             //这里固定使用 周杰伦“嘉年华”世界巡回演唱会 这个节目ID
             programGetDto.setId(34L);
-            ProgramVo programVo = programDetailHttp(programGetDto);
+            ProgramVo programVo = programDetailHttp(programGetDto,userLoginVo);
             if (Objects.isNull(programVo)) {
                 log.error("模拟获取节目详情失败 programGetDto:{}",JSON.toJSONString(programGetDto));
                 return;
@@ -173,7 +176,7 @@ public class PresentationOrderDataTask {
                         JSON.toJSONString(programVo), JSON.toJSONString(userLoginVo), JSON.toJSONString(ticketUserVoList));
                 return;
             }
-            String orderNumber = createProgramOrder(programOrderCreateDto);
+            String orderNumber = createProgramOrder(programOrderCreateDto,userLoginVo);
             if (StringUtil.isEmpty(orderNumber)) {
                 log.error("模拟创建订单失败 programOrderCreateDto:{}",JSON.toJSONString(programOrderCreateDto));
             }else {
@@ -194,6 +197,7 @@ public class PresentationOrderDataTask {
         //创建订单
         ProgramOrderCreateDto programOrderCreateDto = new ProgramOrderCreateDto();
         programOrderCreateDto.setUserId(userLoginVo.getUserId());
+        programOrderCreateDto.setRequestId("presentation-" + userLoginVo.getUserId() + "-" + System.currentTimeMillis());
         programOrderCreateDto.setProgramId(programVo.getId());
         List<Long> ticketUserIdList = new ArrayList<>();
         ticketUserIdList.add(ticketUserVoList.get(0).getId());
@@ -204,9 +208,7 @@ public class PresentationOrderDataTask {
     }
     
     public UserLoginVo userLoginHttp(UserLoginDto userLoginDto){
-        String result = HttpRequest.post(USER_LOGIN_URL)
-                .timeout(20000)
-                .body(JSON.toJSONString(userLoginDto))
+        String result = buildSimulationRequest(USER_LOGIN_URL,userLoginDto,null)
                 .execute().body();
         UserLoginResultModule userLoginResultModule = JSON.parseObject(result, UserLoginResultModule.class);
         if (userLoginResultModule == null || !Objects.equals(userLoginResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
@@ -215,10 +217,8 @@ public class PresentationOrderDataTask {
         return userLoginResultModule.getData();
     }
     
-    public List<TicketUserVo> tickerUserListHttp(TicketUserListDto ticketUserListDto){
-        String result = HttpRequest.post(TICKET_USER_LIST_URL)
-                .timeout(20000)
-                .body(JSON.toJSONString(ticketUserListDto))
+    public List<TicketUserVo> tickerUserListHttp(TicketUserListDto ticketUserListDto,UserLoginVo userLoginVo){
+        String result = buildSimulationRequest(TICKET_USER_LIST_URL,ticketUserListDto,userLoginVo)
                 .execute().body();
         TickerUserListResultModule tickerUserListResultModule = JSON.parseObject(result, TickerUserListResultModule.class);
         if (tickerUserListResultModule == null || !Objects.equals(tickerUserListResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
@@ -227,10 +227,8 @@ public class PresentationOrderDataTask {
         return tickerUserListResultModule.getData();
     }
     
-    public ProgramVo programDetailHttp(ProgramGetDto programGetDto){
-        String result = HttpRequest.post(PROGRAM_DETAIL_URL)
-                .timeout(20000)
-                .body(JSON.toJSONString(programGetDto))
+    public ProgramVo programDetailHttp(ProgramGetDto programGetDto,UserLoginVo userLoginVo){
+        String result = buildSimulationRequest(PROGRAM_DETAIL_URL,programGetDto,userLoginVo)
                 .execute().body();
         ProgramDetailResultModule programDetailResultModule = JSON.parseObject(result, ProgramDetailResultModule.class);
         if (programDetailResultModule == null || !Objects.equals(programDetailResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
@@ -239,16 +237,26 @@ public class PresentationOrderDataTask {
         return programDetailResultModule.getData();
     }
     
-    public String createProgramOrder(ProgramOrderCreateDto programOrderCreateDto){
-        String result = HttpRequest.post(CREATE_PROGRAM_ORDER_URL)
-                .timeout(20000)
-                .body(JSON.toJSONString(programOrderCreateDto))
+    public String createProgramOrder(ProgramOrderCreateDto programOrderCreateDto,UserLoginVo userLoginVo){
+        String result = buildSimulationRequest(CREATE_PROGRAM_ORDER_URL,programOrderCreateDto,userLoginVo)
                 .execute().body();
         CreateProgramOrderResultModule createProgramOrderResultModule = JSON.parseObject(result, CreateProgramOrderResultModule.class);
         if (createProgramOrderResultModule == null || !Objects.equals(createProgramOrderResultModule.getCode(), BaseCode.SUCCESS.getCode())) {
             return null;
         }
-        return createProgramOrderResultModule.getData();
+        ProgramOrderCreateVo data = createProgramOrderResultModule.getData();
+        return data == null ? null : data.getOrderNumber();
         
-    } 
+    }
+
+    private HttpRequest buildSimulationRequest(String url,Object body,UserLoginVo userLoginVo) {
+        HttpRequest request = HttpRequest.post(url)
+                .timeout(20000)
+                .header(CODE,presentationOrderLoginCode)
+                .body(JSON.toJSONString(body));
+        if (userLoginVo != null && userLoginVo.getUserId() != null) {
+            request.header(USER_ID,String.valueOf(userLoginVo.getUserId()));
+        }
+        return request;
+    }
 }

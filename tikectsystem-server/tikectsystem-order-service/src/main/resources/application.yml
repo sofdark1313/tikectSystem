@@ -31,7 +31,7 @@ spring:
 
   datasource:
     driver-class-name: org.apache.shardingsphere.driver.ShardingSphereDriver
-    url: jdbc:shardingsphere:classpath:shardingsphere-order-local.yaml
+    url: jdbc:shardingsphere:classpath:shardingsphere-order-${spring.profiles.active}.yaml
 
   data:
     redis:
@@ -48,9 +48,9 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:8848
-        username: nacos
-        password: nacos
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD}
   kafka:
     bootstrap-servers: 127.0.0.1:9092
     consumer:
@@ -118,7 +118,7 @@ management:
       enabled: false
 jasypt:
   encryptor:
-    password: bgtjkjl!%^sdc
+    password: ${JASYPT_ENCRYPTOR_PASSWORD}
     algorithm: PBEWithMD5AndDES
 order:
   background-task:

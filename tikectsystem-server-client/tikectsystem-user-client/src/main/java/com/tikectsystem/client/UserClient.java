@@ -29,7 +29,7 @@ public interface UserClient {
      * @param dto 参数
      * @return 结果
      * */
-    @PostMapping(value = "/user/getById")
+    @PostMapping(value = "/user/get/id")
     ApiResponse<UserVo> getById(UserIdDto dto);
     
 

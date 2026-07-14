@@ -15,30 +15,37 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 
 /**
- * 先解析 ShardingSphere YAML 中的 Spring 占位符，再创建数据源。
+ * 订单服务 ShardingSphere 数据源配置。
+ * <p>
+ * 先解析 ShardingSphere YAML 中的 Spring 占位符，再创建数据源，避免生产库密码写死在配置文件中。
  */
 @Configuration
-public class UserShardingSphereDataSourceConfiguration {
-    
+public class OrderShardingSphereDataSourceConfiguration {
+
     private static final String DEFAULT_PROFILE = "local";
 
-    private static final String REQUIRED_PLACEHOLDER_PREFIX = "${USER_";
-    
+    private static final String REQUIRED_PLACEHOLDER_PREFIX = "${ORDER_";
+
     private final Environment environment;
-    
+
     private final ResourceLoader resourceLoader;
-    
-    public UserShardingSphereDataSourceConfiguration(final Environment environment, final ResourceLoader resourceLoader) {
+
+    public OrderShardingSphereDataSourceConfiguration(final Environment environment, final ResourceLoader resourceLoader) {
         this.environment = environment;
         this.resourceLoader = resourceLoader;
     }
-    
+
+    /**
+     * 创建订单服务分库分表数据源。
+     *
+     * @return 已完成占位符解析的 ShardingSphere 数据源
+     */
     @Primary
     @Bean
     public DataSource dataSource() throws SQLException, IOException {
         String activeProfile = environment.getProperty("spring.profiles.active", DEFAULT_PROFILE);
-        String defaultLocation = "classpath:shardingsphere-user-" + activeProfile + ".yaml";
-        String location = environment.resolvePlaceholders(environment.getProperty("user.shardingsphere.config-location", defaultLocation));
+        String defaultLocation = "classpath:shardingsphere-order-" + activeProfile + ".yaml";
+        String location = environment.resolvePlaceholders(environment.getProperty("order.shardingsphere.config-location", defaultLocation));
         Resource resource = resourceLoader.getResource(location);
         if (!resource.exists()) {
             throw new IllegalStateException("ShardingSphere config not found: " + location);
@@ -51,7 +58,7 @@ public class UserShardingSphereDataSourceConfiguration {
 
     private void validateRequiredPlaceholdersResolved(String resolvedConfigContent) {
         if (resolvedConfigContent.contains(REQUIRED_PLACEHOLDER_PREFIX)) {
-            throw new IllegalStateException("User ShardingSphere datasource environment variables are not fully configured");
+            throw new IllegalStateException("Order ShardingSphere datasource environment variables are not fully configured");
         }
     }
 }

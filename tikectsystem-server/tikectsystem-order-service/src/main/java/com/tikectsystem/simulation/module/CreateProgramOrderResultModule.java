@@ -1,5 +1,6 @@
 package com.tikectsystem.simulation.module;
 
+import com.tikectsystem.vo.ProgramOrderCreateVo;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -12,5 +13,5 @@ import lombok.EqualsAndHashCode;
 @Data
 public class CreateProgramOrderResultModule extends ApiResponseModule{
 
-    private String data;
+    private ProgramOrderCreateVo data;
 }

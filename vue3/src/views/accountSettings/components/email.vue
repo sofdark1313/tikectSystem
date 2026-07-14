@@ -27,15 +27,13 @@
 import Header from '../../../components/header/index'
 import Footer from '../../../components/footer/index'
 import {ElMessage} from "element-plus"
-import {getUserIdKey} from "../../../utils/auth"
 import {ref, reactive} from 'vue'
 import {getEditEmail} from "../../../api/accountSettings";
 
 
 const editEmailRef = ref(null)
 const editEmailForm = ref({
-  email: '',
-  id: getUserIdKey()
+  email: ''
 })
 const editEmailRules = reactive({
       email: [{

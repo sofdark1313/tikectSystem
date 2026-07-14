@@ -2,7 +2,6 @@ package com.tikectsystem.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 /**
@@ -14,7 +13,6 @@ import lombok.Data;
 @Schema(title="TicketUserListDto", description ="购票人列表入参")
 public class TicketUserListDto {
     
-    @Schema(name ="userId", type ="Long", description ="用户id", requiredMode= RequiredMode.REQUIRED)
-    @NotNull
+    @Schema(name ="userId", type ="Long", description ="用户id，服务端以登录态为准", requiredMode= RequiredMode.NOT_REQUIRED)
     private Long userId;
 }

@@ -2,18 +2,18 @@ dataSources:
   ds_0:
     dataSourceClassName: com.zaxxer.hikari.HikariDataSource
     driverClassName: com.mysql.cj.jdbc.Driver
-    jdbcUrl: jdbc:mysql://www.cookframe.com:3306/tikectsystem_program_0?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&autoReconnect=true
-    username: root
-    password: qazxsw890
+    jdbcUrl: ${PROGRAM_DATASOURCE_0_URL}
+    username: ${PROGRAM_DATASOURCE_USERNAME}
+    password: ${PROGRAM_DATASOURCE_PASSWORD}
     hikari:
       max-lifetime: 60000
 
   ds_1:
     dataSourceClassName: com.zaxxer.hikari.HikariDataSource
     driverClassName: com.mysql.cj.jdbc.Driver
-    jdbcUrl: jdbc:mysql://www.cookframe.com:3306/tikectsystem_program_1?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai&autoReconnect=true
-    username: root
-    password: qazxsw890
+    jdbcUrl: ${PROGRAM_DATASOURCE_1_URL}
+    username: ${PROGRAM_DATASOURCE_USERNAME}
+    password: ${PROGRAM_DATASOURCE_PASSWORD}
     hikari:
       max-lifetime: 60000
     

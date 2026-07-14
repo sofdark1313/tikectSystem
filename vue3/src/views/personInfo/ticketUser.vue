@@ -91,21 +91,16 @@
 import MenuSideBar from '../../components/menuSidebar/index'
 import Header from '../../components/header/index'
 import Footer from '../../components/footer/index'
-import {ref, computed, onMounted, reactive, getCurrentInstance} from 'vue'
-import useUserStore from "../../store/modules/user";
+import {ref, getCurrentInstance} from 'vue'
 import {delTicketUserApi, selectTicketUserListApi} from '@/api/accountCenter.js'
 import {getIdTypeName} from '@/api/common.js'
 import {ElMessage} from 'element-plus'
-import { getUserIdKey} from "@/utils/auth";
 import {saveTicketUser} from "@/api/buyTicketUser";
 
 
 const {proxy} = getCurrentInstance();
-const useUser = useUserStore()
 //购票人列表入参
-const ticketUserListParams = reactive({
-  userId:undefined
-})
+const ticketUserListParams = {}
 const formTicket = ref({})
 formTicket.value.idType = ref('1')
 
@@ -136,8 +131,6 @@ const idType = ref([{
   name:'歪果仁永久居住证',
   value:'6'
 }])
-// 获取路由参数
-ticketUserListParams.userId = useUser.userId
 selectTicketUserList()
 //购票人列表方法
 function selectTicketUserList() {
@@ -164,7 +157,6 @@ function addTicketUser(){
 function saveTicket(){
   proxy.$refs.ticketRef.validate(valid => {
     if (valid) {
-      formTicket.value.userId=getUserIdKey()
       saveTicketUser(formTicket.value).then(response=>{
         if(response.code==0){
           isShow.value = true

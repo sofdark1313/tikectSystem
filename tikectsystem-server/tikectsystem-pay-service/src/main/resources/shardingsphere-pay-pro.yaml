@@ -2,16 +2,16 @@ dataSources:
   ds_0:
     dataSourceClassName: com.zaxxer.hikari.HikariDataSource
     driverClassName: com.mysql.cj.jdbc.Driver
-    jdbcUrl: jdbc:mysql://www.cookframe.com:3306/tikectsystem_pay_0?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
-    username: root
-    password: qazxsw890
+    jdbcUrl: ${PAY_DATASOURCE_0_URL}
+    username: ${PAY_DATASOURCE_USERNAME}
+    password: ${PAY_DATASOURCE_PASSWORD}
 
   ds_1:
     dataSourceClassName: com.zaxxer.hikari.HikariDataSource
     driverClassName: com.mysql.cj.jdbc.Driver
-    jdbcUrl: jdbc:mysql://www.cookframe.com:3306/tikectsystem_pay_1?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
-    username: root
-    password: qazxsw890
+    jdbcUrl: ${PAY_DATASOURCE_1_URL}
+    username: ${PAY_DATASOURCE_USERNAME}
+    password: ${PAY_DATASOURCE_PASSWORD}
     
 rules:
   # 分库分表规则
@@ -55,5 +55,4 @@ rules:
         props:
           sharding-count: 2
 props:
-  sql-show: true      
-      
+  sql-show: true

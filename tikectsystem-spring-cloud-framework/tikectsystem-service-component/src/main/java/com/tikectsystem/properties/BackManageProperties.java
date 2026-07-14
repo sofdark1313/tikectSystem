@@ -34,7 +34,27 @@ public class BackManageProperties {
     /**
      * 后台接口保护路径。匹配这些路径时，即使请求未携带 back_manage 请求头，也必须校验后台登录态。
      */
-    private List<String> authIncludeApi = List.of("/auth/**", "/program/manage/**", "/order/manage/**", "/area/manage/**");
+    private List<String> authIncludeApi = List.of(
+            "/auth/**",
+            "/program/manage/**",
+            "/order/manage/**",
+            "/area/manage/**",
+            "/program/add",
+            "/program/invalid",
+            "/program/data/preheat",
+            "/program/reset/**",
+            "/program/category/save/batch",
+            "/program/show/time/add",
+            "/ticket/category/add",
+            "/seat/add",
+            "/seat/batch/add",
+            "/rule/**",
+            "/depthRule/**",
+            "/allRule/**",
+            "/broadcast/**",
+            "/message/record/**",
+            "/pay/detail"
+    );
 
     /**
      * 是否启用敏感内部 API 的调用密码校验，默认启用以避免未配置时开放敏感操作。

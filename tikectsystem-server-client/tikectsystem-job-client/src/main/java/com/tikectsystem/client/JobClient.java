@@ -26,6 +26,6 @@ public interface JobClient {
      * @param dto 参数
      * @return 结果
      * */
-    @RequestMapping(value = "jobRunRecord/callBack", method = RequestMethod.POST)
+    @RequestMapping(value = "/jobRunRecord/callBack", method = RequestMethod.POST)
     ApiResponse<Boolean> callBack(@Valid @RequestBody JobCallBackDto dto);
 }

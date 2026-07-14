@@ -167,8 +167,7 @@ if (getUserIdKey()) {
 }
 
 function getNickName() {
-  const id = getUserIdKey()
-  getPersonInfoId({id: id}).then(response => {
+  getPersonInfoId({}).then(response => {
     if (response.data != null) {
       let {name} = response.data
       isLoginToken.value = name

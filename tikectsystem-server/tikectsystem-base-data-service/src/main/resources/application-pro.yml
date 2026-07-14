@@ -2,8 +2,8 @@ spring:
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://www.cookframe.com:3306/tikectsystem_base_data?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
-    username: root
-    password: qazxsw890
+    url: ${BASE_DATA_DATASOURCE_URL}
+    username: ${BASE_DATA_DATASOURCE_USERNAME}
+    password: ${BASE_DATA_DATASOURCE_PASSWORD}
     hikari:
       max-lifetime: 60000

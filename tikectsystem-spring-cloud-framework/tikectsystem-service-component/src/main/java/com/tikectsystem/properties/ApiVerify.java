@@ -9,14 +9,14 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.Objects;
 
+import static com.tikectsystem.constant.Constant.API_PASSWORD;
+
 /**
  * 敏感内部 API 调用密码校验器。
  * <p>
  * 用于保护渠道配置、对账任务等不应由普通前台直接调用的接口。
  **/
 public class ApiVerify {
-    
-    private static final String API_PASSWORD = "api_password";
     
     private final BackManageProperties backManageProperties;
     

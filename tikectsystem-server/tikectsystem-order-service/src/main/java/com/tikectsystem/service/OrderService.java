@@ -64,6 +64,7 @@ import com.tikectsystem.service.delaysend.OrderDelayOrderCancelSend;
 import com.tikectsystem.service.properties.OrderProperties;
 import com.tikectsystem.servicelock.LockType;
 import com.tikectsystem.servicelock.annotion.ServiceLock;
+import com.tikectsystem.threadlocal.BaseParameterHolder;
 import com.tikectsystem.util.DateUtils;
 import com.tikectsystem.util.ServiceLockTool;
 import com.tikectsystem.util.StringUtil;
@@ -104,6 +105,7 @@ import java.util.stream.Collectors;
 import static com.tikectsystem.constant.Constant.ALIPAY_NOTIFY_FAILURE_RESULT;
 import static com.tikectsystem.constant.Constant.ALIPAY_NOTIFY_SUCCESS_RESULT;
 import static com.tikectsystem.constant.Constant.GLIDE_LINE;
+import static com.tikectsystem.constant.Constant.USER_ID;
 import static com.tikectsystem.core.DistributedLockConstants.UPDATE_ORDER_STATUS_LOCK;
 import static com.tikectsystem.core.RepeatExecuteLimitConstants.CANCEL_PROGRAM_ORDER;
 import static com.tikectsystem.core.RepeatExecuteLimitConstants.CREATE_PROGRAM_ORDER_MQ;
@@ -360,6 +362,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (Objects.isNull(order)) {
             throw new TikectsystemFrameException(BaseCode.ORDER_NOT_EXIST);
         }
+        checkOrderOwner(order, currentLoginUserId());
         if (Objects.equals(order.getOrderStatus(), OrderStatus.CANCEL.getCode())) {
             throw new TikectsystemFrameException(BaseCode.ORDER_CANCEL);
         }
@@ -417,6 +420,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (Objects.isNull(order)) {
             throw new TikectsystemFrameException(BaseCode.ORDER_NOT_EXIST);
         }
+        checkOrderOwner(order, currentLoginUserId());
         BeanUtil.copyProperties(order,orderPayCheckVo);
         if (Objects.equals(order.getOrderStatus(), OrderStatus.PAY.getCode())) {
             return orderPayCheckVo;
@@ -802,9 +806,10 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     }
 
     public List<OrderListVo> selectList(OrderListDto orderListDto) {
+        Long currentUserId = currentLoginUserId();
         List<OrderListVo> orderListVos = new ArrayList<>();
         LambdaQueryWrapper<Order> orderLambdaQueryWrapper =
-                Wrappers.lambdaQuery(Order.class).eq(Order::getUserId, orderListDto.getUserId());
+                Wrappers.lambdaQuery(Order.class).eq(Order::getUserId, currentUserId);
         //鏌ヨ涓昏鍗曞垪琛?
         List<Order> orderList = orderMapper.selectList(orderLambdaQueryWrapper);
         if (CollectionUtil.isEmpty(orderList)) {
@@ -832,6 +837,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (Objects.isNull(order)) {
             throw new TikectsystemFrameException(BaseCode.ORDER_NOT_EXIST);
         }
+        checkOrderOwner(order, currentLoginUserId());
         //鏌ヨ璐エ浜鸿鍗?
         LambdaQueryWrapper<OrderTicketUser> orderTicketUserLambdaQueryWrapper =
                 Wrappers.lambdaQuery(OrderTicketUser.class).eq(OrderTicketUser::getOrderNumber, order.getOrderNumber());
@@ -973,9 +979,21 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         return null;
     }
 
+    /**
+     * 查询当前登录用户在指定节目下的订单数量。
+     * 该接口服务于节目下单链路，用户身份以网关注入并经 Feign 透传的上下文为准。
+     *
+     * @param accountOrderCountDto 节目维度查询参数
+     * @return 当前登录用户在节目下的订单数量
+     */
     public AccountOrderCountVo accountOrderCount(AccountOrderCountDto accountOrderCountDto) {
+        Long currentUserId = currentLoginUserId();
+        if (Objects.nonNull(accountOrderCountDto.getUserId()) &&
+                !Objects.equals(accountOrderCountDto.getUserId(), currentUserId)) {
+            throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
+        }
         AccountOrderCountVo accountOrderCountVo = new AccountOrderCountVo();
-        accountOrderCountVo.setCount(orderMapper.accountOrderCount(accountOrderCountDto.getUserId(),
+        accountOrderCountVo.setCount(orderMapper.accountOrderCount(currentUserId,
                 accountOrderCountDto.getProgramId()));
         return accountOrderCountVo;
     }
@@ -1143,6 +1161,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     }
 
     public String getCache(OrderGetDto orderGetDto) {
+        Long currentUserId = currentLoginUserId();
         String cachedOrderNumber = null;
         try {
             cachedOrderNumber = redisCache.get(RedisKeyBuild.createRedisKey(
@@ -1150,12 +1169,13 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         } catch (RuntimeException e) {
             log.warn("query order cache failed, fallback to db, orderNumber:{}", orderGetDto.getOrderNumber(), e);
         }
-        if (!StringUtil.isEmpty(cachedOrderNumber) && noPayOrderExists(orderGetDto.getOrderNumber())) {
+        if (!StringUtil.isEmpty(cachedOrderNumber) && noPayOrderExists(orderGetDto.getOrderNumber(), currentUserId)) {
             return cachedOrderNumber;
         }
         Order order = orderMapper.selectOne(Wrappers.lambdaQuery(Order.class)
                 .select(Order::getOrderNumber)
                 .eq(Order::getOrderNumber, orderGetDto.getOrderNumber())
+                .eq(Order::getUserId, currentUserId)
                 .eq(Order::getOrderStatus, OrderStatus.NO_PAY.getCode()));
         if (Objects.isNull(order)) {
             return null;
@@ -1165,9 +1185,10 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         return orderNumber;
     }
 
-    private boolean noPayOrderExists(Long orderNumber) {
+    private boolean noPayOrderExists(Long orderNumber, Long currentUserId) {
         Long count = orderMapper.selectCount(Wrappers.lambdaQuery(Order.class)
                 .eq(Order::getOrderNumber, orderNumber)
+                .eq(Order::getUserId, currentUserId)
                 .eq(Order::getOrderStatus, OrderStatus.NO_PAY.getCode()));
         return count != null && count > 0;
     }
@@ -1181,10 +1202,29 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         if (Objects.isNull(order)) {
             throw new TikectsystemFrameException(BaseCode.ORDER_NOT_EXIST);
         }
+        checkOrderOwner(order, currentLoginUserId());
         if (!Objects.equals(order.getOrderStatus(), OrderStatus.NO_PAY.getCode())) {
             throw new TikectsystemFrameException(BaseCode.CAN_NOT_CANCEL);
         }
         return cancel(orderCancelDto);
+    }
+
+    private Long currentLoginUserId() {
+        String userId = BaseParameterHolder.getParameter(USER_ID);
+        if (StringUtil.isEmpty(userId)) {
+            throw new TikectsystemFrameException(BaseCode.USER_ID_EMPTY);
+        }
+        try {
+            return Long.valueOf(userId);
+        } catch (NumberFormatException e) {
+            throw new TikectsystemFrameException(BaseCode.USER_ID_EMPTY);
+        }
+    }
+
+    private void checkOrderOwner(Order order, Long currentUserId) {
+        if (Objects.isNull(order) || !Objects.equals(order.getUserId(), currentUserId)) {
+            throw new TikectsystemFrameException(BaseCode.ORDER_NOT_EXIST);
+        }
     }
 
 

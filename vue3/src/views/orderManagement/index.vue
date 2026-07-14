@@ -79,23 +79,17 @@
 </template>
 
 <script setup name="OrderManagement">
-import {computed, onMounted, reactive, ref} from 'vue'
+import {computed, onMounted, ref} from 'vue'
 import MenuSideBar from '../../components/menuSidebar/index'
 import Header from '../../components/header/index'
 import Footer from '../../components/footer/index'
 import {useRouter} from 'vue-router'
 import {cancelOrderApi, getOrderListApi} from '@/api/order.js'
 import {ElMessage} from 'element-plus'
-//获取用户信息
-import useUserStore from "../../store/modules/user";
 const router = useRouter();
 //订单列表数据
 const orderList = ref([])
-const useUser = useUserStore()
-//订单列表入参
-const orderListParams = reactive({
-  userId:useUser.userId
-})
+const orderListParams = {}
 
 //订单列表方法
 const getOrderList = () => {

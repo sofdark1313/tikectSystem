@@ -36,7 +36,6 @@
 import Header from '../../../components/header/index'
 import Footer from '../../../components/footer/index'
 import {ElMessage} from "element-plus"
-import {getUserIdKey} from "../../../utils/auth"
 import {ref, reactive} from 'vue'
 import {useRouter} from 'vue-router'
 import useUserStore from '@/store/modules/user'
@@ -48,8 +47,7 @@ const userStore = useUserStore()
 const authRef = ref(null)
 const authForm = ref({
   idNumber: '',
-  relName: '',
-  id: getUserIdKey()
+  relName: ''
 })
 
 

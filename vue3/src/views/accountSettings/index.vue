@@ -44,8 +44,6 @@
 import MenuSideBar from '../../components/menuSidebar/index'
 import Header from '../../components/header/index'
 import Footer from '../../components/footer/index'
-import useUserStore from "../../store/modules/user";
-import {getName, getUserIdKey} from "../../utils/auth";
 import {getPersonInfoId} from '@/api/personInfo'
 import {ref, reactive} from 'vue'
 
@@ -91,8 +89,7 @@ getIsVaild()
 
 //通过id获取是否进行验证，为验证的话控制图标，按钮的显示
 function getIsVaild() {
-  const id = getUserIdKey()
-  getPersonInfoId({id: id}).then(response => {
+  getPersonInfoId({}).then(response => {
     let {relAuthenticationStatus, emailStatus,mobile} = response.data
     telNum.value = mobile
     //此处判断是否验证，来控制显示那种图标

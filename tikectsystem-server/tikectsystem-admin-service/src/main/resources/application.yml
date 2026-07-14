@@ -14,13 +14,13 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:8848
-        username: nacos
-        password: nacos 
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD}
   security:
     user:
-      name: admin
-      password: admin    
+      name: ${TIKECTSYSTEM_ADMIN_USERNAME:admin}
+      password: ${TIKECTSYSTEM_ADMIN_PASSWORD}
 #dingtalk:
 #  token: a
   main:

@@ -3,9 +3,13 @@ package com.tikectsystem.controller;
 import com.tikectsystem.common.ApiResponse;
 import com.tikectsystem.dto.OrderRequestResultQueryDto;
 import com.tikectsystem.dto.ProgramOrderCreateDto;
+import com.tikectsystem.enums.BaseCode;
 import com.tikectsystem.enums.ProgramOrderVersion;
+import com.tikectsystem.exception.TikectsystemFrameException;
 import com.tikectsystem.service.OrderRequestResultService;
 import com.tikectsystem.service.strategy.ProgramOrderContext;
+import com.tikectsystem.threadlocal.BaseParameterHolder;
+import com.tikectsystem.util.StringUtil;
 import com.tikectsystem.vo.ProgramOrderCreateVo;
 import com.tikectsystem.vo.OrderRequestResultVo;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +20,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import static com.tikectsystem.constant.Constant.USER_ID;
 
 /**
  * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
@@ -36,6 +42,7 @@ public class ProgramOrderController {
     @Operation(summary  = "购票V4")
     @PostMapping(value = "/create/v4")
     public ApiResponse<ProgramOrderCreateVo> createV4(@Valid @RequestBody ProgramOrderCreateDto programOrderCreateDto) {
+        programOrderCreateDto.setUserId(currentLoginUserId());
         String orderNumber = ProgramOrderContext.get(ProgramOrderVersion.V4_VERSION.getVersion())
                 .createOrder(programOrderCreateDto);
         ProgramOrderCreateVo programOrderCreateVo = new ProgramOrderCreateVo();
@@ -52,5 +59,17 @@ public class ProgramOrderController {
     public ApiResponse<OrderRequestResultVo> getOrderRequestResult(
             @Valid @RequestBody OrderRequestResultQueryDto orderRequestResultQueryDto) {
         return ApiResponse.ok(orderRequestResultService.get(orderRequestResultQueryDto));
+    }
+
+    private Long currentLoginUserId() {
+        String userId = BaseParameterHolder.getParameter(USER_ID);
+        if (StringUtil.isEmpty(userId)) {
+            throw new TikectsystemFrameException(BaseCode.USER_ID_EMPTY);
+        }
+        try {
+            return Long.valueOf(userId);
+        } catch (NumberFormatException e) {
+            throw new TikectsystemFrameException(BaseCode.USER_ID_EMPTY);
+        }
     }
 }

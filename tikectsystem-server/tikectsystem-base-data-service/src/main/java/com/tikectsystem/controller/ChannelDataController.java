@@ -34,6 +34,7 @@ public class ChannelDataController {
     @Operation(summary = "通过code查询渠道数据")
     @PostMapping (value = "/getByCode")
     public ApiResponse<GetChannelDataVo> getByCode(@Valid @RequestBody GetChannelDataByCodeDto getChannelDataByCodeDto) {
+        apiVerify.verifyApi();
         GetChannelDataVo getChannelDataVo = channelDataService.getByCode(getChannelDataByCodeDto);
         return ApiResponse.ok(getChannelDataVo);
     }

@@ -52,6 +52,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
+import static com.tikectsystem.constant.Constant.API_PASSWORD;
 import static com.tikectsystem.constant.Constant.GRAY_PARAMETER;
 import static com.tikectsystem.constant.Constant.TRACE_ID;
 import static com.tikectsystem.constant.GatewayConstant.BUSINESS_BODY;
@@ -159,7 +160,12 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
                 map.remove(REQUEST_BODY);
                 map.putAll(headMap);
                 ServerHttpRequest mutatedRequest = request.mutate()
-                        .headers(httpHeaders -> httpHeaders.setAll(map))
+                        .headers(httpHeaders -> {
+                            // USER_ID 只能由网关解析 token 后写入，避免客户端伪造身份头。
+                            httpHeaders.remove(USER_ID);
+                            httpHeaders.remove(API_PASSWORD);
+                            httpHeaders.setAll(map);
+                        })
                         .build();
                 return chain.filter(exchange.mutate().request(mutatedRequest).build()).doFinally(signalType -> clearRequestContext());
             }
@@ -235,9 +241,12 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
             }
         }
         //基础参数code渠道
-        String code = null;
+        String code = bodyContent.get(CODE);
+        if (StringUtil.isEmpty(code)) {
+            code = request.getHeaders().getFirst(CODE);
+        }
         //用户的token
-        String token;
+        String token = request.getHeaders().getFirst(TOKEN);
         //用户的userId
         String userId = null;
         //请求的路径
@@ -250,15 +259,12 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
             throw new TikectsystemFrameException(BaseCode.ONLY_SIGNATURE_ACCESS_IS_ALLOWED);
         }
         //是否跳过参数验证
+        GetChannelDataVo channelDataVo = null;
         if (checkParameter(originalBody,noVerify) && !skipCheckParameter(url)) {
 
             String encrypt = request.getHeaders().getFirst(ENCRYPT);
-            //应用渠道
-            code = bodyContent.get(CODE);
-            //token
-            token = request.getHeaders().getFirst(TOKEN);
             //验证code参数并获取基础参数
-            GetChannelDataVo channelDataVo = channelDataService.getChannelDataByCode(code);
+            channelDataVo = channelDataService.getChannelDataByCode(code);
             //如果v2版本就要先对参数进行解密
             if (StringUtil.isNotEmpty(encrypt) && V2.equals(encrypt)) {
                 //使用rsa私钥进行解密
@@ -271,30 +277,23 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
             if (!checkFlag) {
                 throw new TikectsystemFrameException(BaseCode.RSA_SIGN_ERROR);
             }
-            //判断是否跳过验证登录的token
-            //默认注册和登录接口跳过验证
-            boolean skipCheckTokenResult = skipCheckToken(url);
-            if (!skipCheckTokenResult && StringUtil.isEmpty(token)) {
-                ArgumentError argumentError = new ArgumentError();
-                argumentError.setArgumentName(TOKEN);
-                argumentError.setMessage("token参数为空");
-                List<ArgumentError> argumentErrorList = new ArrayList<>();
-                argumentErrorList.add(argumentError);
-                throw new ArgumentException(BaseCode.ARGUMENT_EMPTY.getCode(),argumentErrorList);
-            }
-            //获取用户id
-            if (!skipCheckTokenResult) {
-                UserVo userVo = tokenService.getUser(token,code,channelDataVo.getTokenSecret());
-                userId = userVo.getId();
-            }
-            //如果上一步没有获取到用户id，并且此url在有token情况下还需要解析出userid，
-            //那么就再解析一遍token
-            if (StringUtil.isEmpty(userId) && checkNeedUserId(url) && StringUtil.isNotEmpty(token)) {
-                UserVo userVo = tokenService.getUser(token,code,channelDataVo.getTokenSecret());
-                userId = userVo.getId();
-            }
 
             requestBody = bodyContent.get(BUSINESS_BODY);
+        }
+        // no_verify 只跳过签名校验，不能跳过受保护接口的 token 校验。
+        boolean skipCheckTokenResult = skipCheckToken(url);
+        if (!skipCheckTokenResult && StringUtil.isEmpty(token)) {
+            ArgumentError argumentError = new ArgumentError();
+            argumentError.setArgumentName(TOKEN);
+            argumentError.setMessage("token参数为空");
+            List<ArgumentError> argumentErrorList = new ArrayList<>();
+            argumentErrorList.add(argumentError);
+            throw new ArgumentException(BaseCode.ARGUMENT_EMPTY.getCode(),argumentErrorList);
+        }
+        if (!skipCheckTokenResult || (checkNeedUserId(url) && StringUtil.isNotEmpty(token))) {
+            channelDataVo = getChannelData(channelDataVo, code);
+            UserVo userVo = tokenService.getUser(token,code,channelDataVo.getTokenSecret());
+            userId = userVo.getId();
         }
         //根据规则对api接口进行防刷限制
         apiRestrictService.apiRestrict(userId,url,request);
@@ -321,6 +320,9 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
                 long contentLength = headers.getContentLength();
                 HttpHeaders newHeaders = new HttpHeaders();
                 newHeaders.putAll(headers);
+                // USER_ID 只能由网关解析 token 后写入，避免客户端伪造身份头。
+                newHeaders.remove(USER_ID);
+                newHeaders.remove(API_PASSWORD);
                 Map<String, String> map = requestTemporaryWrapper.getMap();
                 if (CollectionUtil.isNotEmpty(map)) {
                     newHeaders.setAll(map);
@@ -385,6 +387,13 @@ public class RequestValidationFilter implements GlobalFilter, Ordered {
      * */
     public boolean checkParameter(String originalBody,String noVerify){
         return (!(VERIFY_VALUE.equals(noVerify))) && StringUtil.isNotEmpty(originalBody);
+    }
+
+    private GetChannelDataVo getChannelData(GetChannelDataVo channelDataVo, String code) {
+        if (Objects.nonNull(channelDataVo)) {
+            return channelDataVo;
+        }
+        return channelDataService.getChannelDataByCode(code);
     }
     /**
      * 验证是否需要userId

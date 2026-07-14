@@ -2,7 +2,6 @@ package com.tikectsystem.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 /**
  * @program: 极度真实还原大麦网高并发实战项目。 添加 阿星不是程序员 微信，添加时备注 大麦 来获取项目的完整资料 
@@ -13,7 +12,6 @@ import lombok.Data;
 @Schema(title="UserIdDto", description ="用户id入参")
 public class UserIdDto {
     
-    @Schema(name ="id", type ="Long", description ="用户id", requiredMode= RequiredMode.REQUIRED)
-    @NotNull
+    @Schema(name ="id", type ="Long", description ="用户id，前台接口以登录态为准", requiredMode= RequiredMode.NOT_REQUIRED)
     private Long id;
 }

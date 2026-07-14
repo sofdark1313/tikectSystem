@@ -6,6 +6,7 @@ import com.tikectsystem.dto.PayBillDto;
 import com.tikectsystem.dto.PayDto;
 import com.tikectsystem.dto.RefundDto;
 import com.tikectsystem.dto.TradeCheckDto;
+import com.tikectsystem.properties.ApiVerify;
 import com.tikectsystem.service.PayService;
 import com.tikectsystem.vo.NotifyVo;
 import com.tikectsystem.vo.PayBillVo;
@@ -31,10 +32,14 @@ public class PayController {
     
     @Autowired
     private PayService payService;
+
+    @Autowired
+    private ApiVerify apiVerify;
     
     @Operation(summary  = "支付")
     @PostMapping(value = "/common/pay")
     public ApiResponse<String> commonPay(@Valid @RequestBody PayDto payDto) {
+        apiVerify.verifyApi();
         return ApiResponse.ok(payService.commonPay(payDto));
     }
     
@@ -47,12 +52,14 @@ public class PayController {
     @Operation(summary  = "支付状态查询")
     @PostMapping(value = "/trade/check")
     public ApiResponse<TradeCheckVo> tradeCheck(@Valid @RequestBody TradeCheckDto tradeCheckDto) {
+        apiVerify.verifyApi();
         return ApiResponse.ok(payService.tradeCheck(tradeCheckDto));
     }
     
     @Operation(summary  = "退款")
     @PostMapping(value = "/refund")
     public ApiResponse<String> refund(@Valid @RequestBody RefundDto refundDto) {
+        apiVerify.verifyApi();
         return ApiResponse.ok(payService.refund(refundDto));
     }
     

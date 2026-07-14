@@ -30,9 +30,9 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:8848
-        username: nacos
-        password: nacos
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD}
         metadata:
           # true表示灰度服务/false表示生产服务(默认)
           gray: false
@@ -99,7 +99,7 @@ management:
       enabled: false
 jasypt:
   encryptor:
-    password: bgtjkjl!%^sdc
+    password: ${JASYPT_ENCRYPTOR_PASSWORD}
     algorithm: PBEWithMD5AndDES
 # knife4j 网关聚合
 knife4j:

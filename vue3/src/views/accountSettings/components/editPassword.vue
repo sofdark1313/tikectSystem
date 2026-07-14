@@ -29,7 +29,6 @@ import Header from '../../../components/header/index'
 import Footer from '../../../components/footer/index'
 import {getEditPsd} from '@/api/accountSettings'
 import {ElMessage} from "element-plus"
-import {getUserIdKey} from "../../../utils/auth"
 import {ref, reactive} from 'vue'
 import {useRouter} from 'vue-router'
 import useUserStore from '@/store/modules/user'
@@ -39,8 +38,7 @@ const router = useRouter();
 const userStore = useUserStore()
 const editPsdRef = ref(null)
 const editPsdForm = ref({
-  password: '',
-  id: getUserIdKey()
+  password: ''
 })
 const editPsdRules = reactive({
   password: [

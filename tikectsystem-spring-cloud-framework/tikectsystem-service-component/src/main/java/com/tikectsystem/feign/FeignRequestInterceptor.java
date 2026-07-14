@@ -1,5 +1,6 @@
 package com.tikectsystem.feign;
 
+import com.tikectsystem.properties.BackManageProperties;
 import com.tikectsystem.threadlocal.BaseParameterHolder;
 import com.tikectsystem.util.StringUtil;
 import feign.RequestInterceptor;
@@ -12,9 +13,11 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+import static com.tikectsystem.constant.Constant.API_PASSWORD;
 import static com.tikectsystem.constant.Constant.CODE;
 import static com.tikectsystem.constant.Constant.GRAY_PARAMETER;
 import static com.tikectsystem.constant.Constant.TRACE_ID;
+import static com.tikectsystem.constant.Constant.USER_ID;
 
 
 /**
@@ -29,6 +32,8 @@ public class FeignRequestInterceptor implements RequestInterceptor {
 
     private final String serverGray;
 
+    private final BackManageProperties backManageProperties;
+
     @Override
     public void apply(RequestTemplate template) {
         try {
@@ -36,11 +41,13 @@ public class FeignRequestInterceptor implements RequestInterceptor {
             String traceId = null;
             String code = null;
             String gray = null;
+            String userId = null;
             if (ra instanceof ServletRequestAttributes sra) {
                 HttpServletRequest request = sra.getRequest();
                 traceId = request.getHeader(TRACE_ID);
                 code = request.getHeader(CODE);
                 gray = request.getHeader(GRAY_PARAMETER);
+                userId = request.getHeader(USER_ID);
             }
             if (StringUtil.isEmpty(traceId)) {
                 traceId = BaseParameterHolder.getParameter(TRACE_ID);
@@ -51,12 +58,19 @@ public class FeignRequestInterceptor implements RequestInterceptor {
             if (StringUtil.isEmpty(gray)) {
                 gray = BaseParameterHolder.getParameter(GRAY_PARAMETER);
             }
+            if (StringUtil.isEmpty(userId)) {
+                userId = BaseParameterHolder.getParameter(USER_ID);
+            }
             if (StringUtil.isEmpty(gray)) {
                 gray = serverGray;
             }
             addHeaderIfNotEmpty(template, TRACE_ID, traceId);
             addHeaderIfNotEmpty(template, CODE, code);
             addHeaderIfNotEmpty(template, GRAY_PARAMETER, gray);
+            addHeaderIfNotEmpty(template, USER_ID, userId);
+            if (Boolean.TRUE.equals(backManageProperties.getApiPasswordCall())) {
+                addHeaderIfNotEmpty(template, API_PASSWORD, backManageProperties.getApiPassword());
+            }
         }catch (Exception e) {
             log.error("FeignRequestInterceptor apply error",e);
         }

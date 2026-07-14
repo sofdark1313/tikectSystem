@@ -23,6 +23,8 @@ public class Constant {
     public static final String CODE = "code";
     
     public static final String USER_ID = "userId";
+
+    public static final String API_PASSWORD = "api_password";
     
     public static final String GLIDE_LINE = "_";
     

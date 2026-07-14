@@ -44,6 +44,7 @@ import com.tikectsystem.redis.RedisCache;
 import com.tikectsystem.redis.RedisKeyBuild;
 import com.tikectsystem.servicelock.LockType;
 import com.tikectsystem.servicelock.annotion.ServiceLock;
+import com.tikectsystem.threadlocal.BaseParameterHolder;
 import com.tikectsystem.util.StringUtil;
 import com.tikectsystem.vo.GetChannelDataVo;
 import com.tikectsystem.vo.TicketUserVo;
@@ -68,6 +69,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.tikectsystem.constant.Constant.USER_ID;
 import static com.tikectsystem.core.DistributedLockConstants.REGISTER_USER_LOCK;
 
 /**
@@ -388,27 +390,32 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     
     @Transactional(rollbackFor = Exception.class)
     public void update(UserUpdateDto userUpdateDto){
-        User user = userMapper.selectById(userUpdateDto.getId());
+        Long currentUserId = currentLoginUserId();
+        User user = userMapper.selectById(currentUserId);
         if (Objects.isNull(user)) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
         User updateUser = new User();
         BeanUtil.copyProperties(userUpdateDto,updateUser);
+        updateUser.setId(currentUserId);
         userMapper.updateById(updateUser);
     }
     @Transactional(rollbackFor = Exception.class)
     public void updatePassword(UserUpdatePasswordDto userUpdatePasswordDto){
-        User user = userMapper.selectById(userUpdatePasswordDto.getId());
+        Long currentUserId = currentLoginUserId();
+        User user = userMapper.selectById(currentUserId);
         if (Objects.isNull(user)) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
         User updateUser = new User();
         BeanUtil.copyProperties(userUpdatePasswordDto,updateUser);
+        updateUser.setId(currentUserId);
         userMapper.updateById(updateUser);
     }
     @Transactional(rollbackFor = Exception.class)
     public void updateEmail(UserUpdateEmailDto userUpdateEmailDto){
-        User user = userMapper.selectById(userUpdateEmailDto.getId());
+        Long currentUserId = currentLoginUserId();
+        User user = userMapper.selectById(currentUserId);
         if (Objects.isNull(user)) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
@@ -420,6 +427,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         }
         User updateUser = new User();
         BeanUtil.copyProperties(userUpdateEmailDto,updateUser);
+        updateUser.setId(currentUserId);
         updateUser.setEmailStatus(BusinessStatus.YES.getCode());
         userMapper.updateById(updateUser);
         
@@ -441,7 +449,8 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     
     @Transactional(rollbackFor = Exception.class)
     public void updateMobile(UserUpdateMobileDto userUpdateMobileDto){
-        User user = userMapper.selectById(userUpdateMobileDto.getId());
+        Long currentUserId = currentLoginUserId();
+        User user = userMapper.selectById(currentUserId);
         if (Objects.isNull(user)) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
@@ -453,6 +462,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         }
         User updateUser = new User();
         BeanUtil.copyProperties(userUpdateMobileDto,updateUser);
+        updateUser.setId(currentUserId);
         userMapper.updateById(updateUser);
         UserMobile currentUserMobile = userMobileMapper.selectOne(Wrappers.lambdaQuery(UserMobile.class)
                 .eq(UserMobile::getUserId, user.getId()));
@@ -473,7 +483,8 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     
     @Transactional(rollbackFor = Exception.class)
     public void authentication(UserAuthenticationDto userAuthenticationDto){
-        User user = userMapper.selectById(userAuthenticationDto.getId());
+        Long currentUserId = currentLoginUserId();
+        User user = userMapper.selectById(currentUserId);
         if (Objects.isNull(user)) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
@@ -481,18 +492,42 @@ public class UserService extends ServiceImpl<UserMapper, User> {
             throw new TikectsystemFrameException(BaseCode.USER_AUTHENTICATION);
         }
         User updateUser = new User();
-        updateUser.setId(user.getId());
+        updateUser.setId(currentUserId);
         updateUser.setRelName(userAuthenticationDto.getRelName());
         updateUser.setIdNumber(userAuthenticationDto.getIdNumber());
         updateUser.setRelAuthenticationStatus(BusinessStatus.YES.getCode());
         userMapper.updateById(updateUser);
     }
+
+    private Long currentLoginUserId() {
+        Long userId = currentLoginUserIdOrNull();
+        if (Objects.isNull(userId)) {
+            throw new TikectsystemFrameException(BaseCode.USER_ID_EMPTY);
+        }
+        return userId;
+    }
+
+    private Long currentLoginUserIdOrNull() {
+        String userId = BaseParameterHolder.getParameter(USER_ID);
+        if (StringUtil.isEmpty(userId)) {
+            return null;
+        }
+        try {
+            return Long.valueOf(userId);
+        } catch (NumberFormatException e) {
+            throw new TikectsystemFrameException(BaseCode.USER_ID_EMPTY);
+        }
+    }
     
     public UserVo getByMobile(UserMobileDto userMobileDto) {
+        Long currentUserId = currentLoginUserIdOrNull();
         LambdaQueryWrapper<UserMobile> queryWrapper = Wrappers.lambdaQuery(UserMobile.class)
                 .eq(UserMobile::getMobile, userMobileDto.getMobile());
         UserMobile userMobile = userMobileMapper.selectOne(queryWrapper);
         if (Objects.isNull(userMobile)) {
+            throw new TikectsystemFrameException(BaseCode.USER_MOBILE_EMPTY);
+        }
+        if (Objects.nonNull(currentUserId) && !Objects.equals(userMobile.getUserId(), currentUserId)) {
             throw new TikectsystemFrameException(BaseCode.USER_MOBILE_EMPTY);
         }
         User user = userMapper.selectById(userMobile.getUserId());
@@ -506,7 +541,17 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     }
     
     public UserVo getById(UserIdDto userIdDto) {
-        User user = userMapper.selectById(userIdDto.getId());
+        Long currentUserId = currentLoginUserIdOrNull();
+        Long queryUserId = Objects.nonNull(currentUserId) ? currentUserId :
+                Objects.isNull(userIdDto) ? null : userIdDto.getId();
+        if (Objects.isNull(queryUserId)) {
+            throw new TikectsystemFrameException(BaseCode.USER_ID_EMPTY);
+        }
+        return getById(queryUserId);
+    }
+
+    private UserVo getById(Long userId) {
+        User user = userMapper.selectById(userId);
         if (Objects.isNull(user)) {
             throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
         }
@@ -515,13 +560,24 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         return userVo;
     }
     
+    /**
+     * 查询当前登录用户及其购票人集合。
+     * 内部 Feign 调用也必须依赖网关注入并透传的用户上下文，不能信任请求体中的 userId。
+     *
+     * @param userGetAndTicketUserListDto 查询参数
+     * @return 当前登录用户及其购票人集合
+     */
     public UserGetAndTicketUserListVo getUserAndTicketUserList(final UserGetAndTicketUserListDto userGetAndTicketUserListDto) {
-        UserIdDto userIdDto = new UserIdDto();
-        userIdDto.setId(userGetAndTicketUserListDto.getUserId());
-        UserVo userVo = getById(userIdDto);
+        Long currentUserId = currentLoginUserId();
+        if (Objects.nonNull(userGetAndTicketUserListDto) &&
+                Objects.nonNull(userGetAndTicketUserListDto.getUserId()) &&
+                !Objects.equals(userGetAndTicketUserListDto.getUserId(), currentUserId)) {
+            throw new TikectsystemFrameException(BaseCode.USER_EMPTY);
+        }
+        UserVo userVo = getById(currentUserId);
         
         LambdaQueryWrapper<TicketUser> ticketUserLambdaQueryWrapper = Wrappers.lambdaQuery(TicketUser.class)
-                .eq(TicketUser::getUserId, userGetAndTicketUserListDto.getUserId());
+                .eq(TicketUser::getUserId, currentUserId);
         List<TicketUser> ticketUserList = ticketUserMapper.selectList(ticketUserLambdaQueryWrapper);
         List<TicketUserVo> ticketUserVoList = BeanUtil.copyToList(ticketUserList, TicketUserVo.class);
         

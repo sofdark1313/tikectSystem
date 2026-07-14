@@ -20,8 +20,7 @@ public class ProgramOrderCreateDto {
     @NotNull
     private Long programId;
     
-    @Schema(name ="userId", type ="Long", description ="用户id",requiredMode= RequiredMode.REQUIRED)
-    @NotNull
+    @Schema(name ="userId", type ="Long", description ="用户id，服务端以登录态为准", requiredMode= RequiredMode.NOT_REQUIRED)
     private Long userId;
 
     @Schema(name ="requestId", type ="String", description ="下单请求幂等号，不传时由服务端生成")

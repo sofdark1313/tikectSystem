@@ -38,7 +38,6 @@
 <script setup name="BuyTicket">
 import {getCurrentInstance, ref,onMounted} from 'vue'
 import {saveTicketUser} from "@/api/buyTicketUser";
-import { getUserIdKey} from "@/utils/auth";
 import {useRouter} from 'vue-router'
 import {ElMessage} from "element-plus";
 
@@ -172,7 +171,6 @@ const submit =()=>{
           type: 'error',
         })
       }else{
-        form.value.userId=getUserIdKey()
         saveTicketUser(form.value).then(response=>{
           if(response.code==0){
             router.replace({
