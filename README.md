@@ -1,6 +1,6 @@
-# tikectsystem_pro
+# tikectsystem
 
-`tikectsystem_pro` 是一个基于 Spring Cloud Alibaba 的分布式票务系统示例项目，配套 Vue 3 前端。项目按微服务拆分，覆盖票务平台常见业务：用户注册登录、节目展示、分类检索、实名购票人管理、下单、订单管理、简化支付、订单超时取消、网关转发、缓存、分库分表和消息队列。
+`tikectsystem` 是一个基于 Spring Cloud Alibaba 的分布式票务系统示例项目，配套 Vue 3 前端。项目按微服务拆分，覆盖票务平台常见业务：用户注册登录、节目展示、分类检索、实名购票人管理、下单、订单管理、简化支付、订单超时取消、网关转发、缓存、分库分表和消息队列。
 
 本项目适合用于学习微服务拆分、高并发下单链路、ShardingSphere 分库分表、Redis 缓存、Kafka 异步解耦、Spring Cloud Gateway 路由和 Vue 3 前后端联调。
 
